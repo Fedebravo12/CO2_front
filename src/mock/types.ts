@@ -51,6 +51,8 @@ export interface Programa {
 
 export interface Ensayo {
   id: string
+  lote: string
+  codigoLpg: string
   fecha: string
   programa: string
   operador: string
@@ -122,6 +124,8 @@ export interface PasoProcedimiento {
 export interface FiltrosEnsayo {
   desde: string
   hasta: string
+  lote: string
+  codigoLpg: string
   programa: string
   estado: string
   resultado: string

@@ -4,6 +4,7 @@ import { AppLayout } from './layout/AppLayout'
 import { Administracion } from './pages/Administracion'
 import { Alertas } from './pages/Alertas'
 import { ControlManual } from './pages/ControlManual'
+import { DetalleEnsayo } from './pages/DetalleEnsayo'
 import { Inicio } from './pages/Inicio'
 import { NuevoEnsayo } from './pages/NuevoEnsayo'
 import { Programas } from './pages/Programas'
@@ -17,6 +18,7 @@ export default function App() {
           <Route index element={<Inicio />} />
           <Route path="nuevo-ensayo" element={<NuevoEnsayo />} />
           <Route path="registro" element={<Registro />} />
+          <Route path="registro/:id" element={<DetalleEnsayo />} />
           <Route path="programas" element={<Programas />} />
           <Route path="control-manual" element={<ControlManual />} />
           <Route path="alertas" element={<Alertas />} />

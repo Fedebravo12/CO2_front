@@ -274,6 +274,8 @@ export const ENSAYOS: Ensayo[] = Array.from({ length: 42 }, (_, idx) => {
   const segs = (n * 7) % 60
   return {
     id: `ENS-2025-${String(n).padStart(5, '0')}`,
+    lote: `LOT-${String(Math.floor(n / 5) + 1).padStart(3, '0')}`,
+    codigoLpg: `LPG-${String(n * 123).padStart(5, '0')}`,
     fecha: fechaMock(idx * 5),
     programa: programasNombres[n % programasNombres.length],
     operador: operadores[n % operadores.length],
