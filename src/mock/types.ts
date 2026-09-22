@@ -60,6 +60,19 @@ export interface Ensayo {
   resultado: string
   duracion: string
   notas: string
+  periodoRed?: string
+  iSld?: string
+  tensionReferencia?: string
+  escalaVerticalOsa?: string
+  span?: string
+  sensibilidad?: string
+  resolucion?: string
+  cantidadMarcas?: string
+  longitudLpg?: string
+  lambda?: string
+  l?: string
+  lambdaSecundario?: string
+  lSecundario?: string
 }
 
 export interface Alerta {
