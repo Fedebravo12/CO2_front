@@ -2,7 +2,7 @@ import { Aperture, MoveHorizontal, Snowflake, Sun, Target, Zap } from 'lucide-re
 import { Gauge, LinearBar, fmt } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
 
-export function Inicio() {
+export function Telemetria() {
   const { telemetria: t } = useSystem()
 
   const subs = [

@@ -3,6 +3,8 @@ import { ChevronLeft, Plus, X, Download } from 'lucide-react'
 import { useState } from 'react'
 import { ENSAYOS } from '../mock/data'
 import { api } from '../mock/api'
+import { CurvaChart } from '../components/CurvaChart'
+import curvaCsv from '../mock/L05LPG01.csv?raw'
 
 export function DetalleEnsayo() {
   const { id } = useParams<{ id: string }>()
@@ -162,13 +164,13 @@ export function DetalleEnsayo() {
         </div>
 
         <div className="detail-card">
-          <h3>Datos de Curva</h3>
-          <p style={{ color: 'var(--muted)', marginTop: 16 }}>Aquí irá la imagen/gráfico de la curva</p>
+          <h3>DATOS DE CURVA</h3>
+          <CurvaChart csv={curvaCsv} />
         </div>
 
         <div className="detail-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0 }}>Comentarios</h3>
+            <h3 style={{ margin: 0 }}>COMENTARIOS</h3>
             <button
               className="ghost"
               onClick={() => setMostrarFormulario(!mostrarFormulario)}
@@ -179,8 +181,40 @@ export function DetalleEnsayo() {
             </button>
           </div>
 
+          {comentarios.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+              {comentarios.map((comentario, index) => (
+                <div
+                  key={index}
+                  style={{
+                    padding: 12,
+                    backgroundColor: 'var(--bg-secondary)',
+                    borderRadius: 8,
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    gap: 12,
+                  }}
+                >
+                  <p style={{ margin: 0, fontSize: 14, color: 'var(--text)' }}>{comentario}</p>
+                  <button
+                    className="ghost"
+                    onClick={() => eliminarComentario(index)}
+                    style={{ padding: 4, display: 'flex', alignItems: 'center' }}
+                    title="Eliminar comentario"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: 'var(--muted)', marginTop: 16, marginBottom: 16, textAlign: 'center' }}>No hay comentarios aún</p>
+          )}
+
           {mostrarFormulario && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <textarea
                 value={nuevoComentario}
                 onChange={(e) => setNuevoComentario(e.target.value)}
@@ -222,43 +256,11 @@ export function DetalleEnsayo() {
               </div>
             </div>
           )}
-
-          {comentarios.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {comentarios.map((comentario, index) => (
-                <div
-                  key={index}
-                  style={{
-                    padding: 12,
-                    backgroundColor: 'var(--bg-secondary)',
-                    borderRadius: 8,
-                    border: '1px solid var(--border)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    gap: 12,
-                  }}
-                >
-                  <p style={{ margin: 0, fontSize: 14, color: 'var(--text)' }}>{comentario}</p>
-                  <button
-                    className="ghost"
-                    onClick={() => eliminarComentario(index)}
-                    style={{ padding: 4, display: 'flex', alignItems: 'center' }}
-                    title="Eliminar comentario"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: 'var(--muted)', marginTop: 16, textAlign: 'center' }}>No hay comentarios aún</p>
-          )}
         </div>
 
         <div className="detail-card">
-          <h3>Marcas / Eventos (por agregar)</h3>
-          <p style={{ color: 'var(--muted)', marginTop: 16 }}>Aquí irán las marcas y eventos del ensayo</p>
+          <h3>MARCAS / EVENTOS</h3>
+          <p style={{ color: 'var(--muted)', marginTop: 16 }}></p>
         </div>
       </div>
     </section>

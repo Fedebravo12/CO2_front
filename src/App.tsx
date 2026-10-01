@@ -5,17 +5,17 @@ import { Administracion } from './pages/Administracion'
 import { Alertas } from './pages/Alertas'
 import { ControlManual } from './pages/ControlManual'
 import { DetalleEnsayo } from './pages/DetalleEnsayo'
-import { Inicio } from './pages/Inicio'
 import { NuevoEnsayo } from './pages/NuevoEnsayo'
 import { Programas } from './pages/Programas'
 import { Registro } from './pages/Registro'
+import { Telemetria } from './pages/Telemetria'
 
 export default function App() {
   return (
     <SystemProvider>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<Inicio />} />
+          <Route index element={<Telemetria />} />
           <Route path="nuevo-ensayo" element={<NuevoEnsayo />} />
           <Route path="registro" element={<Registro />} />
           <Route path="registro/:id" element={<DetalleEnsayo />} />

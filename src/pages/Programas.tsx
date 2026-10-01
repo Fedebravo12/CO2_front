@@ -52,11 +52,6 @@ export function Programas() {
               </tbody>
             </table>
           </div>
-          {!canEdit && (
-            <p style={{ color: 'var(--muted)', marginTop: 12 }}>
-              El rol Operador no puede crear ni editar programas (RN011 / RF006).
-            </p>
-          )}
         </section>
 
         <section className="panel">
