@@ -830,12 +830,12 @@ tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--green); }
   position: fixed; inset: 0;
   background: rgba(0,0,0,.55);
   display: grid; place-items: center;
-  z-index: 30;
+  z-index: 1100;
 }
 .modal {
   width: min(460px, calc(100% - 32px));
   background: #151d26;
-  border: 1px solid #5a1d24;
+  border: 2px solid #4aa3ff;
   border-radius: 16px;
   padding: 22px;
   box-shadow: var(--shadow);
@@ -878,6 +878,17 @@ tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--green); }
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.modal-body.cols-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+.modal-body.cols-2 .field.full {
+  grid-column: 1 / -1;
 }
 .detail-row {
   display: flex;

@@ -37,6 +37,38 @@ export const api = {
 
   listarProgramas: () => wait(PROGRAMAS),
   obtenerPrograma: (id: string) => wait(PROGRAMAS.find((p) => p.id === id) as Programa),
+
+  crearPrograma: (datos: Omit<Programa, 'id' | 'actualizado' | 'creadoPor'>, creadoPor: string): Promise<Programa> => {
+    const nuevo: Programa = {
+      ...datos,
+      id: `PRG-${String(PROGRAMAS.length + 1).padStart(3, '0')}`,
+      creadoPor,
+      actualizado: new Date().toISOString().slice(0, 10),
+    }
+    PROGRAMAS.push(nuevo)
+    return wait(nuevo)
+  },
+
+  actualizarPrograma: (
+    id: string,
+    datos: Omit<Programa, 'id' | 'actualizado' | 'creadoPor'>,
+  ): Promise<Programa> => {
+    const idx = PROGRAMAS.findIndex((p) => p.id === id)
+    const actualizado: Programa = {
+      ...PROGRAMAS[idx],
+      ...datos,
+      actualizado: new Date().toISOString().slice(0, 10),
+    }
+    PROGRAMAS[idx] = actualizado
+    return wait(actualizado)
+  },
+
+  eliminarPrograma: (id: string): Promise<Programa[]> => {
+    const idx = PROGRAMAS.findIndex((p) => p.id === id)
+    if (idx !== -1) PROGRAMAS.splice(idx, 1)
+    return wait(PROGRAMAS)
+  },
+
   listarAlertas: () => wait(ALERTAS),
   listarUsuarios: () => wait(USUARIOS),
   listarAuditoria: () => wait(AUDITORIA),

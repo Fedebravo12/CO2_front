@@ -26,7 +26,7 @@ export function ControlManual() {
       <h1 className="page-title">Control manual</h1>
       <p style={{ color: 'var(--muted)', marginTop: -8 }}>
         Operación segura de actuadores para pruebas de secuencia. El láser queda inhibido si la
-        máquina de estados no valida el orden (RF008 / RN001–RN003).
+        máquina de estados no valida el orden.
       </p>
 
       <div className="cards-2" style={{ marginTop: 16 }}>
@@ -79,22 +79,37 @@ export function ControlManual() {
         <section className="panel">
           <h3>DESPLAZADOR LINEAL</h3>
           <div className="control-row">
-            <span>Posición {pos} µm</span>
+            <span>Posición (µm)</span>
             <input
-              type="range"
+              type="number"
               min={0}
               max={10000}
               step={50}
               value={pos}
               disabled={locked}
-              onChange={(e) => setPos(Number(e.target.value))}
+              onChange={(e) => {
+                const v = Number(e.target.value)
+                if (Number.isNaN(v)) return
+                setPos(Math.min(10000, Math.max(0, v)))
+              }}
+              style={{
+                width: 100,
+                background: 'var(--panel-dark, #1a1a1a)',
+                color: '#fff',
+                border: '1px solid var(--muted)',
+                borderRadius: 6,
+                padding: '4px 8px',
+              }}
             />
           </div>
-          <p style={{ color: 'var(--muted)' }}>
-            Recorrido simulado 0–10 000 µm. En hardware real el comando viaja por la API de la
-            Raspberry Pi 5.
-          </p>
-          <button className="ghost" type="button" disabled={locked} onClick={() => setPos(0)}>
+
+          <button
+            className="ghost"
+            type="button"
+            disabled={locked}
+            onClick={() => setPos(0)}
+            style={{ marginTop: 16 }}
+          >
             Ir a posición inicial
           </button>
         </section>
