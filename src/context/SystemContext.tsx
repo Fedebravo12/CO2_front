@@ -6,7 +6,8 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { PASOS, PROGRAMAS, TELEMETRIA_BASE } from '../mock/data'
+import { api } from '../api/client'
+import { PASOS, TELEMETRIA_BASE } from '../mock/data'
 import type {
   EstadoSistema,
   PasoProcedimiento,
@@ -14,14 +15,34 @@ import type {
   Rol,
   Telemetria,
 } from '../mock/types'
+import { useAuth } from './AuthContext'
+
+/**
+ * Estado de la conexión, según `/api/healthz/`. `null` = todavía no se sabe.
+ *
+ * El controlador puede estar caído con la API funcionando (ADR-0002): en ese
+ * caso el front tiene que mostrarlo, y no una telemetría congelada como si
+ * fuera actual.
+ */
+export interface Conexion {
+  api: boolean | null
+  controlador: boolean | null
+}
+
+const INTERVALO_SALUD_MS = 5000
 
 interface SystemValue {
+  /** Rol del usuario de la sesión. Ya no se elige: lo define el backend. */
   rol: Rol
-  setRol: (r: Rol) => void
+  conexion: Conexion
   estado: EstadoSistema
+  /** Simulada hasta que exista el canal WebSocket del controlador (M4). */
   telemetria: Telemetria
-  programa: Programa
+  programas: Programa[]
+  /** `null` si todavía no hay programas cargados en el backend. */
+  programa: Programa | null
   setProgramaId: (id: string) => void
+  recargarProgramas: () => Promise<void>
   pasoActual: number
   pasos: PasoProcedimiento[]
   maxAlcanzado: number
@@ -48,16 +69,47 @@ function clonePasos(): PasoProcedimiento[] {
 }
 
 export function SystemProvider({ children }: { children: ReactNode }) {
-  const [rol, setRol] = useState<Rol>('Operador')
+  const { usuario } = useAuth()
+  const rol: Rol = usuario?.rol ?? 'Operador'
+  const [conexion, setConexion] = useState<Conexion>({ api: null, controlador: null })
   const [estado, setEstado] = useState<EstadoSistema>('LISTO')
   const [telemetria, setTelemetria] = useState<Telemetria>(TELEMETRIA_BASE)
-  const [programaId, setProgramaId] = useState('prg-a')
+  const [programas, setProgramas] = useState<Programa[]>([])
+  const [programaId, setProgramaId] = useState<string | null>(null)
   const [pasos, setPasos] = useState(clonePasos)
   const [pasoActual, setPasoActual] = useState(1)
   const [maxAlcanzado, setMaxAlcanzado] = useState(1)
   const [now, setNow] = useState(() => new Date())
 
-  const programa = PROGRAMAS.find((p) => p.id === programaId) ?? PROGRAMAS[0]
+  const programa = programas.find((p) => p.id === programaId) ?? programas[0] ?? null
+
+  const recargarProgramas = async () => {
+    setProgramas(await api.listarProgramas())
+  }
+
+  useEffect(() => {
+    recargarProgramas().catch(() => setProgramas([]))
+  }, [])
+
+  // El healthcheck es público: responde aunque la sesión haya vencido, y
+  // devuelve 503 con el detalle cuando falta MySQL o Redis.
+  useEffect(() => {
+    const consultar = async () => {
+      try {
+        const r = await fetch('/api/healthz/')
+        const cuerpo = await r.json()
+        setConexion({ api: r.ok, controlador: Boolean(cuerpo?.dependencias?.controlador?.ok) })
+      } catch {
+        setConexion({ api: false, controlador: false })
+      }
+    }
+    consultar()
+    const t = setInterval(consultar, INTERVALO_SALUD_MS)
+    return () => clearInterval(t)
+  }, [])
+
+  const potenciaObjetivo = programa?.potenciaObjetivoMw ?? 0
+  const duracionPulso = programa?.duracionPulsoMs ?? TELEMETRIA_BASE.tiempoPulsoMs
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
@@ -75,19 +127,19 @@ export function SystemProvider({ children }: { children: ReactNode }) {
           tempRefrigeracion: jitter(18.7, 0.2),
           caudal: jitter(2.1, 0.08, 2),
           potenciaLaserW: running ? jitter(9.6, 0.4, 2) : 0,
-          potenciaMw: running ? jitter(programa.potenciaObjetivoMw, 0.15, 2) : 0,
+          potenciaMw: running ? jitter(potenciaObjetivo, 0.15, 2) : 0,
           sensorSombraMw: prep || running ? jitter(0.12, 0.04, 2) : 0,
           voltajeHv: running ? jitter(1840, 20, 0) : 0,
           frecuenciaHz: running ? jitter(2.5, 0.1, 2) : 0,
           periodoS: running ? jitter(0.4, 0.02, 2) : 0,
           posicionUm: running ? Math.min(10000, prev.posicionUm + 8) : prep ? prev.posicionUm : 0,
-          tiempoPulsoMs: programa.duracionPulsoMs,
+          tiempoPulsoMs: duracionPulso,
           canalesActivos: estado === 'EMERGENCIA' ? 0 : 10,
         }
       })
     }, 1000)
     return () => clearInterval(t)
-  }, [estado, programa.duracionPulsoMs, programa.potenciaObjetivoMw])
+  }, [estado, duracionPulso, potenciaObjetivo])
 
   const toggleValidacion = (pasoId: number, validId: string) => {
     if (estado === 'EMERGENCIA') return
@@ -158,7 +210,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     setPasoActual(1)
     setMaxAlcanzado(1)
     setEstado('PREPARACIÓN')
-    setTelemetria({ ...TELEMETRIA_BASE, tiempoPulsoMs: programa.duracionPulsoMs })
+    setTelemetria({ ...TELEMETRIA_BASE, tiempoPulsoMs: duracionPulso })
   }
 
   const emergencia = () => {
@@ -184,11 +236,13 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       rol,
-      setRol,
+      conexion,
       estado,
       telemetria,
+      programas,
       programa,
       setProgramaId,
+      recargarProgramas,
       pasoActual,
       pasos,
       maxAlcanzado,
@@ -202,7 +256,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       rearmar,
       now,
     }),
-    [rol, estado, telemetria, programa, pasoActual, pasos, maxAlcanzado, now],
+    [rol, conexion, estado, telemetria, programas, programa, pasoActual, pasos, maxAlcanzado, now],
   )
 
   return <SystemContext.Provider value={value}>{children}</SystemContext.Provider>

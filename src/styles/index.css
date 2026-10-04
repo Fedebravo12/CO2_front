@@ -1005,3 +1005,41 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .topbar { grid-template-columns: 1fr; }
   .gauge-grid, .subsys-grid, .cards-3, .cards-2 { grid-template-columns: 1fr; }
 }
+
+/* ── Login ─────────────────────────────────────────────────────────────── */
+.login-page {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: radial-gradient(circle at 50% 0%, var(--surface-2), var(--bg) 60%);
+}
+.login-card {
+  width: min(380px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.login-card .primary { justify-content: center; margin-top: 6px; }
+.login-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--red-dim);
+  color: var(--red);
+  font-size: 14px;
+}
+.login-demo { margin: 6px 0 0; color: var(--muted); font-size: 13px; text-align: center; line-height: 1.5; }
+.login-demo b { color: var(--text); font-family: var(--mono); font-weight: 500; }
+.splash { min-height: 100%; display: grid; place-items: center; color: var(--muted); }
+
+/* ── Estado de la conexion con el backend ──────────────────────────────── */
+.conexion { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.conexion span { display: flex; align-items: center; gap: 6px; }
+.conexion i { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+.conexion i.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.conexion i.mal { background: var(--red); box-shadow: 0 0 8px var(--red); }

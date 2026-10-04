@@ -1,15 +1,31 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Plus, X, Download } from 'lucide-react'
-import { useState } from 'react'
-import { ENSAYOS } from '../mock/data'
-import { api } from '../mock/api'
+import { useEffect, useState } from 'react'
+import { api } from '../api/client'
 import { CurvaChart } from '../components/CurvaChart'
-import curvaCsv from '../mock/L05LPG01.csv?raw'
+import type { Ensayo } from '../mock/types'
 
 export function DetalleEnsayo() {
-  const { id } = useParams<{ id: string }>()
+  const { id = '' } = useParams<{ id: string }>()
   const nav = useNavigate()
-  const ensayo = ENSAYOS.find((e) => e.id === id)
+  const [ensayo, setEnsayo] = useState<Ensayo | null>(null)
+  const [curvaCsv, setCurvaCsv] = useState<string | null>(null)
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setCargando(true)
+    // La curva va aparte: si la red no fue caracterizada todavía, el ensayo se
+    // muestra igual y el gráfico avisa que no hay datos.
+    Promise.all([api.obtenerEnsayo(id), api.obtenerCurvaCsv(id)])
+      .then(([e, c]) => {
+        setEnsayo(e)
+        setCurvaCsv(c)
+        setError(null)
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setCargando(false))
+  }, [id])
   const [comentarios, setComentarios] = useState<string[]>([])
   const [nuevoComentario, setNuevoComentario] = useState('')
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
@@ -37,11 +53,15 @@ export function DetalleEnsayo() {
     }
   }
 
+  if (cargando) {
+    return <section className="panel"><p style={{ color: 'var(--muted)' }}>Cargando ensayo…</p></section>
+  }
+
   if (!ensayo) {
     return (
       <section className="panel">
         <div className="panel-head">
-          <h3>Ensayo no encontrado</h3>
+          <h3>{error ? `No se pudo cargar el ensayo: ${error}` : 'Ensayo no encontrado'}</h3>
         </div>
         <button className="primary" onClick={() => nav('/registro')}>
           Volver al historial
@@ -165,7 +185,7 @@ export function DetalleEnsayo() {
 
         <div className="detail-card">
           <h3>DATOS DE CURVA</h3>
-          <CurvaChart csv={curvaCsv} />
+          <CurvaChart csv={curvaCsv ?? ''} />
         </div>
 
         <div className="detail-card">

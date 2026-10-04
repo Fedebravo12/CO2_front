@@ -9,6 +9,7 @@ import {
   ClipboardList,
   FolderKanban,
   Home,
+  LogOut,
   Play,
   Settings,
   SlidersHorizontal,
@@ -16,8 +17,9 @@ import {
   User,
 } from 'lucide-react'
 import { VERSION } from '../mock/data'
-import type { EstadoSistema, Rol } from '../mock/types'
-import { useSystem } from '../context/SystemContext'
+import type { EstadoSistema } from '../mock/types'
+import { useAuth } from '../context/AuthContext'
+import { useSystem, type Conexion } from '../context/SystemContext'
 
 const NAV = [
   { to: '/', label: 'Telemetría', icon: Home, end: true },
@@ -42,10 +44,30 @@ function StatusIcon({ estado }: { estado: EstadoSistema }) {
   )
 }
 
+function Indicador({ etiqueta, ok }: { etiqueta: string; ok: boolean | null }) {
+  const cls = ok == null ? '' : ok ? 'ok' : 'mal'
+  const texto = ok == null ? 'verificando…' : ok ? 'conectado' : 'sin conexión'
+  return (
+    <span title={`${etiqueta}: ${texto}`}>
+      <i className={cls} />
+      {etiqueta}: {texto}
+    </span>
+  )
+}
+
+function EstadoConexion({ conexion }: { conexion: Conexion }) {
+  return (
+    <div className="conexion">
+      <Indicador etiqueta="Backend" ok={conexion.api} />
+      <Indicador etiqueta="Controlador" ok={conexion.controlador} />
+    </div>
+  )
+}
+
 export function AppLayout() {
-  const { rol, setRol, estado, emergencia, rearmar, now } = useSystem()
+  const { rol, conexion, estado, emergencia, rearmar, now } = useSystem()
+  const { usuario, cerrarSesion } = useAuth()
   const [openAdmin, setOpenAdmin] = useState(false)
-  const [openRole, setOpenRole] = useState(false)
   const [confirmEstop, setConfirmEstop] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
   const loc = useLocation()
@@ -106,34 +128,19 @@ export function AppLayout() {
         </nav>
 
         <div className="sidebar-foot">
-          <div className="user-card role-menu">
+          <div className="user-card">
             <div className="user-meta">
               <User size={16} />
               <div>
-                <strong>{rol}</strong>
-                <span>Cambiar rol (mock)</span>
+                <strong>{usuario?.nombre}</strong>
+                <span>{rol}</span>
               </div>
             </div>
-            <button type="button" onClick={() => setOpenRole((v) => !v)} aria-label="Cambiar rol">
-              <ChevronDown size={16} />
+            <button type="button" onClick={cerrarSesion} aria-label="Cerrar sesión" title="Cerrar sesión">
+              <LogOut size={16} />
             </button>
-            {openRole && (
-              <div className="role-pop">
-                {(['Operador', 'Investigador', 'Administrador'] as Rol[]).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => {
-                      setRol(r)
-                      setOpenRole(false)
-                    }}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
+          {!sidebarCompact && <EstadoConexion conexion={conexion} />}
           <div className="clock">
             <span>
               {fecha} · {hora}

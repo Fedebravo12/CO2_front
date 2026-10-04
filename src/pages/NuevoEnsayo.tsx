@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Check, Lock } from 'lucide-react'
-import { FASES, PROGRAMAS } from '../mock/data'
+import { FASES } from '../mock/data'
 import { fmt, LinearBar } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
 
@@ -16,6 +16,7 @@ export function NuevoEnsayo() {
     toggleHardware,
     confirmarPaso,
     programa,
+    programas,
     setProgramaId,
     telemetria: t,
   } = useSystem()
@@ -127,7 +128,8 @@ export function NuevoEnsayo() {
           </button>
           {doneMsg && (
             <p style={{ color: 'var(--green)', marginTop: 10 }}>
-              Ensayo persistido (simulado). El historial se actualizará cuando exista la API.
+              Procedimiento completado (simulado). El registro del ensayo lo va a crear el
+              controlador cuando ejecute el programa (M3).
             </p>
           )}
         </section>
@@ -140,48 +142,57 @@ export function NuevoEnsayo() {
                 Cambiar programa
               </button>
             </div>
-            <p style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>{programa.nombre}</p>
-            {pickPrograma && (
-              <div className="kv" style={{ marginBottom: 12 }}>
-                {PROGRAMAS.map((p) => (
-                  <button
-                    key={p.id}
-                    className="ghost"
-                    type="button"
-                    onClick={() => {
-                      setProgramaId(p.id)
-                      setPickPrograma(false)
-                    }}
-                  >
-                    {p.nombre}
-                  </button>
-                ))}
-              </div>
+            {!programa ? (
+              <p style={{ color: 'var(--orange)', margin: 0 }}>
+                No hay programas cargados. Un investigador o administrador puede crearlos desde
+                «Programas de grabado».
+              </p>
+            ) : (
+              <>
+                <p style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>{programa.nombre}</p>
+                {pickPrograma && (
+                  <div className="kv" style={{ marginBottom: 12 }}>
+                    {programas.map((p) => (
+                      <button
+                        key={p.id}
+                        className="ghost"
+                        type="button"
+                        onClick={() => {
+                          setProgramaId(p.id)
+                          setPickPrograma(false)
+                        }}
+                      >
+                        {p.nombre}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="kv">
+                  <div>
+                    <span>Potencia objetivo</span>
+                    <b>{fmt(programa.potenciaObjetivoMw)} mW</b>
+                  </div>
+                  <div>
+                    <span>Duración de pulso</span>
+                    <b>{programa.duracionPulsoMs} ms</b>
+                  </div>
+                  <div>
+                    <span>Desplazamiento</span>
+                    <b>{programa.desplazamientoUm} µm</b>
+                  </div>
+                  <div>
+                    <span>Criterio de fin</span>
+                    <b>
+                      {programa.criterioFin} · {fmt(programa.distanciaMm)} mm
+                    </b>
+                  </div>
+                  <div>
+                    <span>Pulsos estimados</span>
+                    <b>{programa.pulsosEstimados} pulsos</b>
+                  </div>
+                </div>
+              </>
             )}
-            <div className="kv">
-              <div>
-                <span>Potencia objetivo</span>
-                <b>{fmt(programa.potenciaObjetivoMw)} mW</b>
-              </div>
-              <div>
-                <span>Duración de pulso</span>
-                <b>{programa.duracionPulsoMs} ms</b>
-              </div>
-              <div>
-                <span>Desplazamiento</span>
-                <b>{programa.desplazamientoUm} µm</b>
-              </div>
-              <div>
-                <span>Criterio de fin</span>
-                <b>
-                  {programa.criterioFin} {fmt(programa.distanciaMm)} mm
-                </b>
-              </div>
-              <div>
-                <span>Pulsos estimados</span>
-                <b>{programa.pulsosEstimados} pulsos</b>
-              </div>
-            </div>
           </div>
 
           <div className="col-card">

@@ -1,12 +1,12 @@
-import type {
-  Alerta,
-  Auditoria,
-  Ensayo,
-  PasoProcedimiento,
-  Programa,
-  Umbral,
-  Usuario,
-} from './types'
+// Datos que siguen simulados a propósito. Los ensayos, programas, alertas,
+// usuarios, auditoría y umbrales ya vienen del backend (src/api/client.ts).
+//
+// - PASOS: el procedimiento guiado de «Nuevo ensayo». Pasará a estar dirigido
+//   por la máquina de estados del controlador (M3).
+// - TELEMETRIA_BASE: valores de arranque de la telemetría simulada, hasta que
+//   exista el canal WebSocket del controlador (M4).
+
+import type { PasoProcedimiento } from './types'
 
 export const VERSION = '1.0.0'
 
@@ -208,165 +208,6 @@ export const PASOS: PasoProcedimiento[] = [
       { id: 'v3', label: 'Ensayo registrado en base de datos', verificada: false },
     ],
   },
-]
-
-export const PROGRAMAS: Programa[] = [
-  {
-    id: 'prg-a',
-    nombre: 'Programa A',
-    potenciaObjetivoMw: 10,
-    duracionPulsoMs: 400,
-    desplazamientoUm: 550,
-    criterioFin: 'Distancia total',
-    distanciaMm: 10,
-    pulsosEstimados: 182,
-    creadoPor: 'Administrador',
-    actualizado: '02/05/2025 16:10',
-  },
-  {
-    id: 'prg-b',
-    nombre: 'Programa B',
-    potenciaObjetivoMw: 8,
-    duracionPulsoMs: 350,
-    desplazamientoUm: 400,
-    criterioFin: 'Distancia total',
-    distanciaMm: 8,
-    pulsosEstimados: 200,
-    creadoPor: 'Administrador',
-    actualizado: '18/04/2025 11:22',
-  },
-  {
-    id: 'prg-c',
-    nombre: 'Programa C',
-    potenciaObjetivoMw: 12,
-    duracionPulsoMs: 500,
-    desplazamientoUm: 600,
-    criterioFin: 'Cantidad de pulsos',
-    distanciaMm: 15,
-    pulsosEstimados: 250,
-    creadoPor: 'Investigador',
-    actualizado: '28/04/2025 09:05',
-  },
-]
-
-const operadores = ['Operador', 'M. Alvarez', 'L. Pérez', 'Investigador']
-const programasNombres = PROGRAMAS.map((p) => p.nombre)
-const errores = ['Fallo lazo láser', 'Corte de energía', 'Sobretemperatura', 'Pérdida de caudal']
-
-function pad(n: number) {
-  return String(n).padStart(2, '0')
-}
-
-function fechaMock(offsetHoras: number) {
-  const d = new Date(2025, 4, 14, 9, 42, 18)
-  d.setHours(d.getHours() - offsetHoras)
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
-
-export const ENSAYOS: Ensayo[] = Array.from({ length: 42 }, (_, idx) => {
-  const n = 42 - idx
-  const r = n % 7
-  const estado: Ensayo['estado'] =
-    r === 0 ? 'Error' : r === 3 ? 'Interrumpido' : 'Completado'
-  const resultado =
-    estado === 'Completado' ? 'OK' : estado === 'Interrumpido' ? '—' : errores[n % errores.length]
-  const mins = 8 + ((n * 3) % 22)
-  const segs = (n * 7) % 60
-  return {
-    id: `ENS-2025-${String(n).padStart(5, '0')}`,
-    lote: `LOT-${String(Math.floor(n / 5) + 1).padStart(3, '0')}`,
-    codigoLpg: `LPG-${String(n * 123).padStart(5, '0')}`,
-    fecha: fechaMock(idx * 5),
-    programa: programasNombres[n % programasNombres.length],
-    operador: operadores[n % operadores.length],
-    estado,
-    resultado,
-    duracion: `00:${pad(mins)}:${pad(segs)}`,
-    notas: estado === 'Error' ? resultado : estado === 'Interrumpido' ? 'Parada de emergencia' : 'Ensayo nominal',
-    periodoRed: `${50 + (n % 10)} Hz`,
-    iSld: `${100 + (n * 2) % 50} mA`,
-    tensionReferencia: `${10 + (n % 5)} V`,
-    escalaVerticalOsa: `${0.1 * (1 + (n % 10))} dB/div`,
-    span: `${50 + (n % 100)} nm`,
-    sensibilidad: `${-45 + (n % 10)} dBm`,
-    resolucion: `${0.01 * (1 + (n % 20))} nm`,
-    cantidadMarcas: `${3 + (n % 8)}`,
-    longitudLpg: `${10 + (n % 20)}.${(n * 3) % 10} mm`,
-    lambda: `${1550 + (n % 10)}.${(n * 7) % 100} nm`,
-    l: `${5 + (n % 15)} mm`,
-    lambdaSecundario: `${1550 + ((n * 2) % 10)}.${(n * 5) % 100} nm`,
-    lSecundario: `${3 + (n % 12)} mm`,
-  }
-})
-
-export const ALERTAS: Alerta[] = [
-  {
-    id: 'al-01',
-    fecha: '14/05/2025 09:18:02',
-    severidad: 'warning',
-    origen: 'Sensor de sombra',
-    mensaje: 'Fibra no alineada. Lectura PD 0.00 mW.',
-    reconocida: false,
-  },
-  {
-    id: 'al-02',
-    fecha: '13/05/2025 16:44:11',
-    severidad: 'critical',
-    origen: 'Lazo de control',
-    mensaje: 'Potencia fuera de umbral. Se activó parada de emergencia (t < 500 ms).',
-    reconocida: true,
-  },
-  {
-    id: 'al-03',
-    fecha: '13/05/2025 11:02:40',
-    severidad: 'warning',
-    origen: 'Refrigeración',
-    mensaje: 'Caudal transitoriamente por debajo de 1.8 L/min.',
-    reconocida: true,
-  },
-  {
-    id: 'al-04',
-    fecha: '12/05/2025 18:21:09',
-    severidad: 'info',
-    origen: 'Sistema',
-    mensaje: 'Ensayo ENS-2025-00038 interrumpido por corte de energía. Último checkpoint persistido.',
-    reconocida: true,
-  },
-  {
-    id: 'al-05',
-    fecha: '10/05/2025 10:05:33',
-    severidad: 'critical',
-    origen: 'Alta tensión',
-    mensaje: 'Intento de activar láser fuera de secuencia. Comando bloqueado por máquina de estados.',
-    reconocida: true,
-  },
-]
-
-export const USUARIOS: Usuario[] = [
-  { id: 'u-1', nombre: 'Operador de turno', usuario: 'operador', rol: 'Operador', activo: true, ultimoAcceso: '14/05/2025 10:24' },
-  { id: 'u-2', nombre: 'M. Alvarez', usuario: 'malvarez', rol: 'Investigador', activo: true, ultimoAcceso: '13/05/2025 17:02' },
-  { id: 'u-3', nombre: 'L. Pérez', usuario: 'lperez', rol: 'Operador', activo: true, ultimoAcceso: '12/05/2025 09:40' },
-  { id: 'u-4', nombre: 'Admin CIOp', usuario: 'admin', rol: 'Administrador', activo: true, ultimoAcceso: '14/05/2025 08:15' },
-  { id: 'u-5', nombre: 'Becario inactivo', usuario: 'becario', rol: 'Operador', activo: false, ultimoAcceso: '02/03/2025 14:11' },
-]
-
-export const AUDITORIA: Auditoria[] = [
-  { id: 'au-1', fecha: '14/05/2025 10:24:35', usuario: 'operador', accion: 'LOGIN', detalle: 'Inicio de sesión correcto' },
-  { id: 'au-2', fecha: '14/05/2025 09:42:18', usuario: 'operador', accion: 'ENSAYO_FIN', detalle: 'ENS-2025-00042 completado · Programa A' },
-  { id: 'au-3', fecha: '13/05/2025 16:44:11', usuario: 'sistema', accion: 'E-STOP', detalle: 'Parada de emergencia automática · lazo láser' },
-  { id: 'au-4', fecha: '12/05/2025 15:10:00', usuario: 'admin', accion: 'PROGRAMA_ALTA', detalle: 'Se actualizó Programa C' },
-  { id: 'au-5', fecha: '11/05/2025 09:01:22', usuario: 'admin', accion: 'UMBRAL', detalle: 'Umbral potencia láser 0–50 W' },
-  { id: 'au-6', fecha: '10/05/2025 10:05:33', usuario: 'sistema', accion: 'BLOQUEO', detalle: 'Comando láser fuera de secuencia rechazado' },
-]
-
-export const UMBRALES: Umbral[] = [
-  { id: 'um-1', parametro: 'Potencia láser', min: 0, max: 50, unidad: 'W', critico: true },
-  { id: 'um-2', parametro: 'Temp. láser', min: 10, max: 80, unidad: '°C', critico: true },
-  { id: 'um-3', parametro: 'Temp. refrigeración', min: 10, max: 40, unidad: '°C', critico: true },
-  { id: 'um-4', parametro: 'Caudal refrigerante', min: 1.8, max: 5, unidad: 'L/min', critico: true },
-  { id: 'um-5', parametro: 'Voltaje alta tensión', min: 0, max: 3000, unidad: 'V', critico: true },
-  { id: 'um-6', parametro: 'Sensor de sombra', min: 0, max: 10, unidad: 'mW', critico: false },
-  { id: 'um-7', parametro: 'Tiempo de pulso', min: 50, max: 1000, unidad: 'ms', critico: false },
 ]
 
 export const TELEMETRIA_BASE = {
