@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown, ChevronUp, Download, Filter, Play, RotateCcw, Search } from 'lucide-react'
-import { api } from '../mock/api'
-import { ENSAYOS, PROGRAMAS } from '../mock/data'
-import type { Ensayo, FiltrosEnsayo } from '../mock/types'
+import { api } from '../api/client'
+import { useSystem } from '../context/SystemContext'
+import type { Ensayo, FiltrosEnsayo, Usuario } from '../mock/types'
 
 const EMPTY: FiltrosEnsayo = {
   desde: '',
@@ -19,6 +19,10 @@ const EMPTY: FiltrosEnsayo = {
 
 export function Registro() {
   const nav = useNavigate()
+  const { programas } = useSystem()
+  const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [cargando, setCargando] = useState(true)
   const [filtros, setFiltros] = useState<FiltrosEnsayo>(EMPTY)
   const [rows, setRows] = useState<Ensayo[]>([])
   const [sel, setSel] = useState<string | null>(null)
@@ -27,15 +31,34 @@ export function Registro() {
   const [filtrosExpanded, setFiltrosExpanded] = useState(false)
 
   useEffect(() => {
-    api.listarEnsayos(filtros).then((data) => {
-      setRows(data)
-      setPage(1)
-    })
+    api.listarUsuarios().then(setUsuarios).catch(() => setUsuarios([]))
+  }, [])
+
+  useEffect(() => {
+    let cancelado = false
+    setCargando(true)
+    api
+      .listarEnsayos(filtros)
+      .then((data) => {
+        if (cancelado) return
+        setRows(data)
+        setPage(1)
+        setError(null)
+      })
+      .catch((e: Error) => {
+        if (!cancelado) setError(e.message)
+      })
+      .finally(() => {
+        if (!cancelado) setCargando(false)
+      })
+    // Una respuesta de filtros anteriores no debe reemplazar la búsqueda actual.
+    return () => {
+      cancelado = true
+    }
   }, [filtros])
 
   const pages = Math.max(1, Math.ceil(rows.length / perPage))
   const slice = useMemo(() => rows.slice((page - 1) * perPage, page * perPage), [rows, page, perPage])
-  const operadores = ['Todos', ...new Set(ENSAYOS.map((r) => r.operador))]
 
   const set = (k: keyof FiltrosEnsayo, v: string) => setFiltros((f) => ({ ...f, [k]: v }))
   const ensayoSeleccionado = rows.find((r) => r.id === sel)
@@ -69,11 +92,11 @@ export function Registro() {
       <div className={`filters ${filtrosExpanded ? '' : 'collapsed'}`}>
         <div className="field">
           <label>Lote</label>
-          <input type="text" value={filtros.lote} onChange={(e) => set('lote', e.target.value)} placeholder="Ej: LOT-2024-001" />
+          <input type="text" value={filtros.lote} onChange={(e) => set('lote', e.target.value)} placeholder="Ej: LOT-005" />
         </div>
         <div className="field">
           <label>Código LPG</label>
-          <input type="text" value={filtros.codigoLpg} onChange={(e) => set('codigoLpg', e.target.value)} placeholder="Ej: LPG-12345" />
+          <input type="text" value={filtros.codigoLpg} onChange={(e) => set('codigoLpg', e.target.value)} placeholder="Ej: L005-R001" />
         </div>
         <div className="field">
           <label>Fecha desde</label>
@@ -87,7 +110,7 @@ export function Registro() {
           <label>Programa</label>
           <select value={filtros.programa} onChange={(e) => set('programa', e.target.value)}>
             <option>Todos</option>
-            {PROGRAMAS.map((p) => (
+            {programas.map((p) => (
               <option key={p.id}>{p.nombre}</option>
             ))}
           </select>
@@ -97,6 +120,7 @@ export function Registro() {
           <select value={filtros.estado} onChange={(e) => set('estado', e.target.value)}>
             <option>Todos</option>
             <option>Completado</option>
+            <option>En curso</option>
             <option>Interrumpido</option>
             <option>Error</option>
           </select>
@@ -106,15 +130,19 @@ export function Registro() {
           <select value={filtros.resultado} onChange={(e) => set('resultado', e.target.value)}>
             <option>Todos</option>
             <option>OK</option>
+            <option>Inviable</option>
+            <option>Rota</option>
             <option>—</option>
-            <option>Fallo lazo láser</option>
           </select>
         </div>
         <div className="field">
           <label>Operador</label>
           <select value={filtros.operador} onChange={(e) => set('operador', e.target.value)}>
-            {operadores.map((o) => (
-              <option key={o}>{o}</option>
+            <option value="Todos">Todos</option>
+            {usuarios.map((u) => (
+              <option key={u.id} value={u.usuario}>
+                {u.nombre}
+              </option>
             ))}
           </select>
         </div>
@@ -139,9 +167,11 @@ export function Registro() {
           <Play size={16} /> Nuevo ensayo
         </button>
         <div className="results">
-          Resultados: <b>{rows.length} ensayos encontrados</b>
+          {cargando ? 'Cargando…' : <>Resultados: <b>{rows.length} ensayos encontrados</b></>}
         </div>
       </div>
+
+      {error && <p className="login-error" style={{ margin: '0 0 12px' }}>No se pudo cargar el historial: {error}</p>}
 
       <div className="table-wrap">
         <table>

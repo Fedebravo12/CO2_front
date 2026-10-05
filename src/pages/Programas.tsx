@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { PROGRAMAS } from '../mock/data'
-import { api } from '../mock/api'
+import { api, CRITERIOS_FIN } from '../api/client'
 import type { Programa } from '../mock/types'
 import { useSystem } from '../context/SystemContext'
 import { fmt } from '../components/Meters'
@@ -11,48 +10,69 @@ const FORM_INICIAL = {
   potenciaObjetivoMw: '',
   duracionPulsoMs: '',
   desplazamientoUm: '',
-  criterioFin: '',
+  criterioFin: CRITERIOS_FIN[0].etiqueta,
   distanciaMm: '',
   pulsosEstimados: '',
 }
 
+/**
+ * Distancia y pulsos no son independientes: longitud = marcas × período.
+ * Según el criterio de fin se ingresa uno y el otro se deriva, igual que hace
+ * el backend. Así el formulario no deja cargar un programa inconsistente.
+ */
+function derivar(form: typeof FORM_INICIAL) {
+  const despl = Number(form.desplazamientoUm)
+  if (!despl) return form
+  if (form.criterioFin === 'Distancia total' && form.distanciaMm) {
+    return { ...form, pulsosEstimados: String(Math.floor((Number(form.distanciaMm) * 1000) / despl)) }
+  }
+  if (form.criterioFin === 'Cantidad de pulsos' && form.pulsosEstimados) {
+    return { ...form, distanciaMm: String((Number(form.pulsosEstimados) * despl) / 1000) }
+  }
+  return form
+}
+
 export function Programas() {
-  const { rol, setProgramaId } = useSystem()
-  const [rows, setRows] = useState<Programa[]>(PROGRAMAS)
-  const [sel, setSel] = useState<Programa>(PROGRAMAS[0])
+  const { rol, programas: rows, recargarProgramas } = useSystem()
+  const [selId, setSelId] = useState<string | null>(null)
+  const sel = rows.find((p) => p.id === selId) ?? rows[0] ?? null
   const canEdit = rol === 'Administrador' || rol === 'Investigador'
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(FORM_INICIAL)
   const [confirmDelete, setConfirmDelete] = useState<Programa | null>(null)
-
-  useEffect(() => {
-    api.listarProgramas().then(setRows)
-  }, [])
+  const [error, setError] = useState<string | null>(null)
+  const [guardando, setGuardando] = useState(false)
 
   const setField = (campo: keyof typeof FORM_INICIAL, valor: string) =>
-    setForm((f) => ({ ...f, [campo]: valor }))
+    setForm((f) => derivar({ ...f, [campo]: valor }))
+
+  const distanciaDerivada = form.criterioFin === 'Cantidad de pulsos'
+  const pulsosDerivados = form.criterioFin === 'Distancia total'
 
   const cerrarModal = () => {
     setShowModal(false)
     setEditId(null)
     setForm(FORM_INICIAL)
+    setError(null)
   }
 
   const abrirNuevo = () => {
     setEditId(null)
     setForm(FORM_INICIAL)
+    setError(null)
     setShowModal(true)
   }
 
   const abrirEdicion = (p: Programa) => {
     setEditId(p.id)
+    setError(null)
     setForm({
       nombre: p.nombre,
       potenciaObjetivoMw: String(p.potenciaObjetivoMw),
       duracionPulsoMs: String(p.duracionPulsoMs),
       desplazamientoUm: String(p.desplazamientoUm),
-      criterioFin: p.criterioFin,
+      criterioFin: CRITERIOS_FIN.some((c) => c.etiqueta === p.criterioFin) ? p.criterioFin : 'Manual',
       distanciaMm: String(p.distanciaMm),
       pulsosEstimados: String(p.pulsosEstimados),
     })
@@ -66,34 +86,41 @@ export function Programas() {
       potenciaObjetivoMw: Number(form.potenciaObjetivoMw) || 0,
       duracionPulsoMs: Number(form.duracionPulsoMs) || 0,
       desplazamientoUm: Number(form.desplazamientoUm) || 0,
-      criterioFin: form.criterioFin.trim() || 'Manual',
+      criterioFin: form.criterioFin,
       distanciaMm: Number(form.distanciaMm) || 0,
       pulsosEstimados: Number(form.pulsosEstimados) || 0,
     }
-
-    if (editId) {
-      const actualizado = await api.actualizarPrograma(editId, datos)
-      setRows((r) => r.map((p) => (p.id === editId ? actualizado : p)))
-      setSel(actualizado)
-    } else {
-      const nuevo = await api.crearPrograma(datos, rol)
-      setRows((r) => [...r, nuevo])
-      setSel(nuevo)
+    setGuardando(true)
+    try {
+      const guardado = editId
+        ? await api.actualizarPrograma(editId, datos)
+        : await api.crearPrograma(datos)
+      await recargarProgramas()
+      setSelId(guardado.id)
+      cerrarModal()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally {
+      setGuardando(false)
     }
-    cerrarModal()
   }
 
   const eliminarPrograma = async () => {
     if (!confirmDelete) return
-    const restantes = await api.eliminarPrograma(confirmDelete.id)
-    setRows(restantes)
-    if (sel.id === confirmDelete.id) setSel(restantes[0])
+    try {
+      await api.eliminarPrograma(confirmDelete.id)
+      await recargarProgramas()
+      if (selId === confirmDelete.id) setSelId(null)
+    } catch (e) {
+      setError((e as Error).message)
+    }
     setConfirmDelete(null)
   }
 
   return (
     <>
       <h1 className="page-title">Programas de grabado</h1>
+      {error && !showModal && <p className="login-error" style={{ marginBottom: 12 }}>{error}</p>}
       <div className="cards-2">
         <section className="panel">
           <div className="panel-head">
@@ -117,7 +144,7 @@ export function Programas() {
               </thead>
               <tbody>
                 {rows.map((p) => (
-                  <tr key={p.id} className={sel.id === p.id ? 'sel' : ''} onClick={() => setSel(p)}>
+                  <tr key={p.id} className={sel?.id === p.id ? 'sel' : ''} onClick={() => setSelId(p.id)}>
                     <td>{p.nombre}</td>
                     <td className="mono">{fmt(p.potenciaObjetivoMw)} mW</td>
                     <td className="mono">{p.duracionPulsoMs} ms</td>
@@ -125,62 +152,75 @@ export function Programas() {
                     <td className="mono">{p.pulsosEstimados}</td>
                   </tr>
                 ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ color: 'var(--muted)' }}>
+                      No hay programas cargados.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </section>
 
-        <section className="panel">
-          <div className="panel-head">
-            <h3>DETALLE · {sel.nombre}</h3>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {canEdit && (
-                <>
-                  <button className="ghost" type="button" onClick={() => abrirEdicion(sel)}>
-                    <Pencil size={16} /> Editar
-                  </button>
-                  <button className="ghost" type="button" onClick={() => setConfirmDelete(sel)}>
-                    <Trash2 size={16} /> Eliminar
-                  </button>
-                </>
-              )}
+        {sel && (
+          <section className="panel">
+            <div className="panel-head">
+              <h3>DETALLE · {sel.nombre}</h3>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {canEdit && (
+                  <>
+                    <button className="ghost" type="button" onClick={() => abrirEdicion(sel)}>
+                      <Pencil size={16} /> Editar
+                    </button>
+                    <button className="ghost" type="button" onClick={() => setConfirmDelete(sel)}>
+                      <Trash2 size={16} /> Eliminar
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="kv">
-            <div>
-              <span>Potencia objetivo</span>
-              <b>{fmt(sel.potenciaObjetivoMw)} mW</b>
+            <div className="kv">
+              <div>
+                <span>Código</span>
+                <b className="mono">{sel.id}</b>
+              </div>
+              <div>
+                <span>Potencia objetivo</span>
+                <b>{fmt(sel.potenciaObjetivoMw)} mW</b>
+              </div>
+              <div>
+                <span>Duración de pulso</span>
+                <b>{sel.duracionPulsoMs} ms</b>
+              </div>
+              <div>
+                <span>Desplazamiento por pulso</span>
+                <b>{sel.desplazamientoUm} µm</b>
+              </div>
+              <div>
+                <span>Criterio de finalización</span>
+                <b>{sel.criterioFin}</b>
+              </div>
+              <div>
+                <span>Distancia total</span>
+                <b>{fmt(sel.distanciaMm)} mm</b>
+              </div>
+              <div>
+                <span>Pulsos estimados</span>
+                <b>{sel.pulsosEstimados}</b>
+              </div>
+              <div>
+                <span>Última actualización</span>
+                <b>{sel.actualizado}</b>
+              </div>
+              <div>
+                <span>Creado por</span>
+                <b>{sel.creadoPor}</b>
+              </div>
             </div>
-            <div>
-              <span>Duración de pulso</span>
-              <b>{sel.duracionPulsoMs} ms</b>
-            </div>
-            <div>
-              <span>Desplazamiento por pulso</span>
-              <b>{sel.desplazamientoUm} µm</b>
-            </div>
-            <div>
-              <span>Criterio de finalización</span>
-              <b>{sel.criterioFin}</b>
-            </div>
-            <div>
-              <span>Distancia total</span>
-              <b>{fmt(sel.distanciaMm)} mm</b>
-            </div>
-            <div>
-              <span>Pulsos estimados</span>
-              <b>{sel.pulsosEstimados}</b>
-            </div>
-            <div>
-              <span>Última actualización</span>
-              <b>{sel.actualizado}</b>
-            </div>
-            <div>
-              <span>Creado por</span>
-              <b>{sel.creadoPor}</b>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
 
       {showModal && (
@@ -217,7 +257,7 @@ export function Programas() {
                   type="number"
                   value={form.duracionPulsoMs}
                   onChange={(e) => setField('duracionPulsoMs', e.target.value)}
-                  placeholder="Ej: 10"
+                  placeholder="Ej: 400"
                 />
               </div>
               <div className="field">
@@ -226,43 +266,45 @@ export function Programas() {
                   type="number"
                   value={form.desplazamientoUm}
                   onChange={(e) => setField('desplazamientoUm', e.target.value)}
-                  placeholder="Ej: 5"
+                  placeholder="Ej: 550"
                 />
               </div>
               <div className="field full">
                 <label>Criterio de finalización</label>
-                <input
-                  type="text"
-                  value={form.criterioFin}
-                  onChange={(e) => setField('criterioFin', e.target.value)}
-                  placeholder="Ej: Distancia alcanzada"
-                />
+                <select value={form.criterioFin} onChange={(e) => setField('criterioFin', e.target.value)}>
+                  {CRITERIOS_FIN.map((c) => (
+                    <option key={c.valor}>{c.etiqueta}</option>
+                  ))}
+                </select>
               </div>
               <div className="field">
-                <label>Distancia total (mm)</label>
+                <label>Distancia total (mm){distanciaDerivada && ' · calculada'}</label>
                 <input
                   type="number"
                   value={form.distanciaMm}
+                  readOnly={distanciaDerivada}
                   onChange={(e) => setField('distanciaMm', e.target.value)}
-                  placeholder="Ej: 50"
+                  placeholder="Ej: 10"
                 />
               </div>
               <div className="field">
-                <label>Pulsos estimados</label>
+                <label>Pulsos{pulsosDerivados && ' · calculados'}</label>
                 <input
                   type="number"
                   value={form.pulsosEstimados}
+                  readOnly={pulsosDerivados}
                   onChange={(e) => setField('pulsosEstimados', e.target.value)}
-                  placeholder="Ej: 1000"
+                  placeholder="Ej: 18"
                 />
               </div>
             </div>
+            {error && <p className="login-error" style={{ margin: '0 0 12px' }}>{error}</p>}
             <div className="modal-actions">
               <button className="ghost" type="button" onClick={cerrarModal}>
                 Cancelar
               </button>
-              <button className="primary" type="button" disabled={!form.nombre.trim()} onClick={guardarPrograma}>
-                {editId ? 'Guardar cambios' : 'Guardar programa'}
+              <button className="primary" type="button" disabled={!form.nombre.trim() || guardando} onClick={guardarPrograma}>
+                {guardando ? 'Guardando…' : editId ? 'Guardar cambios' : 'Guardar programa'}
               </button>
             </div>
           </div>
@@ -274,8 +316,8 @@ export function Programas() {
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h3>Eliminar programa</h3>
             <p>
-              ¿Seguro que querés eliminar <b>{confirmDelete.nombre}</b>? Esta acción no se puede
-              deshacer.
+              ¿Seguro que querés eliminar <b>{confirmDelete.nombre}</b>? Si ya se usó en algún ensayo,
+              se da de baja en lugar de borrarse, para no perder la trazabilidad de esos ensayos.
             </p>
             <div className="modal-actions">
               <button className="ghost" type="button" onClick={() => setConfirmDelete(null)}>

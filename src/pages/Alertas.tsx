@@ -1,13 +1,24 @@
 import { useEffect, useState } from 'react'
-import { api } from '../mock/api'
+import { api } from '../api/client'
 import type { Alerta } from '../mock/types'
 
 export function Alertas() {
   const [rows, setRows] = useState<Alerta[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.listarAlertas().then(setRows)
+    api.listarAlertas().then(setRows).catch((e: Error) => setError(e.message))
   }, [])
+
+  // El reconocimiento queda asentado en el backend con quién y cuándo; acá se
+  // recarga la lista para mostrar el estado real y no uno optimista.
+  const reconocer = async (id: string) => {
+    try {
+      setRows(await api.reconocerAlerta(id))
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
 
   return (
     <>
@@ -17,6 +28,7 @@ export function Alertas() {
           <h3>HISTORIAL DE ALARMAS Y EMERGENCIAS</h3>
           <span className="pill">{rows.filter((a) => !a.reconocida).length} sin reconocer</span>
         </div>
+        {error && <p className="login-error" style={{ margin: '0 0 12px' }}>{error}</p>}
         <div className="table-wrap">
           <table>
             <thead>
@@ -43,13 +55,7 @@ export function Alertas() {
                       {a.reconocida ? (
                         <span style={{ color: 'var(--dim)' }}>Reconocida</span>
                       ) : (
-                        <button
-                          className="ghost"
-                          type="button"
-                          onClick={() =>
-                            setRows((all) => all.map((x) => (x.id === a.id ? { ...x, reconocida: true } : x)))
-                          }
-                        >
+                        <button className="ghost" type="button" onClick={() => reconocer(a.id)}>
                           Reconocer
                         </button>
                       )}

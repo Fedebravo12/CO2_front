@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
-import { api } from '../mock/api'
+import { api } from '../api/client'
+import { ErrorApi } from '../api/http'
 import type { Auditoria, Umbral, Usuario } from '../mock/types'
 import { useSystem } from '../context/SystemContext'
 
@@ -10,11 +11,16 @@ export function Administracion() {
   const [users, setUsers] = useState<Usuario[]>([])
   const [audit, setAudit] = useState<Auditoria[]>([])
   const [umbrales, setUmbrales] = useState<Umbral[]>([])
+  const [auditoriaBloqueada, setAuditoriaBloqueada] = useState(false)
 
   useEffect(() => {
-    api.listarUsuarios().then(setUsers)
-    api.listarAuditoria().then(setAudit)
-    api.listarUmbrales().then(setUmbrales)
+    api.listarUsuarios().then(setUsers).catch(() => setUsers([]))
+    api.listarUmbrales().then(setUmbrales).catch(() => setUmbrales([]))
+    // La auditoría es solo del administrador (RN010): el resto recibe 403.
+    api
+      .listarAuditoria()
+      .then(setAudit)
+      .catch((e) => setAuditoriaBloqueada(e instanceof ErrorApi && e.status === 403))
   }, [])
 
   const blocked = rol !== 'Administrador'
@@ -36,8 +42,7 @@ export function Administracion() {
 
       {blocked && (
         <p style={{ color: 'var(--orange)' }}>
-          Vista de solo lectura. Cambiá el rol a Administrador (abajo a la izquierda) para simular
-          edición.
+          Vista de solo lectura. La edición de usuarios y umbrales es del administrador.
         </p>
       )}
 
@@ -103,7 +108,15 @@ export function Administracion() {
         </section>
       )}
 
-      {seccion === 'auditoria' && (
+      {seccion === 'auditoria' && auditoriaBloqueada && (
+        <section className="panel">
+          <p style={{ color: 'var(--muted)', margin: 0 }}>
+            El log de auditoría es visible solo para el administrador.
+          </p>
+        </section>
+      )}
+
+      {seccion === 'auditoria' && !auditoriaBloqueada && (
         <section className="panel">
           <div className="table-wrap">
             <table>
