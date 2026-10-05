@@ -4,6 +4,7 @@ import {
   Bell,
   Check,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ClipboardList,
   FolderKanban,
@@ -19,9 +20,9 @@ import type { EstadoSistema, Rol } from '../mock/types'
 import { useSystem } from '../context/SystemContext'
 
 const NAV = [
-  { to: '/', label: 'Inicio', icon: Home, end: true },
+  { to: '/', label: 'Telemetría', icon: Home, end: true },
   { to: '/nuevo-ensayo', label: 'Nuevo ensayo', icon: Play },
-  { to: '/registro', label: 'Registro de ensayos', icon: ClipboardList },
+  { to: '/registro', label: 'Historial de registros', icon: ClipboardList },
   { to: '/programas', label: 'Programas de grabado', icon: FolderKanban },
   { to: '/control-manual', label: 'Control manual', icon: SlidersHorizontal },
   { to: '/alertas', label: 'Alertas / Eventos', icon: Bell },
@@ -46,6 +47,7 @@ export function AppLayout() {
   const [openAdmin, setOpenAdmin] = useState(false)
   const [openRole, setOpenRole] = useState(false)
   const [confirmEstop, setConfirmEstop] = useState(false)
+  const [sidebarCompact, setSidebarCompact] = useState(false)
   const loc = useLocation()
   const adminOpen = openAdmin || loc.pathname.startsWith('/admin')
 
@@ -56,12 +58,22 @@ export function AppLayout() {
 
   return (
     <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-mark">
-            <Settings size={18} />
+      <aside className={`sidebar ${sidebarCompact ? 'compact' : ''}`}>
+        <div className="sidebar-header">
+          <div className="brand">
+            <div className="brand-mark">
+              <Settings size={18} />
+            </div>
+            {!sidebarCompact && <div className="brand-title">Sistema de Grabado Láser</div>}
           </div>
-          <div className="brand-title">Sistema de Grabado Láser</div>
+          <button
+            className="sidebar-toggle"
+            onClick={() => setSidebarCompact(!sidebarCompact)}
+            aria-label="Toggle sidebar"
+            title={sidebarCompact ? 'Expandir' : 'Compactar'}
+          >
+            {sidebarCompact ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
         </div>
 
         <nav className="nav">
@@ -141,7 +153,11 @@ export function AppLayout() {
             <StatusIcon estado={estado} />
           </div>
           <div className="estop-card">
-            <h2>PARADA DE EMERGENCIA</h2>
+              <span>
+                PARADA DE
+                <br />
+                EMERGENCIA
+              </span>
             <button
               className="estop-btn"
               type="button"

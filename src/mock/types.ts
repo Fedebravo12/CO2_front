@@ -51,6 +51,8 @@ export interface Programa {
 
 export interface Ensayo {
   id: string
+  lote: string
+  codigoLpg: string
   fecha: string
   programa: string
   operador: string
@@ -58,6 +60,19 @@ export interface Ensayo {
   resultado: string
   duracion: string
   notas: string
+  periodoRed?: string
+  iSld?: string
+  tensionReferencia?: string
+  escalaVerticalOsa?: string
+  span?: string
+  sensibilidad?: string
+  resolucion?: string
+  cantidadMarcas?: string
+  longitudLpg?: string
+  lambda?: string
+  l?: string
+  lambdaSecundario?: string
+  lSecundario?: string
 }
 
 export interface Alerta {
@@ -122,6 +137,8 @@ export interface PasoProcedimiento {
 export interface FiltrosEnsayo {
   desde: string
   hasta: string
+  lote: string
+  codigoLpg: string
   programa: string
   estado: string
   resultado: string

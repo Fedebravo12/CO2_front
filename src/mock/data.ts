@@ -274,6 +274,8 @@ export const ENSAYOS: Ensayo[] = Array.from({ length: 42 }, (_, idx) => {
   const segs = (n * 7) % 60
   return {
     id: `ENS-2025-${String(n).padStart(5, '0')}`,
+    lote: `LOT-${String(Math.floor(n / 5) + 1).padStart(3, '0')}`,
+    codigoLpg: `LPG-${String(n * 123).padStart(5, '0')}`,
     fecha: fechaMock(idx * 5),
     programa: programasNombres[n % programasNombres.length],
     operador: operadores[n % operadores.length],
@@ -281,6 +283,19 @@ export const ENSAYOS: Ensayo[] = Array.from({ length: 42 }, (_, idx) => {
     resultado,
     duracion: `00:${pad(mins)}:${pad(segs)}`,
     notas: estado === 'Error' ? resultado : estado === 'Interrumpido' ? 'Parada de emergencia' : 'Ensayo nominal',
+    periodoRed: `${50 + (n % 10)} Hz`,
+    iSld: `${100 + (n * 2) % 50} mA`,
+    tensionReferencia: `${10 + (n % 5)} V`,
+    escalaVerticalOsa: `${0.1 * (1 + (n % 10))} dB/div`,
+    span: `${50 + (n % 100)} nm`,
+    sensibilidad: `${-45 + (n % 10)} dBm`,
+    resolucion: `${0.01 * (1 + (n % 20))} nm`,
+    cantidadMarcas: `${3 + (n % 8)}`,
+    longitudLpg: `${10 + (n % 20)}.${(n * 3) % 10} mm`,
+    lambda: `${1550 + (n % 10)}.${(n * 7) % 100} nm`,
+    l: `${5 + (n % 15)} mm`,
+    lambdaSecundario: `${1550 + ((n * 2) % 10)}.${(n * 5) % 100} nm`,
+    lSecundario: `${3 + (n % 12)} mm`,
   }
 })
 

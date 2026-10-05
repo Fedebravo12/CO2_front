@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, Filter, Play, RotateCcw, Search } from 'lucide-react'
+import { ChevronDown, ChevronUp, Download, Filter, Play, RotateCcw, Search } from 'lucide-react'
 import { api } from '../mock/api'
 import { ENSAYOS, PROGRAMAS } from '../mock/data'
 import type { Ensayo, FiltrosEnsayo } from '../mock/types'
@@ -8,6 +8,8 @@ import type { Ensayo, FiltrosEnsayo } from '../mock/types'
 const EMPTY: FiltrosEnsayo = {
   desde: '',
   hasta: '',
+  lote: '',
+  codigoLpg: '',
   programa: 'Todos',
   estado: 'Todos',
   resultado: 'Todos',
@@ -22,6 +24,7 @@ export function Registro() {
   const [sel, setSel] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(10)
+  const [filtrosExpanded, setFiltrosExpanded] = useState(false)
 
   useEffect(() => {
     api.listarEnsayos(filtros).then((data) => {
@@ -35,6 +38,7 @@ export function Registro() {
   const operadores = ['Todos', ...new Set(ENSAYOS.map((r) => r.operador))]
 
   const set = (k: keyof FiltrosEnsayo, v: string) => setFiltros((f) => ({ ...f, [k]: v }))
+  const ensayoSeleccionado = rows.find((r) => r.id === sel)
 
   const exportar = () => {
     const csv = api.exportarEnsayosCsv(rows)
@@ -52,9 +56,25 @@ export function Registro() {
           <Filter size={14} style={{ marginRight: 6 }} />
           FILTROS
         </h3>
+        <button
+          className="ghost"
+          type="button"
+          onClick={() => setFiltrosExpanded(!filtrosExpanded)}
+          style={{ marginLeft: 'auto' }}
+        >
+          {filtrosExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
       </div>
 
-      <div className="filters">
+      <div className={`filters ${filtrosExpanded ? '' : 'collapsed'}`}>
+        <div className="field">
+          <label>Lote</label>
+          <input type="text" value={filtros.lote} onChange={(e) => set('lote', e.target.value)} placeholder="Ej: LOT-2024-001" />
+        </div>
+        <div className="field">
+          <label>Código LPG</label>
+          <input type="text" value={filtros.codigoLpg} onChange={(e) => set('codigoLpg', e.target.value)} placeholder="Ej: LPG-12345" />
+        </div>
         <div className="field">
           <label>Fecha desde</label>
           <input type="date" value={filtros.desde} onChange={(e) => set('desde', e.target.value)} />
@@ -127,12 +147,12 @@ export function Registro() {
         <table>
           <thead>
             <tr>
-              <th>ID ENSAYO</th>
-              <th>FECHA Y HORA</th>
+              <th>LOTE</th>
+              <th>CÓDIGO LPG</th>
+              <th>ESTADO</th>
+              <th>FECHA</th>
               <th>PROGRAMA</th>
               <th>OPERADOR</th>
-              <th>ESTADO</th>
-              <th>RESULTADO</th>
               <th>DURACIÓN</th>
             </tr>
           </thead>
@@ -140,20 +160,15 @@ export function Registro() {
             {slice.map((r) => {
               const tone = r.estado === 'Completado' ? 'ok' : r.estado === 'Interrumpido' ? 'warn' : 'danger'
               return (
-                <tr key={r.id} className={sel === r.id ? 'sel' : ''} onClick={() => setSel(r.id)}>
-                  <td className="mono">
-                    <i className={`dot ${tone}`} />
-                    {r.id}
+                <tr key={r.id} className={sel === r.id ? 'sel' : ''} onClick={() => nav(`/registro/${r.id}`)} style={{ cursor: 'pointer' }}>
+                  <td className="mono">{r.lote}</td>
+                  <td className="mono">{r.codigoLpg}</td>
+                  <td>
+                    <span className={`st ${tone}`}>{r.estado}</span>
                   </td>
                   <td className="mono">{r.fecha}</td>
                   <td>{r.programa}</td>
                   <td>{r.operador}</td>
-                  <td>
-                    <span className={`st ${tone}`}>{r.estado}</span>
-                  </td>
-                  <td className={r.resultado === 'OK' ? 'ok-txt' : r.resultado === '—' ? '' : 'err-txt'}>
-                    {r.resultado}
-                  </td>
                   <td className="mono">{r.duracion}</td>
                 </tr>
               )
@@ -185,6 +200,7 @@ export function Registro() {
           ))}
         </div>
       </div>
+
     </section>
   )
 }
