@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => {
       open: true,
       proxy: {
         '/api': { target: backend, changeOrigin: true, secure: false },
+        // Telemetria en vivo: el WebSocket tambien se reenvia al nginx del backend.
+        '/ws': { target: backend, changeOrigin: true, secure: false, ws: true },
       },
     },
   }

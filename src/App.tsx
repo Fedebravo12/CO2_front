@@ -12,6 +12,7 @@ import { NuevoEnsayo } from './pages/NuevoEnsayo'
 import { Programas } from './pages/Programas'
 import { Registro } from './pages/Registro'
 import { Telemetria } from './pages/Telemetria'
+import { Simulador } from './pages/Simulador'
 
 /** Deja pasar solo con sesión iniciada; si no, manda al login y recuerda a dónde iba. */
 function ConSesion({ children }: { children: ReactNode }) {
@@ -36,6 +37,7 @@ export default function App() {
         >
           <Route index element={<Telemetria />} />
           <Route path="nuevo-ensayo" element={<NuevoEnsayo />} />
+          <Route path="simulador" element={<Simulador />} />
           <Route path="registro" element={<Registro />} />
           <Route path="registro/:id" element={<DetalleEnsayo />} />
           <Route path="programas" element={<Programas />} />

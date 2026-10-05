@@ -84,6 +84,10 @@ export function DetalleEnsayo() {
         </button>
       </div>
 
+      <section className="detail-card detail-spectrum">
+        <CurvaChart key={id} csv={curvaCsv ?? ''} />
+      </section>
+
       <div className="detail-grid">
         <div className="detail-card">
           <h3>GRABADO</h3>
@@ -181,11 +185,6 @@ export function DetalleEnsayo() {
               <span className="value">{ensayo.lSecundario}</span>
             </div>
           </div>
-        </div>
-
-        <div className="detail-card">
-          <h3>DATOS DE CURVA</h3>
-          <CurvaChart csv={curvaCsv ?? ''} />
         </div>
 
         <div className="detail-card">

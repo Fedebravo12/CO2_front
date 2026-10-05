@@ -35,16 +35,26 @@ export function Registro() {
   }, [])
 
   useEffect(() => {
+    let cancelado = false
     setCargando(true)
     api
       .listarEnsayos(filtros)
       .then((data) => {
+        if (cancelado) return
         setRows(data)
         setPage(1)
         setError(null)
       })
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setCargando(false))
+      .catch((e: Error) => {
+        if (!cancelado) setError(e.message)
+      })
+      .finally(() => {
+        if (!cancelado) setCargando(false)
+      })
+    // Una respuesta de filtros anteriores no debe reemplazar la búsqueda actual.
+    return () => {
+      cancelado = true
+    }
   }, [filtros])
 
   const pages = Math.max(1, Math.ceil(rows.length / perPage))

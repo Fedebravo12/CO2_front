@@ -13,6 +13,7 @@ import {
   Play,
   Settings,
   SlidersHorizontal,
+  MonitorPlay,
   Square,
   User,
 } from 'lucide-react'
@@ -24,6 +25,7 @@ import { useSystem, type Conexion } from '../context/SystemContext'
 const NAV = [
   { to: '/', label: 'Telemetría', icon: Home, end: true },
   { to: '/nuevo-ensayo', label: 'Nuevo ensayo', icon: Play },
+  { to: '/simulador', label: 'Simulador visual', icon: MonitorPlay },
   { to: '/registro', label: 'Historial de registros', icon: ClipboardList },
   { to: '/programas', label: 'Programas de grabado', icon: FolderKanban },
   { to: '/control-manual', label: 'Control manual', icon: SlidersHorizontal },
@@ -34,9 +36,16 @@ function pad(n: number) {
   return String(n).padStart(2, '0')
 }
 
+function claseDeEstado(estado: EstadoSistema) {
+  if (estado === 'LISTO') return 'ready'
+  if (estado === 'PREPARACIÓN') return 'prep'
+  if (estado === 'GRABANDO') return 'run'
+  if (estado === 'REPOSO') return 'idle'
+  return 'emg' // EMERGENCIA y SIN CONEXIÓN
+}
+
 function StatusIcon({ estado }: { estado: EstadoSistema }) {
-  const cls =
-    estado === 'LISTO' ? 'ready' : estado === 'PREPARACIÓN' ? 'prep' : estado === 'GRABANDO' ? 'run' : 'emg'
+  const cls = claseDeEstado(estado)
   return (
     <div className={`status-ico ${cls}`}>
       {estado === 'LISTO' ? <Check size={28} /> : <span style={{ fontSize: 22 }}>●</span>}
@@ -65,7 +74,7 @@ function EstadoConexion({ conexion }: { conexion: Conexion }) {
 }
 
 export function AppLayout() {
-  const { rol, conexion, estado, emergencia, rearmar, now } = useSystem()
+  const { rol, conexion, estado, emergencia, rearmar, now, controlador, errorComando } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
   const [openAdmin, setOpenAdmin] = useState(false)
   const [confirmEstop, setConfirmEstop] = useState(false)
@@ -75,8 +84,8 @@ export function AppLayout() {
 
   const fecha = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`
   const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
-  const statusCls =
-    estado === 'LISTO' ? 'ready' : estado === 'PREPARACIÓN' ? 'prep' : estado === 'GRABANDO' ? 'run' : 'emg'
+  const statusCls = claseDeEstado(estado)
+  const sinConexion = estado === 'SIN CONEXIÓN'
 
   return (
     <div className="app">
@@ -168,7 +177,8 @@ export function AppLayout() {
             <button
               className="estop-btn"
               type="button"
-              disabled={estado === 'EMERGENCIA'}
+              disabled={estado === 'EMERGENCIA' || sinConexion}
+              title={sinConexion ? 'Sin conexión al controlador: usar el pulsador físico' : undefined}
               onClick={() => setConfirmEstop(true)}
               aria-label="Parada de emergencia"
             >
@@ -176,6 +186,27 @@ export function AppLayout() {
             </button>
           </div>
         </header>
+
+        {sinConexion && (
+          <div className="banner">
+            <span>
+              SIN CONEXIÓN AL CONTROLADOR. La telemetría no es actual y los comandos están
+              bloqueados. Ante una emergencia, usar el pulsador físico (interlock por hardware).
+            </span>
+          </div>
+        )}
+
+        {estado === 'EMERGENCIA' && controlador?.mensaje && (
+          <div className="banner" style={{ background: 'var(--red-dim)' }}>
+            <span>{controlador.mensaje.texto}</span>
+          </div>
+        )}
+
+        {errorComando && (
+          <div className="banner">
+            <span>{errorComando}</span>
+          </div>
+        )}
 
         {estado === 'EMERGENCIA' && (
           <div className="banner">

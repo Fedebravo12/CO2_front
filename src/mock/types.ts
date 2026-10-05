@@ -1,10 +1,15 @@
 export type Rol = 'Operador' | 'Investigador' | 'Administrador'
 
+// Estados del controlador (REPOSO, PREPARACIÓN, LISTO, GRABANDO, EMERGENCIA), más
+// SIN CONEXIÓN: cuando la telemetría deja de llegar, el front no muestra el
+// último estado conocido como si fuera actual.
 export type EstadoSistema =
-  | 'LISTO'
+  | 'REPOSO'
   | 'PREPARACIÓN'
+  | 'LISTO'
   | 'GRABANDO'
   | 'EMERGENCIA'
+  | 'SIN CONEXIÓN'
 
 export type EstadoEnsayo = 'Completado' | 'Interrumpido' | 'Error' | 'En curso'
 
