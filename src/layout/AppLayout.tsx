@@ -77,7 +77,6 @@ export function AppLayout() {
   const { rol, conexion, estado, emergencia, rearmar, now, controlador, errorComando } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
   const [openAdmin, setOpenAdmin] = useState(false)
-  const [confirmEstop, setConfirmEstop] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
   const loc = useLocation()
   const adminOpen = openAdmin || loc.pathname.startsWith('/admin')
@@ -179,7 +178,7 @@ export function AppLayout() {
               type="button"
               disabled={estado === 'EMERGENCIA' || sinConexion}
               title={sinConexion ? 'Sin conexión al controlador: usar el pulsador físico' : undefined}
-              onClick={() => setConfirmEstop(true)}
+              onClick={() => emergencia()}
               aria-label="Parada de emergencia"
             >
               <Square size={22} fill="white" />
@@ -224,33 +223,6 @@ export function AppLayout() {
         </div>
       </div>
 
-      {confirmEstop && (
-        <div className="modal-bg" onClick={() => setConfirmEstop(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Confirmar parada de emergencia</h3>
-            <p>
-              Se apagará el láser, se detendrán los actuadores y se registrará el evento. Tiempo
-              objetivo de respuesta ≤ 500 ms.
-            </p>
-            <div className="modal-actions">
-              <button className="ghost" type="button" onClick={() => setConfirmEstop(false)}>
-                Cancelar
-              </button>
-              <button
-                className="primary"
-                type="button"
-                style={{ background: '#c31220', borderColor: '#ff4d5a' }}
-                onClick={() => {
-                  emergencia()
-                  setConfirmEstop(false)
-                }}
-              >
-                Activar E-Stop
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
