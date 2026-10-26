@@ -10,7 +10,7 @@
  * Contrato completo del backend: https://localhost:8443/api/docs/
  */
 
-import type { Alerta, Auditoria, Ensayo, FiltrosEnsayo, Programa, Rol, Umbral, Usuario } from '../mock/types'
+import type { Alerta, Auditoria, Ensayo, FiltrosEnsayo, Programa, Rol, Umbral, Usuario, HardwareConfig } from '../mock/types'
 import { ErrorApi, pedir } from './http'
 
 // ── Tipos del backend ────────────────────────────────────────────────────────
@@ -399,5 +399,16 @@ export const api = {
       )
       .join('\n')
     return `${header}\n${body}`
+  },
+
+  async obtenerHardwareConfig(): Promise<HardwareConfig> {
+    return pedir<HardwareConfig>('/hardware/config/')
+  },
+
+  async guardarHardwareConfig(config: HardwareConfig): Promise<void> {
+    return pedir<void>('/hardware/config/', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    })
   },
 }

@@ -150,3 +150,16 @@ export interface FiltrosEnsayo {
   operador: string
   busqueda: string
 }
+
+export type EstadoComponente = 'Vigente' | 'Eliminado'
+
+export interface ComponenteConfig {
+  tipo: string
+  pines: Record<string, number | string> // Mapea "Trig" -> "GPIO17"
+  parametros?: Record<string, any>
+  estado: EstadoComponente
+}
+
+export interface HardwareConfig {
+  componentes: Record<string, ComponenteConfig>
+}

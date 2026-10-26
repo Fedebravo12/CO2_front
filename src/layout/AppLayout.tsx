@@ -130,6 +130,7 @@ export function AppLayout() {
           {adminOpen && (
             <div className="nav-sub">
               <NavLink to="/admin/usuarios">Usuarios y roles</NavLink>
+              <NavLink to="/admin/hardware">Configuración de hardware</NavLink>
               <NavLink to="/admin/umbrales">Umbrales de alerta</NavLink>
               <NavLink to="/admin/auditoria">Log de auditoría</NavLink>
             </div>

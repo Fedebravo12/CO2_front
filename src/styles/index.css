@@ -1170,3 +1170,33 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 @media (max-width: 1150px) { .lab-grid { grid-template-columns: 1fr; }.lab-console { grid-column: 1; grid-row: auto; }.lab-run { grid-row: 2; }.lab-heading { align-items: flex-start; flex-direction: column; } }
 @media (max-width: 600px) { .lab-run, .lab-console { padding: 18px; }.lab-run-head { align-items: flex-start; flex-direction: column; }.lab-legend small { margin-left: 0; }.lab-svg-label { font-size: 13px; }.lab-note { align-items: flex-start; } }
 @media (prefers-reduced-motion: reduce) { .lab-page *, .lab-page *::before, .lab-page *::after { animation: none !important; transition: none !important; } }
+
+/* Toggle Switch */
+.switch {
+  width: 38px;
+  height: 20px;
+  background-color: var(--border, #333);
+  border-radius: 12px;
+  padding: 2px;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.switch.active {
+  background-color: var(--cyan, #00BCD4); /* o el tono acentuado que usen en la app */
+}
+
+.switch-thumb {
+  width: 16px;
+  height: 16px;
+  background-color: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s ease;
+  transform: translateX(0);
+}
+
+.switch.active .switch-thumb {
+  transform: translateX(18px);
+}
