@@ -41,12 +41,18 @@ export interface Subsistema {
   tono: 'neutral' | 'ok' | 'info' | 'warn' | 'danger'
 }
 
+export type PerfilPeriodo = 'CONSTANTE' | 'LINEAL' | 'EXPONENCIAL'
+
 export interface Programa {
   id: string
   nombre: string
+  version: number
   potenciaObjetivoMw: number
   duracionPulsoMs: number
+  perfilPeriodo: PerfilPeriodo
   desplazamientoUm: number
+  incrementoUm: number | null
+  factor: number | null
   criterioFin: string
   distanciaMm: number
   pulsosEstimados: number
