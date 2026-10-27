@@ -1045,13 +1045,6 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 .login-demo b { color: var(--text); font-family: var(--mono); font-weight: 500; }
 .splash { min-height: 100%; display: grid; place-items: center; color: var(--muted); }
 
-/* ── Estado de la conexion con el backend ──────────────────────────────── */
-.conexion { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
-.conexion span { display: flex; align-items: center; gap: 6px; }
-.conexion i { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
-.conexion i.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
-.conexion i.mal { background: var(--red); box-shadow: 0 0 8px var(--red); }
-
 /* ── Estado REPOSO: equipo apagado, ni listo ni en falla ───────────────── */
 .status-value.idle { color: var(--muted); }
 .status-ico.idle { color: var(--muted); border-color: var(--border); background: var(--surface-2); }

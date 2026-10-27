@@ -3,11 +3,23 @@ import { NavLink, useParams } from 'react-router-dom'
 import { Pencil, Plus, UserCheck, UserX } from 'lucide-react'
 import { api, type DatosUsuario } from '../api/client'
 import { ErrorApi } from '../api/http'
-import type { Auditoria, Rol, Umbral, Usuario } from '../mock/types'
+import type { AccionUmbral, Auditoria, Rol, SeveridadUmbral, Umbral, Usuario } from '../mock/types'
 import { useAuth } from '../context/AuthContext'
 import { useSystem } from '../context/SystemContext'
 
 const ROLES: Rol[] = ['Operador', 'Investigador', 'Administrador']
+
+const SEVERIDADES_UMBRAL: Record<SeveridadUmbral, string> = {
+  INFO: 'Informativa',
+  ADVERTENCIA: 'Advertencia',
+  CRITICA: 'Crítica',
+}
+
+const ACCIONES_UMBRAL: Record<AccionUmbral, string> = {
+  ALERTA: 'Solo alertar',
+  BLOQUEAR_COMANDO: 'Bloquear comandos',
+  PARADA_EMERGENCIA: 'Parada de emergencia',
+}
 
 const FORM_USUARIO: DatosUsuario = {
   usuario: '',
@@ -102,6 +114,60 @@ export function Administracion() {
       await recargarUsuarios()
     } catch (e) {
       setErrorUsuarios((e as Error).message)
+    }
+  }
+
+  // Edición de umbrales (solo administrador, RF016). Los números van como texto
+  // mientras se escriben, para no pelear con el input vacío o con "1.".
+  const [umbralEdit, setUmbralEdit] = useState<Umbral | null>(null)
+  const [formUmbral, setFormUmbral] = useState({
+    min: '',
+    max: '',
+    severidad: 'ADVERTENCIA' as SeveridadUmbral,
+    accion: 'ALERTA' as AccionUmbral,
+    activo: true,
+  })
+  const [guardandoUmbral, setGuardandoUmbral] = useState(false)
+  const [errorFormUmbral, setErrorFormUmbral] = useState<string | null>(null)
+
+  const abrirUmbral = (u: Umbral) => {
+    setUmbralEdit(u)
+    setFormUmbral({ min: String(u.min), max: String(u.max), severidad: u.severidad, accion: u.accion, activo: u.activo })
+    setErrorFormUmbral(null)
+  }
+
+  const minUmbral = Number(formUmbral.min)
+  const maxUmbral = Number(formUmbral.max)
+  const rangoInvalido =
+    formUmbral.min.trim() === '' ||
+    formUmbral.max.trim() === '' ||
+    !Number.isFinite(minUmbral) ||
+    !Number.isFinite(maxUmbral) ||
+    minUmbral >= maxUmbral
+  const debilitaProteccion =
+    umbralEdit !== null &&
+    umbralEdit.activo &&
+    umbralEdit.accion === 'PARADA_EMERGENCIA' &&
+    (!formUmbral.activo || formUmbral.accion !== 'PARADA_EMERGENCIA')
+
+  const guardarUmbral = async () => {
+    if (!umbralEdit || rangoInvalido) return
+    setGuardandoUmbral(true)
+    try {
+      await api.actualizarUmbral(umbralEdit.id, {
+        min: minUmbral,
+        max: maxUmbral,
+        severidad: formUmbral.severidad,
+        accion: formUmbral.accion,
+        activo: formUmbral.activo,
+      })
+      // El id cambia (versión nueva de la configuración): se relee la lista.
+      setUmbrales(await api.listarUmbrales())
+      setUmbralEdit(null)
+    } catch (e) {
+      setErrorFormUmbral((e as Error).message)
+    } finally {
+      setGuardandoUmbral(false)
     }
   }
 
@@ -311,6 +377,12 @@ export function Administracion() {
 
       {seccion === 'umbrales' && (
         <section className="panel">
+          {!blocked && (
+            <p style={{ color: 'var(--muted)', margin: '0 0 12px', fontSize: 13 }}>
+              Cada cambio crea una versión nueva de la configuración y el controlador la aplica en unos segundos.
+              Los ensayos anteriores conservan los umbrales con los que corrieron.
+            </p>
+          )}
           <div className="table-wrap">
             <table>
               <thead>
@@ -319,7 +391,9 @@ export function Administracion() {
                   <th>MÍN</th>
                   <th>MÁX</th>
                   <th>UNIDAD</th>
+                  <th>AL EXCEDERSE</th>
                   <th>CRÍTICO</th>
+                  {!blocked && <th>ACCIONES</th>}
                 </tr>
               </thead>
               <tbody>
@@ -330,14 +404,125 @@ export function Administracion() {
                     <td className="mono">{u.max}</td>
                     <td>{u.unidad}</td>
                     <td>
+                      {u.activo ? ACCIONES_UMBRAL[u.accion] : <span className="st warn">Desactivado</span>}
+                    </td>
+                    <td>
                       <span className={`st ${u.critico ? 'danger' : 'info'}`}>{u.critico ? 'Sí' : 'No'}</span>
                     </td>
+                    {!blocked && (
+                      <td>
+                        <div className="acciones-fila">
+                          <button className="ghost" type="button" onClick={() => abrirUmbral(u)} title="Editar umbral">
+                            <Pencil size={14} /> Editar
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </section>
+      )}
+
+      {umbralEdit && (
+        <div className="modal-bg" onClick={() => setUmbralEdit(null)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            style={{ width: 'min(560px, calc(100% - 32px))' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3>Editar umbral · {umbralEdit.parametro}</h3>
+              <button className="modal-close" type="button" onClick={() => setUmbralEdit(null)} aria-label="Cerrar">
+                ×
+              </button>
+            </div>
+            <div className="modal-body cols-2">
+              <div className="field">
+                <label>Mínimo ({umbralEdit.unidad})</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={formUmbral.min}
+                  onChange={(e) => setFormUmbral((f) => ({ ...f, min: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>Máximo ({umbralEdit.unidad})</label>
+                <input
+                  type="number"
+                  step="any"
+                  value={formUmbral.max}
+                  onChange={(e) => setFormUmbral((f) => ({ ...f, max: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label>Severidad</label>
+                <select
+                  value={formUmbral.severidad}
+                  onChange={(e) => setFormUmbral((f) => ({ ...f, severidad: e.target.value as SeveridadUmbral }))}
+                >
+                  {Object.entries(SEVERIDADES_UMBRAL).map(([valor, etiqueta]) => (
+                    <option key={valor} value={valor}>
+                      {etiqueta}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Al excederse</label>
+                <select
+                  value={formUmbral.accion}
+                  onChange={(e) => setFormUmbral((f) => ({ ...f, accion: e.target.value as AccionUmbral }))}
+                >
+                  {Object.entries(ACCIONES_UMBRAL).map(([valor, etiqueta]) => (
+                    <option key={valor} value={valor}>
+                      {etiqueta}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="field full" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={formUmbral.activo}
+                  onChange={(e) => setFormUmbral((f) => ({ ...f, activo: e.target.checked }))}
+                  style={{ width: 'auto' }}
+                />
+                Umbral activo (si se desactiva, el controlador deja de vigilar esta variable)
+              </label>
+            </div>
+            {rangoInvalido && (
+              <p className="login-error" style={{ margin: '12px 0' }}>
+                El máximo tiene que ser mayor que el mínimo. Revisá los dos valores.
+              </p>
+            )}
+            {debilitaProteccion && (
+              <p className="aviso-ctrl warn" style={{ margin: '12px 0' }}>
+                Este umbral hoy dispara la parada de emergencia. Con este cambio deja de hacerlo: confirmá que es lo
+                que querés.
+              </p>
+            )}
+            {errorFormUmbral && <p className="login-error" style={{ margin: '12px 0' }}>{errorFormUmbral}</p>}
+            <div className="modal-actions">
+              <button className="ghost" type="button" onClick={() => setUmbralEdit(null)}>
+                Cancelar
+              </button>
+              <button
+                className="primary"
+                type="button"
+                disabled={rangoInvalido || guardandoUmbral}
+                onClick={guardarUmbral}
+              >
+                {guardandoUmbral ? 'Guardando…' : 'Guardar cambios'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {seccion === 'auditoria' && auditoriaBloqueada && (

@@ -225,6 +225,32 @@ function aUsuario(u: UsuarioApi): Usuario {
   }
 }
 
+interface UmbralApi {
+  id: number
+  parametro: string
+  valor_min: number
+  valor_max: number
+  unidad: string
+  critico: boolean
+  severidad: Umbral['severidad']
+  accion: Umbral['accion']
+  activo: boolean
+}
+
+function aUmbral(u: UmbralApi): Umbral {
+  return {
+    id: String(u.id),
+    parametro: u.parametro,
+    min: u.valor_min,
+    max: u.valor_max,
+    unidad: u.unidad,
+    critico: u.critico,
+    severidad: u.severidad,
+    accion: u.accion,
+    activo: u.activo,
+  }
+}
+
 const CODIGO_DE_ROL = Object.fromEntries(
   Object.entries(ROL_DE_CODIGO).map(([codigo, rol]) => [rol, codigo]),
 ) as Record<Rol, CodigoRol>
@@ -433,19 +459,28 @@ export const api = {
       detalle: a.detalle,
     })),
 
-  listarUmbrales: async (): Promise<Umbral[]> =>
-    (
-      await pedir<{ id: number; parametro: string; valor_min: number; valor_max: number; unidad: string; critico: boolean }[]>(
-        '/umbrales/',
-      )
-    ).map((u) => ({
-      id: String(u.id),
-      parametro: u.parametro,
-      min: u.valor_min,
-      max: u.valor_max,
-      unidad: u.unidad,
-      critico: u.critico,
-    })),
+  listarUmbrales: async (): Promise<Umbral[]> => (await pedir<UmbralApi[]>('/umbrales/')).map(aUmbral),
+
+  /**
+   * Edita un umbral (solo administrador). El backend no lo pisa: crea una
+   * versión nueva de la configuración, así que el id devuelto es otro.
+   */
+  actualizarUmbral: async (
+    id: string,
+    datos: Pick<Umbral, 'min' | 'max' | 'severidad' | 'accion' | 'activo'>,
+  ): Promise<Umbral> =>
+    aUmbral(
+      await pedir<UmbralApi>(`/umbrales/${encodeURIComponent(id)}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          valor_min: datos.min,
+          valor_max: datos.max,
+          severidad: datos.severidad,
+          accion: datos.accion,
+          activo: datos.activo,
+        }),
+      }),
+    ),
 
   /** Exporta filas ya cargadas a CSV. No necesita al backend. */
   exportarEnsayosCsv: (rows: Ensayo[]) => {

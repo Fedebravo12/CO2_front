@@ -111,6 +111,9 @@ export interface Auditoria {
   detalle: string
 }
 
+export type SeveridadUmbral = 'INFO' | 'ADVERTENCIA' | 'CRITICA'
+export type AccionUmbral = 'ALERTA' | 'BLOQUEAR_COMANDO' | 'PARADA_EMERGENCIA'
+
 export interface Umbral {
   id: string
   parametro: string
@@ -118,6 +121,9 @@ export interface Umbral {
   max: number
   unidad: string
   critico: boolean
+  severidad: SeveridadUmbral
+  accion: AccionUmbral
+  activo: boolean
 }
 
 export interface ValidacionPaso {

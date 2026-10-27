@@ -17,7 +17,7 @@ import {
 import { VERSION } from '../mock/data'
 import type { EstadoSistema } from '../mock/types'
 import { useAuth } from '../context/AuthContext'
-import { useSystem, type Conexion } from '../context/SystemContext'
+import { useSystem } from '../context/SystemContext'
 
 const NAV = [
   { to: '/', label: 'Telemetría', icon: Home, end: true },
@@ -52,28 +52,8 @@ function StatusIcon({ estado }: { estado: EstadoSistema }) {
   )
 }
 
-function Indicador({ etiqueta, ok }: { etiqueta: string; ok: boolean | null }) {
-  const cls = ok == null ? '' : ok ? 'ok' : 'mal'
-  const texto = ok == null ? 'verificando…' : ok ? 'conectado' : 'sin conexión'
-  return (
-    <span title={`${etiqueta}: ${texto}`}>
-      <i className={cls} />
-      {etiqueta}: {texto}
-    </span>
-  )
-}
-
-function EstadoConexion({ conexion }: { conexion: Conexion }) {
-  return (
-    <div className="conexion">
-      <Indicador etiqueta="Backend" ok={conexion.api} />
-      <Indicador etiqueta="Controlador" ok={conexion.controlador} />
-    </div>
-  )
-}
-
 export function AppLayout() {
-  const { rol, conexion, estado, emergencia, rearmar, now, controlador, errorComando } = useSystem()
+  const { rol, estado, emergencia, rearmar, now, controlador, errorComando } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
   const [confirmEstop, setConfirmEstop] = useState(false)
   const [confirmSalir, setConfirmSalir] = useState(false)
@@ -133,7 +113,6 @@ export function AppLayout() {
               <LogOut size={16} />
             </button>
           </div>
-          {!sidebarCompact && <EstadoConexion conexion={conexion} />}
           <div className="clock">
             <span>
               {fecha} · {hora}
