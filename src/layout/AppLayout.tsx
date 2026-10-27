@@ -56,7 +56,6 @@ function StatusIcon({ estado }: { estado: EstadoSistema }) {
 export function AppLayout() {
   const { rol, estado, emergencia, rearmar, now, controlador, errorComando } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
-  const [confirmEstop, setConfirmEstop] = useState(false)
   const [confirmSalir, setConfirmSalir] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
 
@@ -143,7 +142,7 @@ export function AppLayout() {
               type="button"
               disabled={estado === 'EMERGENCIA' || sinConexion}
               title={sinConexion ? 'Sin conexión al controlador: usar el pulsador físico' : undefined}
-              onClick={() => setConfirmEstop(true)}
+              onClick={() => emergencia()}
               aria-label="Parada de emergencia"
             >
               <Square size={22} fill="white" />
@@ -187,34 +186,6 @@ export function AppLayout() {
           <Outlet />
         </div>
       </div>
-
-      {confirmEstop && (
-        <div className="modal-bg" onClick={() => setConfirmEstop(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Confirmar parada de emergencia</h3>
-            <p>
-              Se apagará el láser, se detendrán los actuadores y se registrará el evento. Tiempo
-              objetivo de respuesta ≤ 500 ms.
-            </p>
-            <div className="modal-actions">
-              <button className="ghost" type="button" onClick={() => setConfirmEstop(false)}>
-                Cancelar
-              </button>
-              <button
-                className="primary"
-                type="button"
-                style={{ background: '#c31220', borderColor: '#ff4d5a' }}
-                onClick={() => {
-                  emergencia()
-                  setConfirmEstop(false)
-                }}
-              >
-                Activar E-Stop
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {confirmSalir && (
         <div className="modal-bg" onClick={() => setConfirmSalir(false)}>
