@@ -66,45 +66,43 @@ a { color: inherit; text-decoration: none; }
 }
 .sidebar.compact {
   width: 70px;
-  padding: 12px 8px;
 }
-.sidebar.compact .brand-title {
-  display: none;
+/* El contenido no cambia de forma al plegar: se mantiene en una sola linea, la
+   barra lo recorta al achicarse y los textos se desvanecen. Asi no se reacomoda
+   ni se deforma nada durante la transicion de ancho. */
+.sidebar {
+  overflow: hidden;
+  white-space: nowrap;
 }
-.sidebar.compact .nav-link,
-.sidebar.compact .nav-btn {
-  font-size: 0;
-  justify-content: center;
+.brand-title,
+.nav-label,
+.user-meta,
+.clock {
+  transition: opacity 0.2s ease, max-width 0.3s ease, visibility 0.2s;
 }
-.sidebar.compact .nav-link svg,
-.sidebar.compact .nav-btn svg {
-  font-size: 18px;
-  margin: 0 !important;
-}
-.sidebar.compact .nav-sub,
+.sidebar.compact .brand-title,
+.sidebar.compact .nav-label,
 .sidebar.compact .user-meta,
 .sidebar.compact .clock {
-  display: none;
+  opacity: 0;
+  visibility: hidden;
+}
+.sidebar.compact .user-meta {
+  max-width: 0;
 }
 .sidebar-header {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
 }
-.sidebar.compact .sidebar-header {
-  justify-content: center;
-}
-.sidebar.compact .brand {
-  padding: 6px 0 16px;
-  justify-content: center;
-}
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 8px 20px;
+  padding: 6px 3px 20px;
 }
 .brand-mark {
+  flex: none;
   width: 36px;
   height: 36px;
   border: 0;
@@ -126,8 +124,11 @@ a { color: inherit; text-decoration: none; }
   font-weight: 700;
   font-size: 13.5px;
   line-height: 1.25;
+  white-space: normal;
+  width: 150px;
 }
 .nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.nav-link svg, .nav-btn svg { flex: none; }
 .nav-link, .nav-btn {
   display: flex;
   align-items: center;
@@ -174,9 +175,10 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface);
   border: 2px solid var(--border);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 10px 11px;
 }
 .user-card button {
+  flex: none;
   background: transparent;
   border: 0;
   color: var(--muted);

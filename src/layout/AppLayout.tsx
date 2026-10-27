@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import {
   Bell,
   Check,
+  ScanLine,
   ClipboardList,
   FolderKanban,
   Home,
@@ -76,9 +77,9 @@ export function AppLayout() {
               aria-label={sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
               title={sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
             >
-              <Settings size={18} />
+              <ScanLine size={18} />
             </button>
-            {!sidebarCompact && <div className="brand-title">Sistema de Grabado Láser</div>}
+            <div className="brand-title">Sistema de Grabado Láser</div>
           </div>
         </div>
 
@@ -94,7 +95,7 @@ export function AppLayout() {
               }
             >
               <item.icon size={18} />
-              {item.label}
+              <span className="nav-label">{item.label}</span>
             </NavLink>
           ))}
 
