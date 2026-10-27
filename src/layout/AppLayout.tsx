@@ -4,7 +4,6 @@ import {
   Bell,
   Check,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   ClipboardList,
   FolderKanban,
@@ -92,19 +91,17 @@ export function AppLayout() {
       <aside className={`sidebar ${sidebarCompact ? 'compact' : ''}`}>
         <div className="sidebar-header">
           <div className="brand">
-            <div className="brand-mark">
+            <button
+              type="button"
+              className="brand-mark"
+              onClick={() => setSidebarCompact(!sidebarCompact)}
+              aria-label={sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
+              title={sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
+            >
               <Settings size={18} />
-            </div>
+            </button>
             {!sidebarCompact && <div className="brand-title">Sistema de Grabado Láser</div>}
           </div>
-          <button
-            className="sidebar-toggle"
-            onClick={() => setSidebarCompact(!sidebarCompact)}
-            aria-label="Toggle sidebar"
-            title={sidebarCompact ? 'Expandir' : 'Compactar'}
-          >
-            {sidebarCompact ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-          </button>
         </div>
 
         <nav className="nav">
@@ -169,7 +166,7 @@ export function AppLayout() {
             <StatusIcon estado={estado} />
           </div>
           <div className="estop-card">
-              <span>
+              <span className="estop-label">
                 PARADA DE
                 <br />
                 EMERGENCIA

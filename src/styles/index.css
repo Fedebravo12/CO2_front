@@ -89,24 +89,14 @@ a { color: inherit; text-decoration: none; }
 .sidebar-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   margin-bottom: 8px;
 }
-.sidebar-toggle {
-  background: transparent;
-  border: 0;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
+.sidebar.compact .sidebar-header {
   justify-content: center;
-  border-radius: 6px;
-  transition: all 0.2s;
 }
-.sidebar-toggle:hover {
-  background: #14202a;
-  color: var(--text);
+.sidebar.compact .brand {
+  padding: 6px 0 16px;
+  justify-content: center;
 }
 .brand {
   display: flex;
@@ -117,12 +107,20 @@ a { color: inherit; text-decoration: none; }
 .brand-mark {
   width: 36px;
   height: 36px;
+  border: 0;
+  padding: 0;
   border-radius: 50%;
   display: grid;
   place-items: center;
   background: radial-gradient(circle at 35% 30%, #6affc0, #149a5a 62%, #0b3d28);
   box-shadow: 0 0 16px rgba(62, 224, 137, 0.35);
   color: #062016;
+}
+.sidebar .brand-mark {
+  cursor: pointer;
+}
+.sidebar .brand-mark:hover {
+  box-shadow: 0 0 20px rgba(62, 224, 137, 0.55);
 }
 .brand-title {
   font-weight: 700;
@@ -313,6 +311,13 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.14em;
   color: #ff8b93;
   font-weight: 600;
+}
+.estop-label {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.1;
+  color: #ff8b93;
 }
 .estop-btn {
   width: 62px;
