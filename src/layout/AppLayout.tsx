@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet } from 'react-router-dom'
 import {
   Bell,
   Check,
-  ChevronDown,
-  ChevronRight,
   ClipboardList,
   FolderKanban,
   Home,
@@ -29,6 +27,8 @@ const NAV = [
   { to: '/programas', label: 'Programas de grabado', icon: FolderKanban },
   { to: '/control-manual', label: 'Control manual', icon: SlidersHorizontal },
   { to: '/alertas', label: 'Alertas / Eventos', icon: Bell },
+  // Las secciones (usuarios, umbrales, auditoría) se eligen con las tabs de la página.
+  { to: '/admin', label: 'Administración', icon: Settings },
 ]
 
 function pad(n: number) {
@@ -75,12 +75,9 @@ function EstadoConexion({ conexion }: { conexion: Conexion }) {
 export function AppLayout() {
   const { rol, conexion, estado, emergencia, rearmar, now, controlador, errorComando } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
-  const [openAdmin, setOpenAdmin] = useState(false)
   const [confirmEstop, setConfirmEstop] = useState(false)
   const [confirmSalir, setConfirmSalir] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
-  const loc = useLocation()
-  const adminOpen = openAdmin || loc.pathname.startsWith('/admin')
 
   const fecha = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`
   const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
@@ -111,6 +108,7 @@ export function AppLayout() {
               key={item.to}
               to={item.to}
               end={item.end}
+              title={sidebarCompact ? item.label : undefined}
               className={({ isActive }) =>
                 `nav-link ${isActive ? 'active' : ''} ${isActive && item.to === '/nuevo-ensayo' ? 'teal' : ''}`
               }
@@ -120,18 +118,6 @@ export function AppLayout() {
             </NavLink>
           ))}
 
-          <button className="nav-btn" onClick={() => setOpenAdmin((v) => !v)}>
-            <Settings size={18} />
-            Administración
-            {adminOpen ? <ChevronDown size={16} style={{ marginLeft: 'auto' }} /> : <ChevronRight size={16} style={{ marginLeft: 'auto' }} />}
-          </button>
-          {adminOpen && (
-            <div className="nav-sub">
-              <NavLink to="/admin/usuarios">Usuarios y roles</NavLink>
-              <NavLink to="/admin/umbrales">Umbrales de alerta</NavLink>
-              <NavLink to="/admin/auditoria">Log de auditoría</NavLink>
-            </div>
-          )}
         </nav>
 
         <div className="sidebar-foot">
