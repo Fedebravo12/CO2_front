@@ -1059,7 +1059,36 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 .aviso-ctrl.warn { background: var(--orange-dim); color: var(--orange); }
 .aviso-ctrl.error { background: var(--red-dim); color: var(--red); }
 .acciones-paso { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
-.valid-row.auto em { color: var(--teal); }
+/* Validaciones que confirma un sensor: mismo checkbox que las manuales, sin
+   el gris de `disabled`; un candado indica que no se cambian a mano. */
+.valid-row.auto { position: relative; cursor: default; }
+.valid-row.auto input { cursor: help; }
+.valid-row.auto em { display: inline-flex; align-items: center; gap: 5px; color: var(--teal); }
+.valid-row.auto:not(.on) em { color: var(--dim); }
+.ayuda-sensor {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 20;
+  width: min(320px, 90vw);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s, visibility 0.12s;
+  pointer-events: none;
+}
+/* Al pasar el mouse sobre el checkbox aparece a los 2 s; al intentar
+   destildarlo (clic) o con el teclado, de inmediato. */
+.valid-row.auto input:hover ~ .ayuda-sensor { opacity: 1; visibility: visible; transition-delay: 2s; }
+.valid-row.auto input:focus-visible ~ .ayuda-sensor,
+.valid-row.auto.mostrar-ayuda .ayuda-sensor { opacity: 1; visibility: visible; transition-delay: 0s; }
 .resultado-ensayo { margin-top: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .resultado-ensayo a { color: var(--teal); }
 

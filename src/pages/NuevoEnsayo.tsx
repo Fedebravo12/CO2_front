@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, Lock } from 'lucide-react'
 import type { Accion, TelemetriaControlador } from '../api/control'
@@ -199,6 +199,15 @@ export function NuevoEnsayo() {
   } = useSystem()
   const [pickPrograma, setPickPrograma] = useState(false)
   const [enviando, setEnviando] = useState(false)
+  // Validación por sensor que el operador intentó cambiar: muestra la ayuda un rato.
+  const [avisoSensor, setAvisoSensor] = useState<string | null>(null)
+  const timerAviso = useRef<number | undefined>(undefined)
+  const mostrarAyuda = (vId: string) => {
+    setAvisoSensor(vId)
+    window.clearTimeout(timerAviso.current)
+    timerAviso.current = window.setTimeout(() => setAvisoSensor(null), 4000)
+  }
+  useEffect(() => () => window.clearTimeout(timerAviso.current), [])
 
   const paso = pasos.find((p) => p.id === pasoActual)!
   const cableado = CABLEADO[paso.id]
@@ -327,18 +336,44 @@ export function NuevoEnsayo() {
             {paso.validaciones.map((v) => {
               const porSensor = Boolean(cableado.sensores?.[v.id])
               const ok = verificada(v.id, v.verificada)
+              if (porSensor) {
+                // Sin `disabled`: el gris nativo hace pensar que está destildado. Se ve
+                // como un checkbox normal y el clic se bloquea acá, mostrando la ayuda.
+                const ayuda = ok
+                  ? 'Lo confirma el sensor, no se puede destildar a mano. Si la condición se pierde, se destilda sola. Para revertirla, usá la acción del paso o Control manual.'
+                  : 'Se tilda sola cuando el sensor confirma la condición. No hace falta marcarla a mano.'
+                return (
+                  <label
+                    key={v.id}
+                    className={`valid-row auto ${ok ? 'on' : ''} ${avisoSensor === v.id ? 'mostrar-ayuda' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={ok}
+                      readOnly
+                      aria-readonly="true"
+                      aria-describedby={`ayuda-${v.id}`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        mostrarAyuda(v.id)
+                      }}
+                    />
+                    {v.label}
+                    <em>
+                      <Lock size={11} aria-hidden="true" />
+                      {ok ? 'Verificado por sensor' : 'Esperando sensor'}
+                    </em>
+                    <span className="ayuda-sensor" role="tooltip" id={`ayuda-${v.id}`}>
+                      {ayuda}
+                    </span>
+                  </label>
+                )
+              }
               return (
-                <label key={v.id} className={`valid-row ${ok ? 'on' : ''} ${porSensor ? 'auto' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={ok}
-                    disabled={porSensor}
-                    onChange={() => toggleValidacion(paso.id, v.id)}
-                  />
+                <label key={v.id} className={`valid-row ${ok ? 'on' : ''}`}>
+                  <input type="checkbox" checked={ok} onChange={() => toggleValidacion(paso.id, v.id)} />
                   {v.label}
-                  <em>
-                    {porSensor ? (ok ? 'Verificado por sensor' : 'Esperando sensor') : ok ? 'Verificado' : 'No verificado'}
-                  </em>
+                  <em>{ok ? 'Verificado' : 'No verificado'}</em>
                 </label>
               )
             })}
