@@ -77,6 +77,7 @@ export function AppLayout() {
   const { usuario, cerrarSesion } = useAuth()
   const [openAdmin, setOpenAdmin] = useState(false)
   const [confirmEstop, setConfirmEstop] = useState(false)
+  const [confirmSalir, setConfirmSalir] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
   const loc = useLocation()
   const adminOpen = openAdmin || loc.pathname.startsWith('/admin')
@@ -142,7 +143,7 @@ export function AppLayout() {
                 <span>{rol}</span>
               </div>
             </div>
-            <button type="button" onClick={cerrarSesion} aria-label="Cerrar sesión" title="Cerrar sesión">
+            <button type="button" onClick={() => setConfirmSalir(true)} aria-label="Cerrar sesión" title="Cerrar sesión">
               <LogOut size={16} />
             </button>
           </div>
@@ -243,6 +244,35 @@ export function AppLayout() {
                 }}
               >
                 Activar E-Stop
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmSalir && (
+        <div className="modal-bg" onClick={() => setConfirmSalir(false)}>
+          <div
+            className="modal neutral"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-salir"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="titulo-salir">Cerrar sesión</h3>
+            <p>¿Querés cerrar la sesión de {usuario?.nombre}? Para volver a operar vas a tener que ingresar de nuevo.</p>
+            {estado !== 'REPOSO' && estado !== 'SIN CONEXIÓN' && (
+              // Cerrar sesión solo borra el token: el controlador sigue con lo que estaba.
+              <p className="aviso-ctrl warn">
+                El equipo no está en reposo ({estado}). Cerrar sesión no lo apaga ni detiene el grabado.
+              </p>
+            )}
+            <div className="modal-actions">
+              <button className="ghost" type="button" autoFocus onClick={() => setConfirmSalir(false)}>
+                Cancelar
+              </button>
+              <button className="primary" type="button" onClick={cerrarSesion}>
+                Cerrar sesión
               </button>
             </div>
           </div>
