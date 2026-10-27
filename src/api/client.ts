@@ -10,7 +10,17 @@
  * Contrato completo del backend: https://localhost:8443/api/docs/
  */
 
-import type { Alerta, Auditoria, Ensayo, FiltrosEnsayo, Programa, Rol, Umbral, Usuario } from '../mock/types'
+import type {
+  Alerta,
+  Auditoria,
+  Ensayo,
+  FiltrosEnsayo,
+  PerfilPeriodo,
+  Programa,
+  Rol,
+  Umbral,
+  Usuario,
+} from '../mock/types'
 import { ErrorApi, pedir } from './http'
 
 // ── Tipos del backend ────────────────────────────────────────────────────────
@@ -61,9 +71,13 @@ interface EnsayoApi {
 interface ProgramaApi {
   codigo: string
   nombre: string
+  version: number
   potencia_objetivo_mw: number
   duracion_pulso_ms: number
+  perfil_periodo: PerfilPeriodo
   desplazamiento_um: number
+  incremento_um: number | null
+  factor: number | null
   criterio_fin: CriterioFin
   distancia_mm: number
   pulsos: number
@@ -97,6 +111,13 @@ export const CRITERIOS_FIN: { valor: CriterioFin; etiqueta: string }[] = [
   { valor: 'LONGITUD', etiqueta: 'Distancia total' },
   { valor: 'CANT_MARCAS', etiqueta: 'Cantidad de pulsos' },
   { valor: 'MANUAL', etiqueta: 'Manual' },
+]
+
+/** Perfiles de período que ofrece el formulario de programas. */
+export const PERFILES_PERIODO: { valor: PerfilPeriodo; etiqueta: string }[] = [
+  { valor: 'CONSTANTE', etiqueta: 'Constante' },
+  { valor: 'LINEAL', etiqueta: 'Lineal (chirp)' },
+  { valor: 'EXPONENCIAL', etiqueta: 'Exponencial' },
 ]
 
 const ETIQUETA_CRITERIO: Record<CriterioFin, string> = {
@@ -167,9 +188,13 @@ function aPrograma(p: ProgramaApi): Programa {
   return {
     id: p.codigo,
     nombre: p.nombre,
+    version: p.version,
     potenciaObjetivoMw: p.potencia_objetivo_mw,
     duracionPulsoMs: p.duracion_pulso_ms,
+    perfilPeriodo: p.perfil_periodo,
     desplazamientoUm: p.desplazamiento_um,
+    incrementoUm: p.incremento_um,
+    factor: p.factor,
     criterioFin: ETIQUETA_CRITERIO[p.criterio_fin] ?? p.criterio_fin,
     distanciaMm: p.distancia_mm,
     pulsosEstimados: p.pulsos,
@@ -178,7 +203,7 @@ function aPrograma(p: ProgramaApi): Programa {
   }
 }
 
-type DatosPrograma = Omit<Programa, 'id' | 'actualizado' | 'creadoPor'>
+type DatosPrograma = Omit<Programa, 'id' | 'version' | 'actualizado' | 'creadoPor'>
 
 function deProgramaAApi(d: DatosPrograma) {
   const criterio = criterioDeEtiqueta(d.criterioFin)
@@ -186,7 +211,11 @@ function deProgramaAApi(d: DatosPrograma) {
     nombre: d.nombre,
     potencia_objetivo_mw: d.potenciaObjetivoMw,
     duracion_pulso_ms: d.duracionPulsoMs,
+    perfil_periodo: d.perfilPeriodo,
     desplazamiento_um: d.desplazamientoUm,
+    // El backend rechaza los parámetros que el perfil elegido no usa.
+    incremento_um: d.perfilPeriodo === 'LINEAL' ? d.incrementoUm : null,
+    factor: d.perfilPeriodo === 'EXPONENCIAL' ? d.factor : null,
     criterio_fin: criterio,
     // Según el criterio, el backend usa uno y deriva el otro.
     distancia_mm: criterio === 'CANT_MARCAS' ? null : d.distanciaMm || null,

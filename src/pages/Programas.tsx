@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { api, CRITERIOS_FIN } from '../api/client'
-import type { Programa } from '../mock/types'
+import { api, CRITERIOS_FIN, PERFILES_PERIODO } from '../api/client'
+import type { PerfilPeriodo, Programa } from '../mock/types'
 import { useSystem } from '../context/SystemContext'
 import { fmt } from '../components/Meters'
 
@@ -9,25 +9,55 @@ const FORM_INICIAL = {
   nombre: '',
   potenciaObjetivoMw: '',
   duracionPulsoMs: '',
+  perfilPeriodo: 'CONSTANTE' as PerfilPeriodo,
   desplazamientoUm: '',
+  incrementoUm: '',
+  factor: '',
   criterioFin: CRITERIOS_FIN[0].etiqueta,
   distanciaMm: '',
   pulsosEstimados: '',
 }
 
+/** Período de la marca `n` (µm), igual que `Periodo.calcular_distancia` del backend. */
+function periodoDeMarca(form: typeof FORM_INICIAL, n: number) {
+  const base = Number(form.desplazamientoUm)
+  if (form.perfilPeriodo === 'LINEAL') return base + (Number(form.incrementoUm) || 0) * n
+  if (form.perfilPeriodo === 'EXPONENCIAL') return base * (Number(form.factor) || 1) ** n
+  return base
+}
+
+/** Tope de marcas al derivar, el mismo que aplica el backend. */
+const MAXIMO_MARCAS = 100_000
+
 /**
- * Distancia y pulsos no son independientes: longitud = marcas × período.
- * Según el criterio de fin se ingresa uno y el otro se deriva, igual que hace
- * el backend. Así el formulario no deja cargar un programa inconsistente.
+ * Distancia y pulsos no son independientes: la longitud es la suma de los
+ * períodos de las marcas (marcas × período si el perfil es constante). Según el
+ * criterio de fin se ingresa uno y el otro se deriva, igual que hace el backend.
+ * Si el perfil no permite derivar (período no positivo, sin parámetros) el campo
+ * derivado queda vacío y el backend informa el motivo al guardar.
  */
 function derivar(form: typeof FORM_INICIAL) {
   const despl = Number(form.desplazamientoUm)
   if (!despl) return form
   if (form.criterioFin === 'Distancia total' && form.distanciaMm) {
-    return { ...form, pulsosEstimados: String(Math.floor((Number(form.distanciaMm) * 1000) / despl)) }
+    const largoUm = Number(form.distanciaMm) * 1000
+    if (form.perfilPeriodo === 'CONSTANTE') {
+      return { ...form, pulsosEstimados: String(Math.floor(largoUm / despl)) }
+    }
+    let acumulado = 0
+    let n = 0
+    while (n < MAXIMO_MARCAS) {
+      const periodo = periodoDeMarca(form, n)
+      if (periodo <= 0 || acumulado + periodo > largoUm) break
+      acumulado += periodo
+      n++
+    }
+    return { ...form, pulsosEstimados: n >= MAXIMO_MARCAS ? '' : String(n) }
   }
   if (form.criterioFin === 'Cantidad de pulsos' && form.pulsosEstimados) {
-    return { ...form, distanciaMm: String((Number(form.pulsosEstimados) * despl) / 1000) }
+    let acumulado = 0
+    for (let n = 0; n < Number(form.pulsosEstimados); n++) acumulado += periodoDeMarca(form, n)
+    return { ...form, distanciaMm: String(acumulado / 1000) }
   }
   return form
 }
@@ -71,7 +101,10 @@ export function Programas() {
       nombre: p.nombre,
       potenciaObjetivoMw: String(p.potenciaObjetivoMw),
       duracionPulsoMs: String(p.duracionPulsoMs),
+      perfilPeriodo: p.perfilPeriodo,
       desplazamientoUm: String(p.desplazamientoUm),
+      incrementoUm: p.incrementoUm == null ? '' : String(p.incrementoUm),
+      factor: p.factor == null ? '' : String(p.factor),
       criterioFin: CRITERIOS_FIN.some((c) => c.etiqueta === p.criterioFin) ? p.criterioFin : 'Manual',
       distanciaMm: String(p.distanciaMm),
       pulsosEstimados: String(p.pulsosEstimados),
@@ -85,7 +118,10 @@ export function Programas() {
       nombre: form.nombre.trim(),
       potenciaObjetivoMw: Number(form.potenciaObjetivoMw) || 0,
       duracionPulsoMs: Number(form.duracionPulsoMs) || 0,
+      perfilPeriodo: form.perfilPeriodo,
       desplazamientoUm: Number(form.desplazamientoUm) || 0,
+      incrementoUm: form.incrementoUm === '' ? null : Number(form.incrementoUm),
+      factor: form.factor === '' ? null : Number(form.factor),
       criterioFin: form.criterioFin,
       distanciaMm: Number(form.distanciaMm) || 0,
       pulsosEstimados: Number(form.pulsosEstimados) || 0,
@@ -195,8 +231,20 @@ export function Programas() {
                 <b>{sel.duracionPulsoMs} ms</b>
               </div>
               <div>
-                <span>Desplazamiento por pulso</span>
+                <span>{sel.perfilPeriodo === 'CONSTANTE' ? 'Desplazamiento por pulso' : 'Período inicial'}</span>
                 <b>{sel.desplazamientoUm} µm</b>
+              </div>
+              <div>
+                <span>Perfil de período</span>
+                <b>
+                  {PERFILES_PERIODO.find((p) => p.valor === sel.perfilPeriodo)?.etiqueta}
+                  {sel.perfilPeriodo === 'LINEAL' && ` · +${sel.incrementoUm} µm/marca`}
+                  {sel.perfilPeriodo === 'EXPONENCIAL' && ` · ×${sel.factor}/marca`}
+                </b>
+              </div>
+              <div>
+                <span>Versión</span>
+                <b>v{sel.version}</b>
               </div>
               <div>
                 <span>Criterio de finalización</span>
@@ -261,7 +309,11 @@ export function Programas() {
                 />
               </div>
               <div className="field">
-                <label>Desplazamiento por pulso (µm)</label>
+                <label>
+                  {form.perfilPeriodo === 'CONSTANTE'
+                    ? 'Desplazamiento por pulso (µm)'
+                    : 'Período inicial (µm)'}
+                </label>
                 <input
                   type="number"
                   value={form.desplazamientoUm}
@@ -269,6 +321,42 @@ export function Programas() {
                   placeholder="Ej: 550"
                 />
               </div>
+              <div className="field full">
+                <label>Perfil de período</label>
+                <select
+                  value={form.perfilPeriodo}
+                  onChange={(e) => setField('perfilPeriodo', e.target.value)}
+                >
+                  {PERFILES_PERIODO.map((p) => (
+                    <option key={p.valor} value={p.valor}>
+                      {p.etiqueta}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {form.perfilPeriodo === 'LINEAL' && (
+                <div className="field full">
+                  <label>Incremento por marca (µm)</label>
+                  <input
+                    type="number"
+                    value={form.incrementoUm}
+                    onChange={(e) => setField('incrementoUm', e.target.value)}
+                    placeholder="Ej: 2"
+                  />
+                </div>
+              )}
+              {form.perfilPeriodo === 'EXPONENCIAL' && (
+                <div className="field full">
+                  <label>Factor por marca</label>
+                  <input
+                    type="number"
+                    step="any"
+                    value={form.factor}
+                    onChange={(e) => setField('factor', e.target.value)}
+                    placeholder="Ej: 1.01"
+                  />
+                </div>
+              )}
               <div className="field full">
                 <label>Criterio de finalización</label>
                 <select value={form.criterioFin} onChange={(e) => setField('criterioFin', e.target.value)}>
