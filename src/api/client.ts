@@ -26,6 +26,22 @@ export interface UsuarioApi {
   rol: CodigoRol | null
   activo: boolean
   ultimo_acceso: string | null
+  // Solo en la respuesta al administrador.
+  first_name?: string
+  last_name?: string
+  email?: string
+  legajo?: string | null
+}
+
+/** Lo que el formulario de usuarios envía. La contraseña es opcional al editar. */
+export interface DatosUsuario {
+  usuario: string
+  nombreDePila: string
+  apellido: string
+  email: string
+  legajo: string
+  rol: Rol
+  password?: string
 }
 
 interface EnsayoApi {
@@ -202,6 +218,26 @@ function aUsuario(u: UsuarioApi): Usuario {
     rol: u.rol ? ROL_DE_CODIGO[u.rol] : 'Operador',
     activo: u.activo,
     ultimoAcceso: fmtFecha(u.ultimo_acceso, false),
+    nombreDePila: u.first_name,
+    apellido: u.last_name,
+    email: u.email,
+    legajo: u.legajo ?? undefined,
+  }
+}
+
+const CODIGO_DE_ROL = Object.fromEntries(
+  Object.entries(ROL_DE_CODIGO).map(([codigo, rol]) => [rol, codigo]),
+) as Record<Rol, CodigoRol>
+
+function deUsuarioAApi(d: DatosUsuario) {
+  return {
+    username: d.usuario.trim(),
+    first_name: d.nombreDePila.trim(),
+    last_name: d.apellido.trim(),
+    email: d.email.trim(),
+    legajo: d.legajo.trim(),
+    rol: CODIGO_DE_ROL[d.rol],
+    ...(d.password ? { password: d.password } : {}),
   }
 }
 
@@ -358,6 +394,30 @@ export const api = {
 
   listarUsuarios: async (): Promise<Usuario[]> =>
     (await pedir<UsuarioApi[]>('/usuarios/')).map(aUsuario),
+
+  // ABM de usuarios: el backend solo lo acepta del administrador (RF011, RN011).
+  crearUsuario: async (datos: DatosUsuario): Promise<Usuario> =>
+    aUsuario(await pedir<UsuarioApi>('/usuarios/', { method: 'POST', body: JSON.stringify(deUsuarioAApi(datos)) })),
+
+  actualizarUsuario: async (id: string, datos: DatosUsuario): Promise<Usuario> =>
+    aUsuario(
+      await pedir<UsuarioApi>(`/usuarios/${encodeURIComponent(id)}/`, {
+        method: 'PATCH',
+        body: JSON.stringify(deUsuarioAApi(datos)),
+      }),
+    ),
+
+  /** Baja lógica: el usuario queda inactivo, no se borra (trazabilidad de sus ensayos). */
+  darDeBajaUsuario: async (id: string): Promise<void> =>
+    pedir<void>(`/usuarios/${encodeURIComponent(id)}/`, { method: 'DELETE' }),
+
+  reactivarUsuario: async (id: string): Promise<Usuario> =>
+    aUsuario(
+      await pedir<UsuarioApi>(`/usuarios/${encodeURIComponent(id)}/`, {
+        method: 'PATCH',
+        body: JSON.stringify({ activo: true }),
+      }),
+    ),
 
   /** Bitácora de auditoría. Solo el administrador: el resto recibe 403. */
   listarAuditoria: async (): Promise<Auditoria[]> =>

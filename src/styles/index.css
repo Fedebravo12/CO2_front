@@ -1207,3 +1207,7 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 @media (max-width: 1150px) { .lab-grid { grid-template-columns: 1fr; }.lab-console { grid-column: 1; grid-row: auto; }.lab-run { grid-row: 2; }.lab-heading { align-items: flex-start; flex-direction: column; } }
 @media (max-width: 600px) { .lab-run, .lab-console { padding: 18px; }.lab-run-head { align-items: flex-start; flex-direction: column; }.lab-legend small { margin-left: 0; }.lab-svg-label { font-size: 13px; }.lab-note { align-items: flex-start; } }
 @media (prefers-reduced-motion: reduce) { .lab-page *, .lab-page *::before, .lab-page *::after { animation: none !important; transition: none !important; } }
+
+/* Acciones por fila en tablas de administración. */
+.acciones-fila { display: flex; gap: 6px; flex-wrap: wrap; }
+.acciones-fila .ghost { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; font-size: 13px; }

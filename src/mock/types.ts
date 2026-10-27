@@ -96,6 +96,11 @@ export interface Usuario {
   rol: Rol
   activo: boolean
   ultimoAcceso: string
+  // Solo llegan al administrador (los demás roles reciben el listado reducido).
+  nombreDePila?: string
+  apellido?: string
+  email?: string
+  legajo?: string
 }
 
 export interface Auditoria {
