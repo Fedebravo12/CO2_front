@@ -1400,3 +1400,15 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .estop-card { flex-direction: column; justify-content: center; }
   .estop-label { font-size: 13.8px; }
 }
+
+/* Dar un 10% más de ancho al bloque completo, sin escalar sus controles. */
+.estop-card { padding-inline: 24px; }
+@supports (width: calc-size(max-content, size * 1.1)) {
+  .estop-card { padding-inline: 12px; width: calc-size(max-content, size * 1.1); }
+}
+@media (max-width: 600px) {
+  .estop-card { padding-inline: 12px; }
+  @supports (width: calc-size(max-content, size * 1.1)) {
+    .estop-card { padding-inline: 6px; }
+  }
+}
