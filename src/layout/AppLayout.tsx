@@ -1,3 +1,4 @@
+import { AvisoEmergencia } from '../components/AvisoEmergencia'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
@@ -55,7 +56,7 @@ function StatusIcon({ estado }: { estado: EstadoSistema }) {
 }
 
 export function AppLayout() {
-  const { rol, estado, emergencia, rearmar, now, controlador, errorComando } = useSystem()
+  const { rol, estado, emergencia, now, controlador, errorComando } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
   const [confirmSalir, setConfirmSalir] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
@@ -64,6 +65,8 @@ export function AppLayout() {
   const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
   const statusCls = claseDeEstado(estado)
   const sinConexion = estado === 'SIN CONEXIÓN'
+  // Conservar el aviso si la comunicación se pierde durante una emergencia.
+  const emergenciaActiva = controlador?.estado === 'EMERGENCIA'
 
   return (
     <div className="app">
@@ -132,7 +135,7 @@ export function AppLayout() {
               <p className={`status-value ${statusCls}`}>{estado}</p>
             </div>
             <div id="telemetria-toolbar" />
-            <StatusIcon estado={estado} />
+            {emergenciaActiva ? <AvisoEmergencia /> : <StatusIcon estado={estado} />}
           </div>
           <div className="estop-card">
               <span className="estop-label">
@@ -162,26 +165,9 @@ export function AppLayout() {
           </div>
         )}
 
-        {estado === 'EMERGENCIA' && controlador?.mensaje && (
-          <div className="banner" style={{ background: 'var(--red-dim)' }}>
-            <span>{controlador.mensaje.texto}</span>
-          </div>
-        )}
-
-        {errorComando && (
+        {errorComando && !emergenciaActiva && (
           <div className="banner">
             <span>{errorComando}</span>
-          </div>
-        )}
-
-        {estado === 'EMERGENCIA' && (
-          <div className="banner">
-            <span>
-              Emisión del láser y actuadores deshabilitados. Motivo: parada de emergencia (RN005).
-            </span>
-            <button type="button" onClick={rearmar}>
-              Rearmar sistema
-            </button>
           </div>
         )}
 

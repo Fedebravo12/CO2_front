@@ -188,3 +188,12 @@ Validación: `npm run build` y `npm run test:telemetria`. Esta última comprueba
 renderizado con telemetría de prueba, conversión de unidades, progreso, cortes
 en las curvas y estados desconectado/sin muestras; no reemplaza una prueba
 contra el controlador real.
+
+La emergencia se presenta en un único diálogo modal, sin desplazar el tablero.
+Cerrar el aviso (o Escape) solo oculta el diálogo: no envía comandos ni rearma
+el sistema. Mientras el controlador siga en emergencia, «Ver emergencia» en
+la cabecera permite abrirlo otra vez. El rearme es manual, se bloquea sin conexión
+y el diálogo permanece hasta que la telemetría confirme la salida de emergencia.
+Los errores de comando se muestran dentro del aviso. `npm run test:emergencia`
+verifica los handlers de cierre y rearme; el foco y la capa modal requieren
+verificación en navegador.
