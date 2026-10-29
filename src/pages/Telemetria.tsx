@@ -102,7 +102,7 @@ export function Telemetria() {
     </div>
   }
   const picker = <label className="tc-window">Ventana <select aria-label="Ventana de tendencia" value={seconds} onChange={e => setSeconds(Number(e.target.value))}>{[30, 60, 120].map(s => <option key={s} value={s}>{s === 120 ? '2 min' : `${s} s`}</option>)}</select></label>
-  const toolbar = <div className="tc-toolbar"><span className={live ? 'tc-live' : 'tc-offline'}>● {live ? `En vivo · ${last.hz} Hz` : 'Conexión interrumpida'} · {time}</span>{picker}</div>
+  const toolbar = <div className="tc-toolbar">{picker}</div>
   const toolbarHost = document.getElementById('telemetria-toolbar')
   return <>
     {toolbarHost ? createPortal(toolbar, toolbarHost) : toolbar}

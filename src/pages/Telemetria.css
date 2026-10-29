@@ -1,6 +1,5 @@
 .tc-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font: 12px var(--mono); }
-.tc-live { color: var(--green); }
-.tc-offline, .tc-warning { color: var(--red); }
+.tc-warning { color: var(--red); }
 .tc-window { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .tc-window select { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; font: inherit; }
 .tc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; min-height: calc(100dvh - 145px); grid-auto-rows: minmax(195px, 1fr); }
