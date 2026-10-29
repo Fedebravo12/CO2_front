@@ -1374,3 +1374,27 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 .emergency-dialog p.emergency-feedback { color: var(--red); }
 .emergency-details { flex-shrink: 0; border: 1px solid var(--red); background: var(--red-dim); color: var(--red); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
 .emergency-details:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+/* Cabecera compartida: idéntica geometría en todas las rutas para cada viewport. */
+.topbar { --header-height: clamp(76px, 12dvh, 96px); flex: none; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 10px 16px 8px; }
+.status-card, .estop-card { height: var(--header-height); min-height: 0; min-width: 0; padding: 8px 12px; gap: 10px; flex-wrap: nowrap; }
+.status-card > div:first-child { min-width: 0; }
+.status-card h2 { font-size: 12px; white-space: nowrap; }
+.status-value { font-size: clamp(18px, 3dvh, 26px); white-space: nowrap; }
+.status-ico { width: 40px; height: 40px; }
+.estop-label { font-size: clamp(16px, 2.5dvh, 22px); white-space: nowrap; }
+.estop-btn { width: 50px; height: 50px; flex: none; }
+@media (max-width: 1100px) {
+  .status-ico { display: none; }
+  .status-card h2 { font-size: 10px; }
+}
+@media (max-width: 900px) {
+  .topbar { --header-height: 94px; }
+}
+@media (max-width: 600px) {
+  .topbar { --header-height: 132px; padding: 6px; gap: 6px; }
+  .status-card, .estop-card { padding: 6px; }
+  .status-card { flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; }
+  .estop-card { flex-direction: column; justify-content: center; }
+  .estop-label { font-size: 12px; }
+}

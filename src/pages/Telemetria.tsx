@@ -71,7 +71,7 @@ export function Telemetria() {
   }
   const heading = (c: Channel) => {
     const badge = c.badge ? (live ? c.badge(last) : ['Sin datos', 'neutral']) : null
-    return <div className="tc-heading"><span className="tc-icon"><c.icon size={19} /></span><h3>{c.title}</h3>{badge && <span className={`tc-badge ${badge[1]}`}>{badge[0]}</span>}</div>
+    return <div className="tc-heading"><span className="tc-icon"><c.icon size={19} /></span><h3 title={c.title}>{c.title}</h3>{badge && <span className={`tc-badge ${badge[1]}`}>{badge[0]}</span>}</div>
   }
   const chart = (c: Channel, expanded = false) => {
     const width = 1000, height = expanded ? 320 : 100, padding = 15
