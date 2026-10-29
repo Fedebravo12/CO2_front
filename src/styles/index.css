@@ -1377,7 +1377,8 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 
 /* La cabecera comparte tres columnas, márgenes y separación con el dashboard. */
 .main { --scada-gap: clamp(6px, 1.4dvh, 14px); --scada-padding: 16px; }
-.topbar { --header-height: clamp(76px, 12dvh, 96px); flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--scada-gap); padding: 10px var(--scada-padding) 8px; }
+.app { --header-height: clamp(76px, 12dvh, 96px); --header-outer-height: calc(var(--header-height) + 19px); }
+.topbar { flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--scada-gap); padding: 10px var(--scada-padding) 8px; }
 .status-card, .estop-card { height: var(--header-height); min-height: 0; min-width: 0; padding: 8px 12px; gap: 10px; flex-wrap: nowrap; }
 .status-card { grid-column: span 2; }
 .estop-card { grid-column: 3; }
@@ -1394,13 +1395,32 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .status-card h2 { font-size: 10px; }
 }
 @media (max-width: 900px) {
-  .topbar { --header-height: 94px; }
+  .app { --header-height: 94px; }
 }
 @media (max-width: 600px) {
   .main { --scada-gap: 6px; --scada-padding: 6px; }
-  .topbar { --header-height: 132px; padding: 6px var(--scada-padding); }
+  .app { --header-height: 132px; --header-outer-height: 145px; }
+  .topbar { padding: 6px var(--scada-padding); }
   .status-card, .estop-card { padding: 6px; }
   .status-card { flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; }
   .estop-card { flex-direction: column; justify-content: center; }
   .estop-label { font-size: 13.8px; }
+}
+
+.status-heading { display: flex; align-items: center; gap: 8px; }
+.mobile-menu-button { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface-2); cursor: pointer; }
+.mobile-menu-button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+@media (max-width: 900px) {
+  /* El cajón comienza debajo de la cabecera: la parada sigue accesible. */
+  .sidebar-backdrop { position: fixed; inset: var(--header-outer-height) 0 0; z-index: 1001; background: rgb(0 0 0 / 45%); }
+  .app .sidebar.mobile-open { display: flex; position: fixed; top: var(--header-outer-height); left: 0; z-index: 1002; width: min(300px, 85vw); height: calc(100dvh - var(--header-outer-height)); padding: 12px; overflow-y: auto; overscroll-behavior: contain; box-shadow: var(--shadow); }
+  .sidebar.mobile-open .nav { flex: 1 0 auto; }
+  .sidebar.mobile-open .sidebar-foot { flex: none; }
+  .status-heading > div { min-width: 0; }
+}
+@media (max-width: 400px) {
+  .status-heading { gap: 5px; }
+  .status-card h2 { font-size: 8px; letter-spacing: .05em; }
+  .status-value { font-size: 16px; }
+  .mobile-menu-button { width: 32px; height: 32px; }
 }

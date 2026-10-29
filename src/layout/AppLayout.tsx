@@ -1,6 +1,6 @@
 import { AvisoEmergencia } from '../components/AvisoEmergencia'
 import { ThemeToggle } from '../components/ThemeToggle'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   Bell,
@@ -10,6 +10,8 @@ import {
   FolderKanban,
   Home,
   LogOut,
+  Menu,
+  X,
   Play,
   Settings,
   SlidersHorizontal,
@@ -56,11 +58,36 @@ function StatusIcon({ estado }: { estado: EstadoSistema }) {
 }
 
 export function AppLayout() {
-  const dashboard = useLocation().pathname === '/'
+  const { pathname } = useLocation()
+  const dashboard = pathname === '/'
   const { rol, estado, emergencia, now, controlador, errorComando } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
   const [confirmSalir, setConfirmSalir] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
+  const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 900px)').matches)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const menuButton = useRef<HTMLButtonElement>(null)
+  const sidebar = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 900px)')
+    const resize = () => { setNarrow(media.matches); setMobileOpen(false) }
+    media.addEventListener('change', resize)
+    return () => media.removeEventListener('change', resize)
+  }, [])
+  useEffect(() => { setMobileOpen(false) }, [pathname, estado])
+  useEffect(() => {
+    if (!mobileOpen) return
+    sidebar.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setMobileOpen(false) }
+    }
+    window.addEventListener('keydown', escape)
+    return () => {
+      window.removeEventListener('keydown', escape)
+      if (window.matchMedia('(max-width: 900px)').matches) menuButton.current?.focus()
+    }
+  }, [mobileOpen])
 
   const fecha = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`
   const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
@@ -71,17 +98,18 @@ export function AppLayout() {
 
   return (
     <div className={`app ${dashboard ? 'app-dashboard' : ''}`}>
-      <aside className={`sidebar ${sidebarCompact ? 'compact' : ''}`}>
+      {narrow && mobileOpen && <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} aria-hidden="true" />}
+      <aside id="app-sidebar" ref={sidebar} aria-label="Menú principal" className={`sidebar ${!narrow && sidebarCompact ? 'compact' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <div className="brand">
             <button
               type="button"
               className="brand-mark"
-              onClick={() => setSidebarCompact(!sidebarCompact)}
-              aria-label={sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
-              title={sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
+              onClick={() => narrow ? setMobileOpen(false) : setSidebarCompact(!sidebarCompact)}
+              aria-label={narrow ? 'Cerrar menú' : sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
+              title={narrow ? 'Cerrar menú' : sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
             >
-              <ScanLine size={18} />
+              {narrow ? <X size={18} /> : <ScanLine size={18} />}
             </button>
             <div className="brand-title">Sistema de Grabado Láser</div>
           </div>
@@ -92,6 +120,7 @@ export function AppLayout() {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={() => setMobileOpen(false)}
               end={item.end}
               title={sidebarCompact ? item.label : undefined}
               className={({ isActive }) =>
@@ -115,7 +144,7 @@ export function AppLayout() {
                 <span>{rol}</span>
               </div>
             </div>
-            <button type="button" onClick={() => setConfirmSalir(true)} aria-label="Cerrar sesión" title="Cerrar sesión">
+            <button type="button" onClick={() => { setMobileOpen(false); setConfirmSalir(true) }} aria-label="Cerrar sesión" title="Cerrar sesión">
               <LogOut size={16} />
             </button>
           </div>
@@ -131,9 +160,17 @@ export function AppLayout() {
       <div className="main">
         <header className="topbar">
           <div className="status-card">
-            <div>
-              <h2>ESTADO DEL SISTEMA</h2>
-              <p className={`status-value ${statusCls}`}>{estado}</p>
+            <div className="status-heading">
+              {narrow && <button ref={menuButton} type="button" className="mobile-menu-button"
+                aria-label={mobileOpen ? 'Cerrar menú principal' : 'Abrir menú principal'}
+                aria-expanded={mobileOpen} aria-controls="app-sidebar"
+                onClick={() => setMobileOpen(open => !open)}>
+                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>}
+              <div>
+                <h2>ESTADO DEL SISTEMA</h2>
+                <p className={`status-value ${statusCls}`}>{estado}</p>
+              </div>
             </div>
             <div id="telemetria-toolbar" />
             {emergenciaActiva ? <AvisoEmergencia /> : <StatusIcon estado={estado} />}

@@ -203,3 +203,11 @@ sin scroll de página. Cabecera, espacios y tipografía se adaptan al tamaño;
 las otras pantallas conservan su desplazamiento normal. Se verificaron ambas
 vistas en navegador con datos de prueba a 1366 × 768 y 1024 × 600, comprobando
 que las nueve tarjetas entren sin desbordes y que la parada siga visible.
+
+En anchos de hasta 900 px (incluido el ancho efectivo al aumentar el zoom), el
+sidebar se abre con el botón de menú de la cabecera. Se superpone debajo de la
+cabecera, conservando el acceso a la parada de emergencia. Se cierra al navegar,
+con Escape, con el botón de cierre o al tocar el fondo. Si falta alto, solo el
+menú tiene desplazamiento interno. Al volver a escritorio recupera el sidebar
+normal y su preferencia de compactación. Verificado en navegador a 390 × 844,
+768 × 500 y al regresar a 1366 × 768.
