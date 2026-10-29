@@ -2,7 +2,7 @@
 .tc-warning { color: var(--red); }
 .tc-window { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .tc-window select { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; font: inherit; }
-.tc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; min-height: calc(100dvh - 145px); grid-auto-rows: minmax(195px, 1fr); }
+.tc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(6px, 1.4dvh, 14px); min-height: 0; flex: 1; grid-template-rows: repeat(3, minmax(0, 1fr)); }
 .tc-card { text-align: left; color: var(--text); background: var(--surface); border: 3px solid var(--border); border-radius: 14px; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; cursor: pointer; }
 .tc-card:hover { background: var(--surface-2); }
 .tc-card:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
@@ -38,8 +38,7 @@
 .tc-axis { position: absolute; inset: 3px auto 3px 6px; display: flex; flex-direction: column; justify-content: space-between; font: 10px var(--mono); color: var(--muted); }
 .status-card:has(#telemetria-toolbar) { flex-wrap: wrap; }
 #telemetria-toolbar:empty { display: none; }
-@media (max-width: 1150px) { .tc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 680px) { .tc-grid { grid-template-columns: minmax(0, 1fr); } .tc-detail { padding: 14px; } .tc-detail-summary { flex-wrap: wrap; } }
+@media (max-width: 680px) { .tc-detail { padding: 14px; } .tc-detail-summary { flex-wrap: wrap; } }
 
 /* Variante B: lectura rápida; las curvas siguen disponibles en el detalle. */
 .tc-view-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface-2); color: var(--muted); font: inherit; cursor: pointer; }
@@ -48,4 +47,57 @@
 .tc-simple .tc-card { justify-content: space-between; }
 .tc-simple .tc-value { font-size: clamp(26px, 4vw, 64px); }
 .tc-simple .tc-progress { margin: 0; }
-@media (max-width: 680px) { .tc-simple .tc-value { font-size: 44px; } }
+
+
+/* El dashboard distribuye el espacio real restante, sin alturas mínimas acumuladas. */
+.app-dashboard { height: 100dvh; min-height: 0; grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+.app-dashboard .main { min-height: 0; }
+.app-dashboard .sidebar { height: 100%; min-height: 0; }
+.app-dashboard .page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px 16px 12px; }
+.app-dashboard .topbar { flex: none; position: static; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 10px 16px 8px; }
+.app-dashboard .status-card, .app-dashboard .estop-card { min-height: 0; padding: 8px 12px; gap: 10px; }
+.app-dashboard .status-card h2 { font-size: 12px; }
+.app-dashboard .status-value { font-size: clamp(18px, 3dvh, 26px); }
+.app-dashboard .status-ico { width: 40px; height: 40px; }
+.app-dashboard .estop-card { min-width: 0; }
+.app-dashboard .estop-label { font-size: clamp(16px, 2.5dvh, 22px); }
+.app-dashboard .estop-btn { width: 50px; height: 50px; flex: none; }
+.app-dashboard .banner { flex: none; margin-block: 6px; padding-block: 6px; }
+.app-dashboard .tc-warning { margin: 0 0 6px; }
+.tc-grid > .tc-card { min-height: 0; padding: clamp(6px, 1.2dvh, 12px) clamp(8px, 1vw, 16px); gap: clamp(3px, .7dvh, 8px); container-type: inline-size; }
+.tc-card .tc-heading { flex: none; gap: 6px; }
+.tc-card .tc-heading h3 { font-size: clamp(9px, 1.5dvh, 12px); letter-spacing: .04em; }
+.tc-card .tc-icon { width: 26px; height: 26px; }
+.tc-card .tc-badge { font-size: clamp(9px, 1.4dvh, 11px); padding: 3px 6px; }
+.tc-card .tc-value { flex: none; font-size: min(clamp(20px, 4.5dvh, 48px), 12cqi); white-space: nowrap; }
+.tc-simple .tc-card .tc-value { font-size: min(clamp(24px, 6dvh, 64px), 14cqi); }
+.tc-card .tc-plot { min-height: 0; }
+.tc-card .tc-foot { flex: none; font-size: clamp(9px, 1.4dvh, 11px); gap: 4px; }
+.tc-card .tc-foot > span:first-child { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-card .tc-foot > span:last-child { flex: none; }
+.tc-card .tc-progress { flex-shrink: 0; }
+@media (max-height: 720px) {
+  .app-dashboard .sidebar { padding-block: 10px; }
+  .app-dashboard .nav { gap: 2px; }
+  .app-dashboard .nav-link { padding-block: 6px; }
+  .app-dashboard .sidebar-foot { padding-top: 6px; }
+}
+@media (max-width: 1100px) {
+  .app-dashboard .status-ico { display: none; }
+  .app-dashboard .tc-toolbar { gap: 6px; }
+  .tc-card .tc-heading { flex-wrap: wrap; }
+  .tc-card .tc-heading h3 { flex-basis: calc(100% - 32px); }
+  .tc-card .tc-badge { margin-left: 32px; }
+}
+@media (max-width: 600px) {
+  .app-dashboard .page { padding: 6px; }
+  .app-dashboard .topbar { padding: 6px; gap: 6px; }
+  .app-dashboard .status-card, .app-dashboard .estop-card { padding: 6px; }
+  .app-dashboard .estop-card { flex-direction: column; justify-content: center; }
+  .app-dashboard .estop-label { font-size: 12px; }
+  .app-dashboard .tc-toolbar { font-size: 10px; }
+  .tc-card .tc-icon { display: none; }
+  .tc-card .tc-heading h3 { flex-basis: 100%; }
+  .tc-card .tc-badge { margin-left: 0; }
+  .tc-card .tc-foot > span:last-child { display: none; }
+}

@@ -1,7 +1,7 @@
 import { AvisoEmergencia } from '../components/AvisoEmergencia'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   Bell,
   Check,
@@ -56,6 +56,7 @@ function StatusIcon({ estado }: { estado: EstadoSistema }) {
 }
 
 export function AppLayout() {
+  const dashboard = useLocation().pathname === '/'
   const { rol, estado, emergencia, now, controlador, errorComando } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
   const [confirmSalir, setConfirmSalir] = useState(false)
@@ -69,7 +70,7 @@ export function AppLayout() {
   const emergenciaActiva = controlador?.estado === 'EMERGENCIA'
 
   return (
-    <div className="app">
+    <div className={`app ${dashboard ? 'app-dashboard' : ''}`}>
       <aside className={`sidebar ${sidebarCompact ? 'compact' : ''}`}>
         <div className="sidebar-header">
           <div className="brand">

@@ -197,3 +197,9 @@ y el diálogo permanece hasta que la telemetría confirme la salida de emergenci
 Los errores de comando se muestran dentro del aviso. `npm run test:emergencia`
 verifica los handlers de cierre y rearme; el foco y la capa modal requieren
 verificación en navegador.
+
+El dashboard usa el alto disponible de la pantalla y una grilla fija de 3 × 3,
+sin scroll de página. Cabecera, espacios y tipografía se adaptan al tamaño;
+las otras pantallas conservan su desplazamiento normal. Se verificaron ambas
+vistas en navegador con datos de prueba a 1366 × 768 y 1024 × 600, comprobando
+que las nueve tarjetas entren sin desbordes y que la parada siga visible.
