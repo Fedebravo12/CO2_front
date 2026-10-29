@@ -1,148 +1,127 @@
-import { Aperture, MoveHorizontal, Snowflake, Sun, Target, Zap } from 'lucide-react'
-import { Gauge, LinearBar, fmt } from '../components/Meters'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { Activity, Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, Sun, Target, Thermometer, X, Zap } from 'lucide-react'
+import type { TelemetriaControlador as Sample } from '../api/control'
+import { api } from '../api/client'
+import type { Umbral } from '../mock/types'
+import { fmt } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
-import { TendenciasTelemetria } from '../components/TendenciasTelemetria'
+import './Telemetria.css'
+
+type Tone = 'ok' | 'info' | 'warn' | 'neutral'
+type Channel = { id: string; title: string; unit: string; color: string; digits: number; icon: typeof Sun; value: (s: Sample) => number; parameter?: string; factor?: number; badge?: (s: Sample) => [string, Tone] }
+const shutter = (s: Sample) => s.actuadores.shutter_abierto ? 'Abierto' : s.actuadores.shutter_armado ? 'Armado' : 'Desarmado'
+const shutterColors = { Abierto: 'var(--blue)', Armado: 'var(--green)', Desarmado: 'var(--dim)' }
+const channels: Channel[] = [
+  { id: 'pot', title: 'POTENCIA LÁSER', unit: 'W', color: 'blue', digits: 2, icon: Sun, parameter: 'POTENCIA_LASER', value: s => s.variables.POTENCIA_LASER, badge: s => s.actuadores.laser ? ['Encendido', 'ok'] : ['Apagado', 'neutral'] },
+  { id: 'freq', title: 'FRECUENCIA DE PULSO', unit: 'Hz', color: 'blue', digits: 2, icon: Activity, value: s => s.extra.frecuencia_hz },
+  { id: 'shutter', title: 'SHUTTER', unit: '', color: 'blue', digits: 0, icon: Aperture, value: () => 0, badge: s => [shutter(s), s.actuadores.shutter_abierto ? 'info' : s.actuadores.shutter_armado ? 'ok' : 'neutral'] },
+  { id: 'hv', title: 'ALTA TENSIÓN', unit: 'kV', color: 'orange', digits: 1, icon: Zap, parameter: 'TENSION_AT', value: s => s.variables.TENSION_AT, badge: s => s.condiciones.AT_ENCENDIDA ? ['Activa', 'ok'] : ['Apagada', 'neutral'] },
+  { id: 'sombra', title: 'SENSOR DE SOMBRA', unit: 'mW', color: 'yellow', digits: 2, icon: Target, value: s => s.extra.sensor_sombra_mw, badge: s => s.condiciones.FIBRA_ALINEADA ? ['Alineada', 'ok'] : ['No alineada', 'warn'] },
+  { id: 'temp', title: 'TEMP. REFRIGERACIÓN', unit: '°C', color: 'teal', digits: 1, icon: Thermometer, parameter: 'TEMPERATURA_AGUA', value: s => s.variables.TEMPERATURA_AGUA, badge: s => s.condiciones.REFRIGERACION_OK ? ['Estable', 'ok'] : s.actuadores.refrigeracion ? ['Estabilizando', 'warn'] : ['Apagada', 'neutral'] },
+  { id: 'caudal', title: 'CAUDAL REFRIGERANTE', unit: 'L/min', color: 'green', digits: 2, icon: Droplets, parameter: 'CAUDAL_REFRIGERANTE', value: s => s.variables.CAUDAL_REFRIGERANTE },
+  { id: 'pos', title: 'POSICIÓN DESPLAZADOR', unit: 'µm', color: 'green', digits: 0, icon: MoveHorizontal, parameter: 'POSICION_MOTOR', factor: 1000, value: s => s.variables.POSICION_MOTOR * 1000, badge: s => s.ejecucion ? ['En curso', 'info'] : ['Detenido', 'ok'] },
+  { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', color: 'teal', digits: 0, icon: Gauge, value: s => (s.ejecucion?.progreso ?? 0) * 100 },
+]
 
 export function Telemetria() {
-  const { telemetria: t, controlador: c, controladorVivo } = useSystem()
-  const a = controladorVivo ? c?.actuadores : undefined
-  const cond = controladorVivo ? c?.condiciones : undefined
-  const sinDatos = { estado: 'Sin datos', tono: 'neutral' as const }
-
-  // Estado de cada subsistema leído de los actuadores y sensores del controlador.
-  const subs: {
-    nombre: string
-    estado: string
-    tono: 'ok' | 'info' | 'warn' | 'neutral'
-    detalle?: string
-    ico: typeof Sun
-  }[] = [
-    {
-      nombre: 'LÁSER',
-      ...(a ? (a.laser ? { estado: 'Encendido', tono: 'ok' as const } : { estado: 'Apagado', tono: 'neutral' as const }) : sinDatos),
-      detalle: a?.laser ? `${fmt(t.potenciaLaserW, 1)} W` : undefined,
-      ico: Sun,
-    },
-    {
-      nombre: 'SHUTTER',
-      ...(a
-        ? a.shutter_abierto
-          ? { estado: 'Abierto', tono: 'info' as const }
-          : a.shutter_armado
-            ? { estado: 'Armado', tono: 'ok' as const }
-            : { estado: 'Desarmado', tono: 'neutral' as const }
-        : sinDatos),
-      ico: Aperture,
-    },
-    {
-      nombre: 'ALTA TENSIÓN',
-      ...(a ? (cond?.AT_ENCENDIDA ? { estado: 'Activa', tono: 'ok' as const } : { estado: 'Apagada', tono: 'neutral' as const }) : sinDatos),
-      detalle: a?.alta_tension ? `${fmt(t.voltajeHv / 1000, 1)} kV` : undefined,
-      ico: Zap,
-    },
-    {
-      nombre: 'SENSOR DE SOMBRA',
-      ...(cond ? (cond.FIBRA_ALINEADA ? { estado: 'Alineado', tono: 'ok' as const } : { estado: 'No alineado', tono: 'warn' as const }) : sinDatos),
-      detalle: `${fmt(t.sensorSombraMw)} mW`,
-      ico: Target,
-    },
-    {
-      nombre: 'REFRIGERACIÓN',
-      ...(a
-        ? cond?.REFRIGERACION_OK
-          ? { estado: 'Estable', tono: 'ok' as const }
-          : a.refrigeracion
-            ? { estado: 'Estabilizando', tono: 'warn' as const }
-            : { estado: 'Apagada', tono: 'neutral' as const }
-        : sinDatos),
-      detalle: `${fmt(t.tempRefrigeracion, 1)}°C`,
-      ico: Snowflake,
-    },
-    {
-      nombre: 'DESPLAZADOR',
-      ...(c?.ejecucion ? { estado: 'En curso', tono: 'info' as const } : { estado: t.posicionUm < 1 ? 'Pos. inicial' : 'Detenido', tono: 'ok' as const }),
-      detalle: `${fmt(t.posicionUm, 0)} µm`,
-      ico: MoveHorizontal,
-    },
-  ]
-
-  const gauges = [
-    { title: 'POTENCIA LÁSER', value: t.potenciaLaserW, unit: 'W', min: 0, max: 30, color: 'var(--blue)', digits: 2 },
-    { title: 'TEMPERATURA REFRIGERACIÓN', value: t.tempRefrigeracion, unit: '°C', min: 0, max: 40, color: 'var(--teal)', digits: 1 },
-    { title: 'CAUDAL REFRIGERANTE', value: t.caudal, unit: 'L/min', min: 0, max: 5, color: 'var(--green)', digits: 1 },
-    { title: 'SENSOR DE SOMBRA', value: t.sensorSombraMw, unit: 'mW', min: 0, max: 3, color: 'var(--yellow)', digits: 2 },
-  ]
-
-  const linears = [
-    { title: 'POSICIÓN DESPLAZADOR', value: t.posicionUm, unit: 'µm', min: 0, max: 300000, color: 'var(--green)', digits: 0, extra: 'Carrera del desplazador: 300 mm' },
-    { title: 'ALTA TENSIÓN', value: t.voltajeHv / 1000, unit: 'kV', min: 0, max: 30, color: 'var(--orange)', digits: 1, extra: t.voltajeHv > 1000 ? 'HV ON' : 'HV OFF' },
-    { title: 'FRECUENCIA DE PULSO', value: t.frecuenciaHz, unit: 'Hz', min: 0, max: 5, color: 'var(--blue)', digits: 2, extra: c?.ejecucion ? `${c.ejecucion.pulso}/${c.ejecucion.pulsos} pulsos` : 'Sin grabar' },
-    { title: 'EVOLUCIÓN DEL PROCESO', value: (c?.ejecucion?.progreso ?? 0) * 100, unit: '%', min: 0, max: 100, color: 'var(--teal)', digits: 0, extra: c?.ejecucion ? c.ejecucion.programa : '', isProgress: true },
-  ]
-
-  return (
-    <>
-      <div className="subsys-grid">
-        {subs.map((s) => (
-          <article key={s.nombre} className={`subsys ${s.tono}`}>
-            <div>
-              <h3>{s.nombre}</h3>
-              <div className="subsys-row">
-                <p>{s.estado}</p>
-                {s.detalle && <span className="subsys-detalle">{s.detalle}</span>}
-              </div>
-            </div>
-            <div className="subsys-ico">
-              <s.ico size={20} />
-            </div>
-          </article>
-        ))}
+  const { controlador, controladorVivo, historialTelemetria, now } = useSystem()
+  const [seconds, setSeconds] = useState(60)
+  const [selected, setSelected] = useState<Channel | null>(null)
+  const [thresholds, setThresholds] = useState<Umbral[]>([])
+  const [thresholdError, setThresholdError] = useState(false)
+  const dialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    let active = true
+    api.listarUmbrales().then(data => { if (active) setThresholds(data.filter(u => u.activo)) }).catch(() => { if (active) setThresholdError(true) })
+    return () => { active = false }
+  }, [])
+  useEffect(() => {
+    if (!selected) return
+    const previous = document.activeElement as HTMLElement | null
+    dialog.current?.showModal()
+    return () => { dialog.current?.close(); previous?.focus() }
+  }, [selected])
+  const end = now.getTime(), start = end - seconds * 1000
+  const samples = historialTelemetria.filter(s => Date.parse(s.ts) >= start && Date.parse(s.ts) <= end)
+  const last = controlador
+  const live = controladorVivo && !!last
+  const time = last ? new Date(last.ts).toLocaleTimeString('es-AR', { hour12: false }) : '—'
+  const notice = !live ? (last ? `Sin datos desde ${time}` : 'Sin datos') : samples.length < 2 ? 'Esperando muestras del controlador…' : ''
+  const windowLabel = seconds === 120 ? '2 min' : `${seconds} s`
+  const limits = (c: Channel) => thresholds.filter(u => c.parameter && u.variable === c.parameter).flatMap(u => [u.min, u.max]).map(v => v * (c.factor ?? 1)).filter(Number.isFinite)
+  const value = (c: Channel) => live && Number.isFinite(c.value(last)) ? (c.id === 'shutter' ? shutter(last) : fmt(c.value(last), c.digits)) : '—'
+  const stats = (c: Channel) => {
+    if (c.id === 'shutter') return `${samples.reduce((n, s, i) => n + (i > 0 && Date.parse(s.ts) - Date.parse(samples[i - 1].ts) <= 3500 && shutter(s) !== shutter(samples[i - 1]) ? 1 : 0), 0)} cambios · ${windowLabel}`
+    const values = samples.map(c.value).filter(Number.isFinite)
+    return values.length ? `mín ${fmt(Math.min(...values), c.digits)} · máx ${fmt(Math.max(...values), c.digits)} · ${windowLabel}` : 'Sin muestras'
+  }
+  const color = (c: Channel) => {
+    const bounds = limits(c)
+    return !live ? 'var(--dim)' : bounds.length && (c.value(last) < Math.min(...bounds) || c.value(last) > Math.max(...bounds)) ? 'var(--red)' : `var(--${c.color})`
+  }
+  const heading = (c: Channel) => {
+    const badge = c.badge ? (live ? c.badge(last) : ['Sin datos', 'neutral']) : null
+    return <div className="tc-heading"><span className="tc-icon"><c.icon size={19} /></span><h3>{c.title}</h3>{badge && <span className={`tc-badge ${badge[1]}`}>{badge[0]}</span>}</div>
+  }
+  const chart = (c: Channel, expanded = false) => {
+    const width = 1000, height = expanded ? 320 : 100, padding = 15
+    const data = samples.map(s => ({ t: Date.parse(s.ts), v: c.value(s) })).filter(p => Number.isFinite(p.v))
+    const bounds = limits(c), values = [...data.map(p => p.v), ...bounds]
+    const min = values.length ? Math.min(...values) : 0, max = values.length ? Math.max(...values) : 1
+    const margin = Math.max((max - min) * .08, Math.abs(max) * .01, .01)
+    const low = min - margin, high = max + margin
+    const x = (t: number) => (t - start) / (end - start) * width
+    const y = (v: number) => padding + (high - v) / (high - low) * (height - padding * 2)
+    const path = data.map((p, i) => `${!i || p.t - data[i - 1].t > 3500 ? 'M' : 'L'}${x(p.t)},${y(p.v)}`).join(' ')
+    const segments: typeof data[] = []
+    data.forEach((point, i) => {
+      if (!i || point.t - data[i - 1].t > 3500) segments.push([])
+      segments[segments.length - 1].push(point)
+    })
+    const area = segments.filter(segment => segment.length > 1).map(segment =>
+      `M${x(segment[0].t)},${height} ${segment.map(p => `L${x(p.t)},${y(p.v)}`).join(' ')} L${x(segment[segment.length - 1].t)},${height} Z`,
+    ).join(' ')
+    const latest = data[data.length - 1]
+    return <div className={`tc-plot ${expanded ? 'expanded' : ''}`}>
+      <svg viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" role="img" aria-label={`${c.title}, últimos ${windowLabel}`}>
+        {c.id === 'shutter' ? samples.map((s, i) => {
+          const t = Date.parse(s.ts), next = samples[i + 1] ? Date.parse(samples[i + 1].ts) : end
+          const until = Math.min(end, next - t > 3500 || i === samples.length - 1 ? t + 1000 : next)
+          return <rect key={s.ts} x={x(t)} y={height * .3} width={Math.max(0, x(until) - x(t))} height={height * .4} fill={shutterColors[shutter(s)]} opacity={live ? 1 : .3} />
+        }) : <>
+          {bounds.map((v, i) => <line key={i} x1="0" x2={width} y1={y(v)} y2={y(v)} stroke="var(--red)" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />)}
+          <path d={area} fill={`var(--${c.color})`} opacity={live ? .1 : .03} />
+          <path d={path} fill="none" stroke={`var(--${c.color})`} strokeWidth="2" vectorEffect="non-scaling-stroke" opacity={live ? 1 : .3} />
+        </>}
+      </svg>
+      {c.id !== 'shutter' && bounds.map((v, i) => <span className="tc-limit" key={i} style={{ top: `${y(v) / height * 100}%` }}>Límite {fmt(v, c.digits)} {c.unit}</span>)}
+      {expanded && c.id !== 'shutter' && <div className="tc-axis"><span>{fmt(high, c.digits)}</span><span>{fmt((high + low) / 2, c.digits)}</span><span>{fmt(low, c.digits)}</span></div>}
+      {live && latest && c.id !== 'shutter' && <i className="tc-dot" style={{ left: `${x(latest.t) / width * 100}%`, top: `${y(latest.v) / height * 100}%`, background: `var(--${c.color})` }} />}
+      {notice && <div className="tc-notice"><span>{notice}</span></div>}
+    </div>
+  }
+  const picker = <label className="tc-window">Ventana <select aria-label="Ventana de tendencia" value={seconds} onChange={e => setSeconds(Number(e.target.value))}>{[30, 60, 120].map(s => <option key={s} value={s}>{s === 120 ? '2 min' : `${s} s`}</option>)}</select></label>
+  const toolbar = <div className="tc-toolbar"><span className={live ? 'tc-live' : 'tc-offline'}>● {live ? `En vivo · ${last.hz} Hz` : 'Conexión interrumpida'} · {time}</span>{picker}</div>
+  const toolbarHost = document.getElementById('telemetria-toolbar')
+  return <>
+    {toolbarHost ? createPortal(toolbar, toolbarHost) : toolbar}
+    {thresholdError && <p className="tc-warning">No se pudieron cargar los límites configurados.</p>}
+    <section className="tc-grid" aria-label="Telemetría en vivo">
+      {channels.map(c => <button type="button" key={c.id} className={`tc-card ${live && c.badge ? c.badge(last)[1] : 'neutral'}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
+        {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>
+        {c.id === 'prog' ? <div className="tc-progress" role="progressbar" aria-label="Progreso del proceso" aria-valuenow={live ? Math.min(100, Math.max(0, c.value(last))) : undefined}><i style={{ width: `${live ? Math.min(100, Math.max(0, c.value(last))) : 0}%` }} /></div> : chart(c)}
+        <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> Ampliar</span></div>
+      </button>)}
+    </section>
+    {selected && <dialog ref={dialog} className="tc-dialog" onCancel={() => setSelected(null)} onClick={e => { if (e.target === e.currentTarget) setSelected(null) }} aria-label={selected.title}>
+      <div className="tc-detail">
+        <div className="tc-detail-head">{heading(selected)}<button type="button" autoFocus onClick={() => setSelected(null)} aria-label="Cerrar detalle"><X size={20} /></button></div>
+        <div className="tc-detail-summary"><div className="tc-value" style={{ color: color(selected) }}>{value(selected)} <small>{selected.unit}</small></div>{picker}</div>
+        <p className="tc-foot">{stats(selected)}</p>{chart(selected, true)}
+        <div className="tc-foot"><span>−{windowLabel}</span>{selected.id === 'shutter' && <span>{Object.entries(shutterColors).map(([label, shade]) => <span key={label} style={{ color: shade }}>● {label} </span>)}</span>}<span>ahora</span></div>
+        <p className="tc-foot">Muestras recibidas en esta sesión. Las interrupciones se muestran como cortes.</p>
       </div>
-
-      <section className="panel">
-        
-        <div className="gauge-grid">
-          {gauges.map((g) => (
-            <article key={g.title} className="meter-card">
-              <h4>{g.title}</h4>
-              <Gauge value={g.value} min={g.min} max={g.max} color={g.color} />
-              <div className="meter-val" style={{ color: g.color }}>
-                {controladorVivo ? fmt(g.value, g.digits) : '—'} <span className="meter-unit">{g.unit}</span>
-              </div>
-              <div className="range">
-                {g.min}–{g.max} {g.unit}
-              </div>
-            </article>
-          ))}
-        </div>
-
-        <div className="gauge-grid">
-          {linears.map((g) => (
-            <article key={g.title} className="meter-card lin">
-              <h4>{g.title}</h4>
-              <div className="meter-val" style={{ color: g.color }}>
-                {controladorVivo ? fmt(g.value, g.digits) : '—'} <span className="meter-unit">{g.unit}</span>
-              </div>
-              {g.extra && <div className="range">{g.extra}</div>}
-              <LinearBar value={g.value} min={g.min} max={g.max} color={g.color} />
-              <div className="range">
-                {g.min} a {g.max} {g.unit}
-              </div>
-            </article>
-          ))}
-        </div>
-        <div className="panel-head">
-          {/* <h3>SENSORES</h3> */}
-          <div className="pills">
-            <span className="pill">
-              CANALES ACTIVOS: {t.canalesActivos}/{t.canalesTotales}
-            </span>
-            <span className="pill">Muestreo: {t.muestreoMs}ms</span>
-            <span className="pill">Actualización: {fmt(t.actualizacionHz, 1)} Hz</span>
-          </div>
-        </div>
-      </section>
-      <TendenciasTelemetria />
-    </>
-  )
+    </dialog>}
+  </>
 }

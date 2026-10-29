@@ -121,6 +121,7 @@ export type SeveridadUmbral = 'INFO' | 'ADVERTENCIA' | 'CRITICA'
 export type AccionUmbral = 'ALERTA' | 'BLOQUEAR_COMANDO' | 'PARADA_EMERGENCIA'
 
 export interface Umbral {
+  variable?: string
   id: string
   parametro: string
   min: number

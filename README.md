@@ -163,3 +163,23 @@ Si la interfaz muestra **SIN CONEXIÓN AL CONTROLADOR**, revisar `controller`
 y `ws`: tener la página abierta no garantiza que llegue telemetría.
 Si nginx no arranca, comprobar que se generaron `co2.crt` y `co2.key` en
 `CO2_back/docker/nginx/certs/`.
+
+### Telemetría: variante C
+
+El tablero reúne nueve tarjetas con estados de subsistemas, tendencias y detalle
+ampliado. La ventana compartida permite consultar 30 s, 60 s o 2 min del historial
+recibido en la sesión. El shutter muestra sus cambios de estado y el progreso
+presenta una barra porcentual. El detalle se cierra con Escape, el botón de cierre
+o el fondo; el foco vuelve a la tarjeta.
+
+Los valores provienen del WebSocket del controlador. Al perder la conexión se
+ocultan las lecturas actuales, se atenúan las curvas y se informa la última
+muestra. Los intervalos sin datos no se interpolan. Los límites se consultan en
+`/api/umbrales/` al abrir la pantalla y se vinculan por el código de variable;
+no se utilizan los límites ficticios del prototipo. Frecuencia y sensor de sombra
+no muestran límites porque actualmente no tienen umbral en ese contrato.
+
+Validación: `npm run build` y `npm run test:telemetria`. Esta última comprueba
+renderizado con telemetría de prueba, conversión de unidades, progreso, cortes
+en las curvas y estados desconectado/sin muestras; no reemplaza una prueba
+contra el controlador real.

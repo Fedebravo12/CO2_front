@@ -256,6 +256,7 @@ function aUsuario(u: UsuarioApi): Usuario {
 }
 
 interface UmbralApi {
+  variable: string
   id: number
   parametro: string
   valor_min: number
@@ -269,6 +270,7 @@ interface UmbralApi {
 
 function aUmbral(u: UmbralApi): Umbral {
   return {
+    variable: u.variable,
     id: String(u.id),
     parametro: u.parametro,
     min: u.valor_min,

@@ -131,6 +131,7 @@ export function AppLayout() {
               <h2>ESTADO DEL SISTEMA</h2>
               <p className={`status-value ${statusCls}`}>{estado}</p>
             </div>
+            <div id="telemetria-toolbar" />
             <StatusIcon estado={estado} />
           </div>
           <div className="estop-card">
