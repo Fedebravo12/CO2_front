@@ -27,6 +27,15 @@ const channels: Channel[] = [
 export function Telemetria() {
   const { controlador, controladorVivo, historialTelemetria, now } = useSystem()
   const [seconds, setSeconds] = useState(60)
+  const [view, setView] = useState<'B' | 'C'>(() => {
+    try { return localStorage.getItem('co2.telemetria.vista') === 'C' ? 'C' : 'B' }
+    catch { return 'B' }
+  })
+  const changeView = (next: 'B' | 'C') => {
+    setView(next)
+    try { localStorage.setItem('co2.telemetria.vista', next) }
+    catch { /* La selección sigue funcionando si el navegador bloquea el almacenamiento. */ }
+  }
   const [selected, setSelected] = useState<Channel | null>(null)
   const [thresholds, setThresholds] = useState<Umbral[]>([])
   const [thresholdError, setThresholdError] = useState(false)
@@ -102,16 +111,22 @@ export function Telemetria() {
     </div>
   }
   const picker = <label className="tc-window">Ventana <select aria-label="Ventana de tendencia" value={seconds} onChange={e => setSeconds(Number(e.target.value))}>{[30, 60, 120].map(s => <option key={s} value={s}>{s === 120 ? '2 min' : `${s} s`}</option>)}</select></label>
-  const toolbar = <div className="tc-toolbar">{picker}</div>
+  const toolbar = <div className="tc-toolbar">
+    {picker}
+    <div className="tc-view-toggle" role="group" aria-label="Vista de telemetría">
+      <button type="button" aria-pressed={view === 'B'} onClick={() => changeView('B')} title="Variante B: valores y tendencias al abrir el detalle">Simple</button>
+      <button type="button" aria-pressed={view === 'C'} onClick={() => changeView('C')} title="Variante C: tendencias en cada tarjeta">Pro</button>
+    </div>
+  </div>
   const toolbarHost = document.getElementById('telemetria-toolbar')
   return <>
     {toolbarHost ? createPortal(toolbar, toolbarHost) : toolbar}
     {thresholdError && <p className="tc-warning">No se pudieron cargar los límites configurados.</p>}
-    <section className="tc-grid" aria-label="Telemetría en vivo">
+    <section className={`tc-grid ${view === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
       {channels.map(c => <button type="button" key={c.id} className={`tc-card ${live && c.badge ? c.badge(last)[1] : 'neutral'}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
         {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>
-        {c.id === 'prog' ? <div className="tc-progress" role="progressbar" aria-label="Progreso del proceso" aria-valuenow={live ? Math.min(100, Math.max(0, c.value(last))) : undefined}><i style={{ width: `${live ? Math.min(100, Math.max(0, c.value(last))) : 0}%` }} /></div> : chart(c)}
-        <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> Ampliar</span></div>
+        {c.id === 'prog' ? <div className="tc-progress" role="progressbar" aria-label="Progreso del proceso" aria-valuenow={live ? Math.min(100, Math.max(0, c.value(last))) : undefined}><i style={{ width: `${live ? Math.min(100, Math.max(0, c.value(last))) : 0}%` }} /></div> : view === 'C' ? chart(c) : null}
+        <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> {view === 'B' ? 'Tendencia' : 'Ampliar'}</span></div>
       </button>)}
     </section>
     {selected && <dialog ref={dialog} className="tc-dialog" onCancel={() => setSelected(null)} onClick={e => { if (e.target === e.currentTarget) setSelected(null) }} aria-label={selected.title}>

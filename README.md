@@ -164,7 +164,12 @@ y `ws`: tener la página abierta no garantiza que llegue telemetría.
 Si nginx no arranca, comprobar que se generaron `co2.crt` y `co2.key` en
 `CO2_back/docker/nginx/certs/`.
 
-### Telemetría: variante C
+### Telemetría: vistas Simple (B) y Pro (C)
+
+El selector junto a Ventana alterna entre Simple (B), con valores grandes y
+tendencias en el detalle, y Pro (C), con curvas en cada tarjeta. Se inicia en
+Simple y se recuerda la elección en el navegador sin perder la ventana ni el
+historial al cambiar de vista.
 
 El tablero reúne nueve tarjetas con estados de subsistemas, tendencias y detalle
 ampliado. La ventana compartida permite consultar 30 s, 60 s o 2 min del historial

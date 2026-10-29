@@ -16,6 +16,7 @@ const output = path.join(temporary, 'bundle.cjs')
   const { Telemetria } = require(output)
   const assert = require('node:assert/strict')
   global.document = { getElementById: () => null }
+  global.localStorage = { getItem: () => 'C' }
   const now = new Date()
   const sample = { ts: now.toISOString(), hz: 1, variables: { POTENCIA_LASER: 14, TENSION_AT: 18, TEMPERATURA_AGUA: 20, CAUDAL_REFRIGERANTE: 2.6, POSICION_MOTOR: 10 }, extra: { frecuencia_hz: 2, sensor_sombra_mw: .12 }, condiciones: { AT_ENCENDIDA: true, FIBRA_ALINEADA: true, REFRIGERACION_OK: true }, actuadores: { laser: true, shutter_abierto: true, shutter_armado: true, refrigeracion: true }, ejecucion: { progreso: .4 } }
   global.fixture = { now, controlador: sample, controladorVivo: true, historialTelemetria: [{ ...sample, ts: new Date(+now - 5000).toISOString() }, sample] }
@@ -28,6 +29,19 @@ const output = path.join(temporary, 'bundle.cjs')
   const paths = [...html.matchAll(/<path d="([^"]*)" fill="none" stroke="var/g)].map(m => m[1])
   assert.equal(paths.length, 7)
   paths.forEach(p => assert.equal((p.match(/M/g) || []).length, 2, 'gap must split curve'))
+  assert.ok(html.includes('tc-pro'))
+  assert.ok(html.includes('aria-pressed="true" title="Variante C'))
+  global.localStorage = { getItem: () => null }
+  html = renderToStaticMarkup(React.createElement(Telemetria))
+  assert.ok(html.includes('tc-simple'))
+  assert.ok(html.includes('aria-pressed="true" title="Variante B'))
+  assert.equal((html.match(/aria-label="Ampliar/g) || []).length, 9)
+  assert.ok(!html.includes('tc-plot'))
+  assert.ok(html.includes('Tendencia'))
+  assert.ok(html.includes('aria-valuenow="40"'))
+  global.localStorage = { getItem: () => { throw new Error('Storage blocked') } }
+  assert.ok(renderToStaticMarkup(React.createElement(Telemetria)).includes('tc-simple'))
+  global.localStorage = { getItem: () => 'C' }
   global.fixture.controladorVivo = false
   html = renderToStaticMarkup(React.createElement(Telemetria))
   assert.ok(html.includes('Sin datos desde'))
@@ -37,5 +51,5 @@ const output = path.join(temporary, 'bundle.cjs')
   html = renderToStaticMarkup(React.createElement(Telemetria))
   assert.ok(html.includes('Sin muestras'))
   assert.ok(!html.includes('NaN'))
-  console.log('PASS: nine cards, unit conversion, progress, gap segmentation, stale and empty states')
+  console.log('PASS: nine cards, unit conversion, progress, gap segmentation, stale and empty states, Simple/Pro views and storage fallback')
 })().finally(() => fs.rmSync(temporary, { recursive: true, force: true }))
