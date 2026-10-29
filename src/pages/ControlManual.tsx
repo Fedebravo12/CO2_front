@@ -133,7 +133,7 @@ export function ControlManual() {
               style={{
                 width: 110,
                 background: 'var(--panel-dark, #1a1a1a)',
-                color: '#fff',
+                color: 'var(--manual-text, #fff)',
                 border: '1px solid var(--muted)',
                 borderRadius: 6,
                 padding: '4px 8px',

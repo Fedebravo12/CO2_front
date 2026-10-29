@@ -20,12 +20,12 @@ export function Gauge({
       {Array.from({ length: 21 }, (_, i) => {
         const p1 = point(i / 20, i % 5 === 0 ? 70 : 73)
         const p2 = point(i / 20, 77)
-        return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={i / 20 <= pct ? color : '#405364'} strokeWidth={i % 5 === 0 ? 1.5 : 1} />
+        return <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke={i / 20 <= pct ? color : 'var(--tone-405364)'} strokeWidth={i % 5 === 0 ? 1.5 : 1} />
       })}
       <path
         d="M28 87 A62 62 0 0 1 152 87"
         fill="none"
-        stroke="#243341"
+        stroke="var(--tone-243341)"
         strokeWidth="7"
         strokeLinecap="round"
       />
@@ -39,8 +39,8 @@ export function Gauge({
         strokeDasharray={`${pct * 100} 100`}
       />
       <line x1="90" y1="87" x2={needle.x} y2={needle.y} stroke={color} strokeWidth="2" strokeLinecap="round" />
-      <circle cx="90" cy="87" r="5" fill="#14232e" stroke={color} strokeWidth="2" />
-      <text x="22" y="103" textAnchor="middle" fill="#8b9aab" fontSize="9">{min}</text><text x="158" y="103" textAnchor="middle" fill="#8b9aab" fontSize="9">{max}</text>
+      <circle cx="90" cy="87" r="5" fill="var(--tone-14232e)" stroke={color} strokeWidth="2" />
+      <text x="22" y="103" textAnchor="middle" fill="var(--muted)" fontSize="9">{min}</text><text x="158" y="103" textAnchor="middle" fill="var(--muted)" fontSize="9">{max}</text>
     </svg>
   )
 }

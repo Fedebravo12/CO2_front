@@ -1,3 +1,4 @@
+import { ThemeToggle } from '../components/ThemeToggle'
 import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import {
@@ -101,6 +102,7 @@ export function AppLayout() {
         </nav>
 
         <div className="sidebar-foot">
+          <ThemeToggle />
           <div className="user-card">
             <div className="user-meta">
               <User size={16} />

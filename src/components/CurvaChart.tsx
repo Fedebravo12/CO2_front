@@ -26,7 +26,7 @@ function ticks(min: number, max: number, count: number) {
   return values
 }
 
-export function CurvaChart({ csv, color = '#2ad4c4', height = 390 }: CurvaChartProps) {
+export function CurvaChart({ csv, color = 'var(--teal)', height = 390 }: CurvaChartProps) {
   const puntos = useMemo(() => parseCsv(csv), [csv])
   const host = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -103,14 +103,14 @@ export function CurvaChart({ csv, color = '#2ad4c4', height = 390 }: CurvaChartP
         onKeyDown={e => { if (e.key === 'Escape') { setVentana(null); setCursor(null) } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); const index = cursor ? visibles.indexOf(cursor) : -1; setCursor(visibles[Math.max(0, Math.min(visibles.length - 1, index + (e.key === 'ArrowRight' ? 1 : -1)))] ?? null) } }}>
         <title>Espectro de transmisión de la red</title><desc>Longitud de onda en nanómetros y transmitancia en decibelios. Mínimo medido en {minimo.wl} nm, {minimo.db} dB.</desc>
         <defs><clipPath id={`${id}-clip`}><rect x={pad.left} y={pad.top} width={iw} height={ih} /></clipPath><linearGradient id={`${id}-area`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={color} stopOpacity=".13" /><stop offset="1" stopColor={color} stopOpacity=".01" /></linearGradient></defs>
-        <rect width={width} height={h} fill="#0c141d" rx="10" />
-        {ticks(dbMin, dbMax, 5).map(v => <g key={v}><line x1={pad.left} x2={width - pad.right} y1={y(v)} y2={y(v)} stroke="#243342" strokeDasharray="3 5" /><text x={pad.left - 12} y={y(v) + 4} textAnchor="end" fontSize="12" fill="#a2b3c4">{fmt(v, Math.abs(dbMax - dbMin) < 3 ? 1 : 0)}</text></g>)}
-        {ticks(wlMin, wlMax, width < 500 ? 3 : 7).map(v => <g key={v}><line x1={x(v)} x2={x(v)} y1={pad.top} y2={h - pad.bottom} stroke="#1c2a37" /><text x={x(v)} y={h - pad.bottom + 22} textAnchor="middle" fontSize="12" fill="#a2b3c4">{fmt(v, span < 10 ? 1 : 0)}</text></g>)}
-        <text x={pad.left} y="19" fontSize="11" fill="#a2b3c4">Transmitancia (dB)</text><text x={pad.left + iw / 2} y={h - 12} textAnchor="middle" fontSize="12" fill="#a2b3c4">Longitud de onda (nm)</text>
+        <rect width={width} height={h} fill="var(--tone-0c141d)" rx="10" />
+        {ticks(dbMin, dbMax, 5).map(v => <g key={v}><line x1={pad.left} x2={width - pad.right} y1={y(v)} y2={y(v)} stroke="var(--tone-243342)" strokeDasharray="3 5" /><text x={pad.left - 12} y={y(v) + 4} textAnchor="end" fontSize="12" fill="var(--tone-a2b3c4)">{fmt(v, Math.abs(dbMax - dbMin) < 3 ? 1 : 0)}</text></g>)}
+        {ticks(wlMin, wlMax, width < 500 ? 3 : 7).map(v => <g key={v}><line x1={x(v)} x2={x(v)} y1={pad.top} y2={h - pad.bottom} stroke="var(--tone-1c2a37)" /><text x={x(v)} y={h - pad.bottom + 22} textAnchor="middle" fontSize="12" fill="var(--tone-a2b3c4)">{fmt(v, span < 10 ? 1 : 0)}</text></g>)}
+        <text x={pad.left} y="19" fontSize="11" fill="var(--tone-a2b3c4)">Transmitancia (dB)</text><text x={pad.left + iw / 2} y={h - 12} textAnchor="middle" fontSize="12" fill="var(--tone-a2b3c4)">Longitud de onda (nm)</text>
         <g clipPath={`url(#${id}-clip)`}><path d={`${path} L${x(pathPoints[pathPoints.length - 1]?.wl ?? wlMax)},${h - pad.bottom} L${x(pathPoints[0]?.wl ?? wlMin)},${h - pad.bottom} Z`} fill={`url(#${id}-area)`} /><path className="spectrum-trace" d={path} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
-          {minimo.wl >= wlMin && minimo.wl <= wlMax && <g><line x1={x(minimo.wl)} x2={x(minimo.wl)} y1={pad.top} y2={h - pad.bottom} stroke="#f5c542" strokeOpacity=".5" strokeDasharray="4 5" /><circle cx={x(minimo.wl)} cy={y(minimo.db)} r="5" fill="#f5c542" stroke="#0c141d" strokeWidth="2" /></g>}
+          {minimo.wl >= wlMin && minimo.wl <= wlMax && <g><line x1={x(minimo.wl)} x2={x(minimo.wl)} y1={pad.top} y2={h - pad.bottom} stroke="var(--yellow)" strokeOpacity=".5" strokeDasharray="4 5" /><circle cx={x(minimo.wl)} cy={y(minimo.db)} r="5" fill="var(--yellow)" stroke="var(--tone-0c141d)" strokeWidth="2" /></g>}
           {seleccion && <rect data-interaction x={x(Math.min(...seleccion))} y={pad.top} width={Math.abs(x(seleccion[1]) - x(seleccion[0]))} height={ih} fill={color} fillOpacity=".16" stroke={color} />}
-          {cursor && <g data-interaction><line x1={x(cursor.wl)} x2={x(cursor.wl)} y1={pad.top} y2={h - pad.bottom} stroke="#e3edf5" strokeOpacity=".6" strokeDasharray="3 3" /><line x1={pad.left} x2={width - pad.right} y1={y(cursor.db)} y2={y(cursor.db)} stroke="#e3edf5" strokeOpacity=".3" strokeDasharray="3 3" /><circle cx={x(cursor.wl)} cy={y(cursor.db)} r="4" fill={color} stroke="#ffffff" strokeWidth="1.5" /></g>}
+          {cursor && <g data-interaction><line x1={x(cursor.wl)} x2={x(cursor.wl)} y1={pad.top} y2={h - pad.bottom} stroke="var(--tone-e3edf5)" strokeOpacity=".6" strokeDasharray="3 3" /><line x1={pad.left} x2={width - pad.right} y1={y(cursor.db)} y2={y(cursor.db)} stroke="var(--tone-e3edf5)" strokeOpacity=".3" strokeDasharray="3 3" /><circle cx={x(cursor.wl)} cy={y(cursor.db)} r="4" fill={color} stroke="#ffffff" strokeWidth="1.5" /></g>}
         </g>
       </svg>
       <div className="chart-footer"><span>{cursor ? <><b>{fmt(cursor.wl, 2)} nm</b><i />{fmt(cursor.db, 3)} dB</> : <><span className="chart-min-dot" />Mínimo medido: {fmt(minimo.wl, 2)} nm · {fmt(minimo.db, 2)} dB</>}</span><small>Pasá el cursor para medir · arrastrá para ampliar</small></div>

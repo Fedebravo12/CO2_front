@@ -1,3 +1,4 @@
+import { ThemeToggle } from '../components/ThemeToggle'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { LogIn, Settings } from 'lucide-react'
@@ -41,6 +42,7 @@ export function Login() {
   return (
     <div className="login-page">
       <form className="login-card" onSubmit={enviar}>
+        <ThemeToggle />
         <div className="brand" style={{ marginBottom: 24 }}>
           <div className="brand-mark">
             <Settings size={18} />

@@ -488,7 +488,7 @@ export function NuevoEnsayo() {
                 <div key={String(label)} className="mini">
                   <label>{label}</label>
                   <b>{val}</b>
-                  <LinearBar value={Number(raw)} min={0} max={Number(max)} color="#2ad4c4" />
+                  <LinearBar value={Number(raw)} min={0} max={Number(max)} color="var(--teal)" />
                 </div>
               ))}
             </div>
@@ -498,7 +498,7 @@ export function NuevoEnsayo() {
                   {controlador.ejecucion.programa} · {controlador.ejecucion.pulso}/{controlador.ejecucion.pulsos} pulsos ·{' '}
                   {fmt(controlador.ejecucion.distancia_mm)} mm
                 </label>
-                <LinearBar value={controlador.ejecucion.progreso * 100} min={0} max={100} color="#3ee089" />
+                <LinearBar value={controlador.ejecucion.progreso * 100} min={0} max={100} color="var(--green)" />
               </div>
             )}
           </div>

@@ -67,17 +67,17 @@ export function Telemetria() {
   ]
 
   const gauges = [
-    { title: 'POTENCIA LÁSER', value: t.potenciaLaserW, unit: 'W', min: 0, max: 30, color: '#4aa3ff', digits: 2 },
-    { title: 'TEMPERATURA REFRIGERACIÓN', value: t.tempRefrigeracion, unit: '°C', min: 0, max: 40, color: '#2ad4c4', digits: 1 },
-    { title: 'CAUDAL REFRIGERANTE', value: t.caudal, unit: 'L/min', min: 0, max: 5, color: '#3ee089', digits: 1 },
-    { title: 'SENSOR DE SOMBRA', value: t.sensorSombraMw, unit: 'mW', min: 0, max: 3, color: '#f5c542', digits: 2 },
+    { title: 'POTENCIA LÁSER', value: t.potenciaLaserW, unit: 'W', min: 0, max: 30, color: 'var(--blue)', digits: 2 },
+    { title: 'TEMPERATURA REFRIGERACIÓN', value: t.tempRefrigeracion, unit: '°C', min: 0, max: 40, color: 'var(--teal)', digits: 1 },
+    { title: 'CAUDAL REFRIGERANTE', value: t.caudal, unit: 'L/min', min: 0, max: 5, color: 'var(--green)', digits: 1 },
+    { title: 'SENSOR DE SOMBRA', value: t.sensorSombraMw, unit: 'mW', min: 0, max: 3, color: 'var(--yellow)', digits: 2 },
   ]
 
   const linears = [
-    { title: 'POSICIÓN DESPLAZADOR', value: t.posicionUm, unit: 'µm', min: 0, max: 300000, color: '#3ee089', digits: 0, extra: 'Carrera del desplazador: 300 mm' },
-    { title: 'ALTA TENSIÓN', value: t.voltajeHv / 1000, unit: 'kV', min: 0, max: 30, color: '#fb923c', digits: 1, extra: t.voltajeHv > 1000 ? 'HV ON' : 'HV OFF' },
-    { title: 'FRECUENCIA DE PULSO', value: t.frecuenciaHz, unit: 'Hz', min: 0, max: 5, color: '#4aa3ff', digits: 2, extra: c?.ejecucion ? `${c.ejecucion.pulso}/${c.ejecucion.pulsos} pulsos` : 'Sin grabar' },
-    { title: 'EVOLUCIÓN DEL PROCESO', value: (c?.ejecucion?.progreso ?? 0) * 100, unit: '%', min: 0, max: 100, color: '#2ad4c4', digits: 0, extra: c?.ejecucion ? c.ejecucion.programa : '', isProgress: true },
+    { title: 'POSICIÓN DESPLAZADOR', value: t.posicionUm, unit: 'µm', min: 0, max: 300000, color: 'var(--green)', digits: 0, extra: 'Carrera del desplazador: 300 mm' },
+    { title: 'ALTA TENSIÓN', value: t.voltajeHv / 1000, unit: 'kV', min: 0, max: 30, color: 'var(--orange)', digits: 1, extra: t.voltajeHv > 1000 ? 'HV ON' : 'HV OFF' },
+    { title: 'FRECUENCIA DE PULSO', value: t.frecuenciaHz, unit: 'Hz', min: 0, max: 5, color: 'var(--blue)', digits: 2, extra: c?.ejecucion ? `${c.ejecucion.pulso}/${c.ejecucion.pulsos} pulsos` : 'Sin grabar' },
+    { title: 'EVOLUCIÓN DEL PROCESO', value: (c?.ejecucion?.progreso ?? 0) * 100, unit: '%', min: 0, max: 100, color: 'var(--teal)', digits: 0, extra: c?.ejecucion ? c.ejecucion.programa : '', isProgress: true },
   ]
 
   return (
