@@ -1375,9 +1375,12 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 .emergency-details { flex-shrink: 0; border: 1px solid var(--red); background: var(--red-dim); color: var(--red); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
 .emergency-details:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
 
-/* Cabecera compartida: idéntica geometría en todas las rutas para cada viewport. */
-.topbar { --header-height: clamp(76px, 12dvh, 96px); flex: none; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 10px 16px 8px; }
+/* La cabecera comparte tres columnas, márgenes y separación con el dashboard. */
+.main { --scada-gap: clamp(6px, 1.4dvh, 14px); --scada-padding: 16px; }
+.topbar { --header-height: clamp(76px, 12dvh, 96px); flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--scada-gap); padding: 10px var(--scada-padding) 8px; }
 .status-card, .estop-card { height: var(--header-height); min-height: 0; min-width: 0; padding: 8px 12px; gap: 10px; flex-wrap: nowrap; }
+.status-card { grid-column: span 2; }
+.estop-card { grid-column: 3; }
 .status-card > div:first-child { min-width: 0; }
 .status-card h2 { font-size: 12px; white-space: nowrap; }
 .status-value { font-size: clamp(18px, 3dvh, 26px); white-space: nowrap; }
@@ -1394,21 +1397,10 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .topbar { --header-height: 94px; }
 }
 @media (max-width: 600px) {
-  .topbar { --header-height: 132px; padding: 6px; gap: 6px; }
+  .main { --scada-gap: 6px; --scada-padding: 6px; }
+  .topbar { --header-height: 132px; padding: 6px var(--scada-padding); }
   .status-card, .estop-card { padding: 6px; }
   .status-card { flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; }
   .estop-card { flex-direction: column; justify-content: center; }
   .estop-label { font-size: 13.8px; }
-}
-
-/* Dar un 10% más de ancho al bloque completo, sin escalar sus controles. */
-.estop-card { padding-inline: 24px; }
-@supports (width: calc-size(max-content, size * 1.1)) {
-  .estop-card { padding-inline: 12px; width: calc-size(max-content, size * 1.1); }
-}
-@media (max-width: 600px) {
-  .estop-card { padding-inline: 12px; }
-  @supports (width: calc-size(max-content, size * 1.1)) {
-    .estop-card { padding-inline: 6px; }
-  }
 }
