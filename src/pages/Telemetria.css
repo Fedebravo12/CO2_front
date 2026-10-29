@@ -42,10 +42,9 @@
 @media (max-width: 680px) { .tc-grid { grid-template-columns: minmax(0, 1fr); } .tc-detail { padding: 14px; } .tc-detail-summary { flex-wrap: wrap; } }
 
 /* Variante B: lectura rápida; las curvas siguen disponibles en el detalle. */
-.tc-view-toggle { display: inline-flex; gap: 2px; padding: 3px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface-2); }
-.tc-view-toggle button { padding: 5px 12px; border: 0; border-radius: 16px; background: transparent; color: var(--muted); font: inherit; cursor: pointer; }
-.tc-view-toggle button[aria-pressed="true"] { background: var(--green-dim); color: var(--green); }
-.tc-view-toggle button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.tc-view-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface-2); color: var(--muted); font: inherit; cursor: pointer; }
+.tc-view-toggle[aria-pressed="true"] { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+.tc-view-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .tc-simple .tc-card { justify-content: space-between; }
 .tc-simple .tc-value { font-size: clamp(26px, 4vw, 64px); }
 .tc-simple .tc-progress { margin: 0; }

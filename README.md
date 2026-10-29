@@ -164,12 +164,12 @@ y `ws`: tener la página abierta no garantiza que llegue telemetría.
 Si nginx no arranca, comprobar que se generaron `co2.crt` y `co2.key` en
 `CO2_back/docker/nginx/certs/`.
 
-### Telemetría: vistas Simple (B) y Pro (C)
+### Telemetría: botón Tendencias
 
-El selector junto a Ventana alterna entre Simple (B), con valores grandes y
-tendencias en el detalle, y Pro (C), con curvas en cada tarjeta. Se inicia en
-Simple y se recuerda la elección en el navegador sin perder la ventana ni el
-historial al cambiar de vista.
+El botón Tendencias, junto a Ventana, activa o desactiva las curvas en las
+tarjetas. Desactivado muestra valores grandes (B); activado muestra las tendencias
+(C). Se inicia desactivado y se recuerda la elección en el navegador sin perder
+la ventana ni el historial. Las tendencias del detalle siempre están disponibles.
 
 El tablero reúne nueve tarjetas con estados de subsistemas, tendencias y detalle
 ampliado. La ventana compartida permite consultar 30 s, 60 s o 2 min del historial

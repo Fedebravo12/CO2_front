@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Activity, Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, Sun, Target, Thermometer, X, Zap } from 'lucide-react'
+import { Activity, Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, Sun, Target, Thermometer, TrendingUp, X, Zap } from 'lucide-react'
 import type { TelemetriaControlador as Sample } from '../api/control'
 import { api } from '../api/client'
 import type { Umbral } from '../mock/types'
@@ -113,10 +113,11 @@ export function Telemetria() {
   const picker = <label className="tc-window">Ventana <select aria-label="Ventana de tendencia" value={seconds} onChange={e => setSeconds(Number(e.target.value))}>{[30, 60, 120].map(s => <option key={s} value={s}>{s === 120 ? '2 min' : `${s} s`}</option>)}</select></label>
   const toolbar = <div className="tc-toolbar">
     {picker}
-    <div className="tc-view-toggle" role="group" aria-label="Vista de telemetría">
-      <button type="button" aria-pressed={view === 'B'} onClick={() => changeView('B')} title="Variante B: valores y tendencias al abrir el detalle">Simple</button>
-      <button type="button" aria-pressed={view === 'C'} onClick={() => changeView('C')} title="Variante C: tendencias en cada tarjeta">Pro</button>
-    </div>
+    <button type="button" className="tc-view-toggle" aria-pressed={view === 'C'}
+      onClick={() => changeView(view === 'C' ? 'B' : 'C')}
+      title={view === 'C' ? 'Ocultar tendencias en las tarjetas' : 'Mostrar tendencias en las tarjetas'}>
+      <TrendingUp size={15} aria-hidden="true" /> Tendencias
+    </button>
   </div>
   const toolbarHost = document.getElementById('telemetria-toolbar')
   return <>
