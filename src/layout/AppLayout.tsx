@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FolderKanban,
   Home,
+  ListChecks,
   LogOut,
   Play,
   Settings,
@@ -27,6 +28,7 @@ const NAV = [
   { to: '/simulador', label: 'Simulador visual', icon: MonitorPlay },
   { to: '/registro', label: 'Historial de registros', icon: ClipboardList },
   { to: '/programas', label: 'Programas de grabado', icon: FolderKanban },
+  { to: '/procedimientos', label: 'Procedimientos', icon: ListChecks },
   { to: '/control-manual', label: 'Control manual', icon: SlidersHorizontal },
   { to: '/alertas', label: 'Alertas / Eventos', icon: Bell },
   // Las secciones (usuarios, umbrales, auditoría) se eligen con las tabs de la página.

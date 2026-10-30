@@ -9,6 +9,7 @@ import { ControlManual } from './pages/ControlManual'
 import { DetalleEnsayo } from './pages/DetalleEnsayo'
 import { Login } from './pages/Login'
 import { NuevoEnsayo } from './pages/NuevoEnsayo'
+import { Procedimientos } from './pages/Procedimientos'
 import { Programas } from './pages/Programas'
 import { Registro } from './pages/Registro'
 import { Telemetria } from './pages/Telemetria'
@@ -41,6 +42,7 @@ export default function App() {
           <Route path="registro" element={<Registro />} />
           <Route path="registro/:id" element={<DetalleEnsayo />} />
           <Route path="programas" element={<Programas />} />
+          <Route path="procedimientos" element={<Procedimientos />} />
           <Route path="control-manual" element={<ControlManual />} />
           <Route path="alertas" element={<Alertas />} />
           <Route path="admin" element={<Navigate to="/admin/usuarios" replace />} />

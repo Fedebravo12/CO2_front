@@ -58,6 +58,9 @@ export interface Programa {
   pulsosEstimados: number
   creadoPor: string
   actualizado: string
+  /** Código del procedimiento guiado que se sigue con este programa. */
+  procedimiento: string | null
+  procedimientoNombre: string
 }
 
 export interface Ensayo {
@@ -132,28 +135,83 @@ export interface Umbral {
   activo: boolean
 }
 
+// ── Procedimientos guiados (ver procedimientos/catalogo.py en CO2_back) ─────
+
+export type Tono = 'ok' | 'warn' | 'danger' | 'neutral' | 'info'
+
+/** Hoja `{fuente, op, valor}` o combinación `{todas}` (Y) / `{alguna}` (O). */
+export type Condicion =
+  | { fuente: string; op: string; valor?: number | string }
+  | { todas: Condicion[] }
+  | { alguna: Condicion[] }
+
+export interface EstadoIndicador {
+  cuando: Condicion | null
+  /** Admite `{fuente}` o `{fuente:decimales}`. */
+  texto: string
+  tono: Tono
+}
+
+/** Chip de hardware: gana el primer estado cuya condición se cumple. */
+export interface Indicador {
+  nombre: string
+  estados: EstadoIndicador[]
+}
+
+export interface AccionPaso {
+  etiqueta: string
+  accion: string
+}
+
+/** Bifurcación: el número de paso al que lleva. */
+export interface SalidaPaso {
+  etiqueta: string
+  destino: number
+}
+
+export type TipoValidacion = 'MANUAL' | 'SENSOR'
+
 export interface ValidacionPaso {
   id: string
-  label: string
-  verificada: boolean
+  orden: number
+  texto: string
+  /** Cómo se hace. El operador lo despliega si lo necesita. */
+  detalle: string
+  tipo: TipoValidacion
+  condicion: Condicion | null
 }
 
-export interface HardwarePaso {
-  id: string
-  nombre: string
-  estado: string
-  tono: 'ok' | 'warn' | 'danger' | 'neutral' | 'info'
-}
-
-export interface PasoProcedimiento {
-  id: number
+export interface PasoGuiado {
+  orden: number
   titulo: string
   subtitulo: string
-  fase: number
-  descripcion: string
-  instrucciones: string[]
-  hardware: HardwarePaso[]
+  fase: string
+  indicadores: Indicador[]
+  acciones: AccionPaso[]
+  condicionAvance: Condicion | null
+  salidas: SalidaPaso[]
   validaciones: ValidacionPaso[]
+}
+
+export interface ProcedimientoGuiado {
+  id: string
+  nombre: string
+  descripcion: string
+  tipoRed: string
+  version: number
+  creadoPor: string
+  actualizado: string
+  programas: { codigo: string; nombre: string }[]
+  pasos: PasoGuiado[]
+}
+
+export type TipoFuente = 'bool' | 'num' | 'texto'
+
+export interface CatalogoProcedimientos {
+  fuentes: { fuente: string; tipo: TipoFuente; descripcion: string }[]
+  operadores: Record<TipoFuente, string[]>
+  acciones: { accion: string; etiqueta: string }[]
+  tonos: Tono[]
 }
 
 export interface FiltrosEnsayo {
