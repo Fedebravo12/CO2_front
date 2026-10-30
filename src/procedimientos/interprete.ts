@@ -25,7 +25,8 @@ export type Fuentes = Record<string, unknown>
 
 /** Aplana la telemetría y el contexto a `{ "actuadores.laser": true, ... }`. */
 export function fuentesDe({ t, programa, ensayo }: ContextoPaso): Fuentes {
-  const f: Fuentes = { estado: t.estado }
+  // Solo se llega acá con telemetría vigente: sin ella no hay contexto que evaluar.
+  const f: Fuentes = { estado: t.estado, 'controlador.conectado': true }
   const grupos = {
     condiciones: t.condiciones,
     variables: t.variables,
