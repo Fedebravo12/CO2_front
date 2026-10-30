@@ -84,3 +84,20 @@
   .tc-card .tc-icon { display: none; }
   .tc-card .tc-foot > span:last-child { display: none; }
 }
+
+/* ── Teléfono: una tarjeta por fila, con scroll, y textos legibles ──────────── */
+@media (max-width: 600px) {
+  .app-dashboard { height: auto; min-height: 100dvh; overflow: visible; }
+  .app-dashboard .page { flex: none; padding: 8px 8px calc(16px + env(safe-area-inset-bottom)); }
+  .tc-grid { flex: none; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-rows: auto; gap: 8px; }
+  .tc-grid > .tc-card { padding: 12px 14px; gap: 8px; }
+  .tc-card .tc-heading { gap: 10px; }
+  .tc-card .tc-icon { display: grid; width: 34px; height: 34px; }
+  .tc-card .tc-heading h3 { font-size: 15px; letter-spacing: .04em; }
+  .tc-card .tc-badge { font-size: 13px; padding: 4px 10px; }
+  .tc-simple .tc-card .tc-value { font-size: 32px; }
+  .tc-card .tc-value small { font-size: .45em; }
+  .tc-card .tc-foot { font-size: 12.5px; }
+  .tc-card .tc-foot > span:last-child { display: flex; }
+  .tc-simple .tc-progress { margin: 4px 0; }
+}

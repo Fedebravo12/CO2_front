@@ -25,6 +25,8 @@ const channels: Channel[] = [
   { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', color: 'teal', digits: 0, icon: Gauge, value: s => (s.ejecucion?.progreso ?? 0) * 100 },
 ]
 
+const MOBILE = '(max-width: 600px)'
+
 export function Telemetria() {
   const { controlador, controladorVivo, historialTelemetria, now, setErrorTelemetria } = useSystem()
   const [seconds, setSeconds] = useState(60)
@@ -37,6 +39,17 @@ export function Telemetria() {
     try { localStorage.setItem('co2.telemetria.vista', next) }
     catch { /* La selección sigue funcionando si el navegador bloquea el almacenamiento. */ }
   }
+  // En el teléfono no hay tendencias en las tarjetas ni selector: se ven al tocar
+  // una tarjeta. La preferencia guardada para pantallas grandes no se modifica.
+  const [mobile, setMobile] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(MOBILE).matches)
+  useEffect(() => {
+    const media = window.matchMedia?.(MOBILE)
+    if (!media) return
+    const change = () => setMobile(media.matches)
+    media.addEventListener('change', change)
+    return () => media.removeEventListener('change', change)
+  }, [])
+  const cardView = mobile ? 'B' : view
   const [selected, setSelected] = useState<Channel | null>(null)
   const [thresholds, setThresholds] = useState<Umbral[]>([])
   const dialog = useRef<HTMLDialogElement>(null)
@@ -121,12 +134,12 @@ export function Telemetria() {
   </div>
   const toolbarHost = document.getElementById('telemetria-toolbar')
   return <>
-    {toolbarHost ? createPortal(toolbar, toolbarHost) : toolbar}
-    <section className={`tc-grid ${view === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
+    {!mobile && (toolbarHost ? createPortal(toolbar, toolbarHost) : toolbar)}
+    <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
       {channels.map(c => <button type="button" key={c.id} className={`tc-card ${live && c.badge ? c.badge(last)[1] : 'neutral'}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
         {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>
-        {c.id === 'prog' ? <div className="tc-progress" role="progressbar" aria-label="Progreso del proceso" aria-valuenow={live ? Math.min(100, Math.max(0, c.value(last))) : undefined}><i style={{ width: `${live ? Math.min(100, Math.max(0, c.value(last))) : 0}%` }} /></div> : view === 'C' ? chart(c) : null}
-        <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> {view === 'B' ? 'Tendencia' : 'Ampliar'}</span></div>
+        {c.id === 'prog' ? <div className="tc-progress" role="progressbar" aria-label="Progreso del proceso" aria-valuenow={live ? Math.min(100, Math.max(0, c.value(last))) : undefined}><i style={{ width: `${live ? Math.min(100, Math.max(0, c.value(last))) : 0}%` }} /></div> : cardView === 'C' ? chart(c) : null}
+        <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> {cardView === 'B' ? 'Tendencia' : 'Ampliar'}</span></div>
       </button>)}
     </section>
     {selected && <dialog ref={dialog} className="tc-dialog" onCancel={() => setSelected(null)} onClick={e => { if (e.target === e.currentTarget) setSelected(null) }} aria-label={selected.title}>

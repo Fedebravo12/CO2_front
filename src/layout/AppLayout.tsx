@@ -11,7 +11,6 @@ import {
   Home,
   ListChecks,
   LogOut,
-  Menu,
   X,
   Play,
   Settings,
@@ -37,6 +36,12 @@ const NAV = [
   // Las secciones (usuarios, umbrales, auditoría) se eligen con las tabs de la página.
   { to: '/admin', label: 'Administración', icon: Settings },
 ]
+
+/** Nombre de la sección actual, para la barra superior en pantallas angostas. */
+function seccionActual(pathname: string) {
+  const item = NAV.find((n) => (n.end ? pathname === n.to : pathname === n.to || pathname.startsWith(`${n.to}/`)))
+  return item?.label ?? 'Sistema de Grabado Láser'
+}
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
@@ -70,6 +75,19 @@ export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
   const sidebar = useRef<HTMLElement>(null)
+  const app = useRef<HTMLDivElement>(null)
+  const topbar = useRef<HTMLElement>(null)
+
+  // El menú desplegable empieza justo debajo de la cabecera, para que la parada
+  // de emergencia siga visible. Se mide la altura real: cambia con la pantalla.
+  useEffect(() => {
+    const cabecera = topbar.current
+    if (!cabecera) return
+    const medir = () => app.current?.style.setProperty('--header-outer-height', `${cabecera.offsetHeight}px`)
+    const observer = new ResizeObserver(medir)
+    observer.observe(cabecera)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 900px)')
@@ -101,7 +119,7 @@ export function AppLayout() {
   const hayAvisos = emergenciaActiva || sinConexion || errorComando || errorTelemetria || avisoControlador
 
   return (
-    <div className={`app ${dashboard ? 'app-dashboard' : ''}`}>
+    <div ref={app} className={`app ${dashboard ? 'app-dashboard' : ''}`}>
       {narrow && mobileOpen && <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} aria-hidden="true" />}
       <aside id="app-sidebar" ref={sidebar} aria-label="Menú principal" className={`sidebar ${!narrow && sidebarCompact ? 'compact' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
@@ -162,15 +180,21 @@ export function AppLayout() {
       </aside>
 
       <div className="main">
-        <header className="topbar">
-          <div className="status-card">
-            <div className="status-heading">
-              {narrow && <button ref={menuButton} type="button" className="mobile-menu-button"
+        <header ref={topbar} className="topbar">
+          {narrow && (
+            // Pantallas angostas: el ícono de la app abre el menú y al lado va la sección actual.
+            <div className="mobile-bar">
+              <button ref={menuButton} type="button" className="brand-mark mobile-bar-menu"
                 aria-label={mobileOpen ? 'Cerrar menú principal' : 'Abrir menú principal'}
                 aria-expanded={mobileOpen} aria-controls="app-sidebar"
                 onClick={() => setMobileOpen(open => !open)}>
-                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-              </button>}
+                {mobileOpen ? <X size={18} /> : <ScanLine size={18} />}
+              </button>
+              <h1 className="mobile-bar-title">{seccionActual(pathname)}</h1>
+            </div>
+          )}
+          <div className="status-card">
+            <div className="status-heading">
               <div>
                 <h2>ESTADO DEL SISTEMA</h2>
                 <p className={`status-value ${statusCls}`}>{estado}</p>

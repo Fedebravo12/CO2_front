@@ -1577,3 +1577,34 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 .interruptor.on .interruptor-luz { background: var(--green); box-shadow: 0 0 6px var(--green); }
 .interruptor-editor { border: 1px dashed var(--border); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; display: grid; gap: 4px; }
 .interruptor-lado { width: 64px; color: var(--muted); font-size: 12px; }
+
+/* ── Pantallas angostas: barra con el ícono de la app (abre el menú) y la sección ── */
+.mobile-bar { display: none; }
+@media (max-width: 900px) {
+  /* En la app instalada la barra de estado del teléfono queda encima: se respeta su alto. */
+  .topbar { padding-top: max(env(safe-area-inset-top), 0px); }
+  .mobile-bar {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    margin-inline: calc(-1 * var(--scada-padding));
+    padding-inline: var(--scada-padding);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .mobile-bar-menu { width: 40px; height: 40px; cursor: pointer; }
+  .mobile-bar-menu:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+  .mobile-bar-title { margin: 0; min-width: 0; font-size: 19px; font-weight: 700; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* El cierre del menú es el mismo ícono de la barra: el encabezado del cajón sobra. */
+  .app .sidebar.mobile-open .sidebar-header { display: none; }
+}
+@media (max-width: 600px) {
+  /* Sin selector de tendencias, la cabecera puede ser más baja y con texto más grande. */
+  .app { --header-height: 104px; }
+  .status-card h2 { font-size: 11px; letter-spacing: .1em; }
+  .status-value { font-size: 22px; }
+  .estop-label { font-size: 15px; }
+  .estop-btn { width: 52px; height: 52px; }
+  .page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
