@@ -13,10 +13,14 @@
 import type {
   Alerta,
   Auditoria,
+  CatalogoProcedimientos,
+  Condicion,
   Ensayo,
   FiltrosEnsayo,
   HardwareConfig,
+  PasoGuiado,
   PerfilPeriodo,
+  ProcedimientoGuiado,
   Programa,
   Rol,
   Umbral,
@@ -98,8 +102,41 @@ interface ProgramaApi {
   criterio_fin: CriterioFin
   distancia_mm: number
   pulsos: number
+  procedimiento: string | null
+  procedimiento_nombre: string
   creado_por: string
   actualizado_en: string
+}
+
+interface PasoGuiadoApi {
+  orden: number
+  titulo: string
+  subtitulo: string
+  fase: string
+  indicadores: PasoGuiado['indicadores']
+  acciones: PasoGuiado['acciones']
+  condicion_avance: Condicion | null
+  salidas: PasoGuiado['salidas']
+  validaciones: {
+    id: number
+    orden: number
+    texto: string
+    detalle: string
+    tipo: 'MANUAL' | 'SENSOR'
+    condicion: Condicion | null
+  }[]
+}
+
+interface ProcedimientoApi {
+  codigo: string
+  nombre: string
+  descripcion: string
+  tipo_red: string
+  version: number
+  creado_por: string
+  actualizado_en: string
+  programas: { codigo: string; nombre: string }[]
+  pasos: PasoGuiadoApi[]
 }
 
 // ── Traducciones ─────────────────────────────────────────────────────────────
@@ -217,10 +254,65 @@ function aPrograma(p: ProgramaApi): Programa {
     pulsosEstimados: p.pulsos,
     creadoPor: p.creado_por || '—',
     actualizado: fmtFecha(p.actualizado_en, false),
+    procedimiento: p.procedimiento,
+    procedimientoNombre: p.procedimiento_nombre,
   }
 }
 
-type DatosPrograma = Omit<Programa, 'id' | 'version' | 'actualizado' | 'creadoPor'>
+type DatosPrograma = Omit<
+  Programa,
+  'id' | 'version' | 'actualizado' | 'creadoPor' | 'procedimientoNombre'
+>
+
+function aProcedimiento(p: ProcedimientoApi): ProcedimientoGuiado {
+  return {
+    id: p.codigo,
+    nombre: p.nombre,
+    descripcion: p.descripcion,
+    tipoRed: p.tipo_red,
+    version: p.version,
+    creadoPor: p.creado_por || '—',
+    actualizado: fmtFecha(p.actualizado_en, false),
+    programas: p.programas,
+    pasos: p.pasos.map((paso) => ({
+      orden: paso.orden,
+      titulo: paso.titulo,
+      subtitulo: paso.subtitulo,
+      fase: paso.fase,
+      indicadores: paso.indicadores ?? [],
+      acciones: paso.acciones ?? [],
+      condicionAvance: paso.condicion_avance,
+      salidas: paso.salidas ?? [],
+      validaciones: paso.validaciones.map((v) => ({ ...v, id: String(v.id) })),
+    })),
+  }
+}
+
+/** Datos editables de un procedimiento. Pasos y validaciones se numeran por posición. */
+export type DatosProcedimiento = Pick<ProcedimientoGuiado, 'nombre' | 'descripcion' | 'tipoRed' | 'pasos'>
+
+function deProcedimientoAApi(d: DatosProcedimiento) {
+  return {
+    nombre: d.nombre,
+    descripcion: d.descripcion,
+    tipo_red: d.tipoRed,
+    pasos: d.pasos.map((paso) => ({
+      titulo: paso.titulo,
+      subtitulo: paso.subtitulo,
+      fase: paso.fase,
+      indicadores: paso.indicadores,
+      acciones: paso.acciones,
+      condicion_avance: paso.condicionAvance,
+      salidas: paso.salidas,
+      validaciones: paso.validaciones.map((v) => ({
+        texto: v.texto,
+        detalle: v.detalle,
+        tipo: v.tipo,
+        condicion: v.tipo === 'SENSOR' ? v.condicion : null,
+      })),
+    })),
+  }
+}
 
 function deProgramaAApi(d: DatosPrograma) {
   const criterio = criterioDeEtiqueta(d.criterioFin)
@@ -237,6 +329,7 @@ function deProgramaAApi(d: DatosPrograma) {
     // Según el criterio, el backend usa uno y deriva el otro.
     distancia_mm: criterio === 'CANT_MARCAS' ? null : d.distanciaMm || null,
     pulsos: criterio === 'LONGITUD' ? null : d.pulsosEstimados || null,
+    procedimiento: d.procedimiento,
   }
 }
 
@@ -388,6 +481,42 @@ export const api = {
     await pedir<void>(`/programas/${encodeURIComponent(id)}/`, { method: 'DELETE' })
     return api.listarProgramas()
   },
+
+  listarProcedimientos: async (): Promise<ProcedimientoGuiado[]> =>
+    (await pedir<ProcedimientoApi[]>('/procedimientos/')).map(aProcedimiento),
+
+  obtenerProcedimiento: async (id: string): Promise<ProcedimientoGuiado> =>
+    aProcedimiento(await pedir<ProcedimientoApi>(`/procedimientos/${encodeURIComponent(id)}/`)),
+
+  crearProcedimiento: async (datos: DatosProcedimiento): Promise<ProcedimientoGuiado> =>
+    aProcedimiento(
+      await pedir<ProcedimientoApi>('/procedimientos/', {
+        method: 'POST',
+        body: JSON.stringify(deProcedimientoAApi(datos)),
+      }),
+    ),
+
+  actualizarProcedimiento: async (id: string, datos: DatosProcedimiento): Promise<ProcedimientoGuiado> =>
+    aProcedimiento(
+      await pedir<ProcedimientoApi>(`/procedimientos/${encodeURIComponent(id)}/`, {
+        method: 'PUT',
+        body: JSON.stringify(deProcedimientoAApi(datos)),
+      }),
+    ),
+
+  duplicarProcedimiento: async (id: string): Promise<ProcedimientoGuiado> =>
+    aProcedimiento(
+      await pedir<ProcedimientoApi>(`/procedimientos/${encodeURIComponent(id)}/duplicar/`, {
+        method: 'POST',
+      }),
+    ),
+
+  /** Falla si algún programa lo usa: hay que asignarle otro antes. */
+  eliminarProcedimiento: async (id: string): Promise<void> =>
+    pedir<void>(`/procedimientos/${encodeURIComponent(id)}/`, { method: 'DELETE' }),
+
+  catalogoProcedimientos: async (): Promise<CatalogoProcedimientos> =>
+    pedir<CatalogoProcedimientos>('/procedimientos/catalogo/'),
 
   /**
    * Alertas por umbral y paradas de emergencia, juntas y por fecha: la pantalla

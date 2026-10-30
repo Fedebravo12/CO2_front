@@ -1,189 +1,113 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Lock } from 'lucide-react'
-import type { Accion, TelemetriaControlador } from '../api/control'
-import { FASES } from '../mock/data'
-import type { HardwarePaso, Programa } from '../mock/types'
+import { Check, ChevronDown, Lock } from 'lucide-react'
+import type { Accion } from '../api/control'
 import { fmt, LinearBar } from '../components/Meters'
-import { useSystem, type EnsayoActual } from '../context/SystemContext'
+import { useSystem } from '../context/SystemContext'
+import type { PasoGuiado, ValidacionPaso } from '../mock/types'
+import { comandosDe, estadoDe, evaluar, fuentesDe, type Fuentes } from '../procedimientos/interprete'
 
-type T = TelemetriaControlador
+const INICIAR = new Set(['iniciar_real', 'iniciar_prueba'])
 
-interface Contexto {
-  t: T
-  programa: Programa | null
-  ensayo: EnsayoActual | null
+/** Fases del indicador superior: tramos seguidos de pasos con la misma fase. */
+function fasesDe(pasos: PasoGuiado[]): { nombre: string; desde: number; hasta: number }[] {
+  const fases: { nombre: string; desde: number; hasta: number }[] = []
+  for (const p of pasos) {
+    const ultima = fases[fases.length - 1]
+    if (ultima && ultima.nombre === p.fase) ultima.hasta = p.orden
+    else fases.push({ nombre: p.fase, desde: p.orden, hasta: p.orden })
+  }
+  return fases
 }
 
-/** Cómo se ve un chip de hardware a partir de la telemetría. */
-type Chip = Pick<HardwarePaso, 'estado' | 'tono'>
+/** Una validación con su detalle desplegable («¿Cómo se hace?»). */
+function FilaValidacion({
+  v,
+  ok,
+  porSensor,
+  avisoSensor,
+  onToggle,
+  onAyudaSensor,
+}: {
+  v: ValidacionPaso
+  ok: boolean
+  porSensor: boolean
+  avisoSensor: boolean
+  onToggle: () => void
+  onAyudaSensor: () => void
+}) {
+  const [abierta, setAbierta] = useState(false)
+  const idDetalle = useId()
+  const ayuda = ok
+    ? 'Lo confirma el sensor, no se puede destildar a mano. Si la condición se pierde, se destilda sola. Para revertirla, usá la acción del paso o Control manual.'
+    : 'Se tilda sola cuando el sensor confirma la condición. No hace falta marcarla a mano.'
 
-/**
- * Lo que conecta cada paso del procedimiento con el equipo:
- * - `acciones`: los botones que mandan comandos al controlador.
- * - `hardware`: el estado de cada chip, leído de los sensores.
- * - `sensores`: las validaciones que un sensor puede confirmar. Las que no
- *   están acá las verifica el operador mirando (por ejemplo, el interlock físico).
- * - `cumplido`: qué tiene que ser cierto en el equipo para poder avanzar.
- */
-interface Cableado {
-  acciones?: { etiqueta: string; accion: Accion | 'iniciar_real' | 'iniciar_prueba' }[]
-  hardware: Record<string, (c: Contexto) => Chip>
-  sensores?: Record<string, (c: Contexto) => boolean>
-  cumplido: (c: Contexto) => boolean
-}
-
-const on = (ok: boolean, si: string, no: string, tonoNo: Chip['tono'] = 'warn'): Chip =>
-  ok ? { estado: si, tono: 'ok' } : { estado: no, tono: tonoNo }
-
-const terminado = (c: Contexto) => Boolean(c.ensayo?.resultado)
-
-const CABLEADO: Record<number, Cableado> = {
-  1: {
-    hardware: {
-      fibra: () => ({ estado: 'VERIFICAR', tono: 'info' }),
-      interrogador: () => ({ estado: 'CONECTADO', tono: 'ok' }),
-    },
-    sensores: { v2: () => true, v3: () => true },
-    cumplido: () => true,
-  },
-  2: {
-    acciones: [{ etiqueta: 'Encender refrigeración', accion: 'encender_refrigeracion' }],
-    hardware: {
-      chiller: ({ t }) => on(t.actuadores.refrigeracion, 'ENCENDIDO', 'APAGADO', 'neutral'),
-      caudal: ({ t }) =>
-        on(
-          t.variables.CAUDAL_REFRIGERANTE >= 2,
-          `${fmt(t.variables.CAUDAL_REFRIGERANTE)} L/min`,
-          `${fmt(t.variables.CAUDAL_REFRIGERANTE)} L/min`,
-        ),
-    },
-    sensores: {
-      v1: ({ t }) => t.actuadores.refrigeracion,
-      v2: ({ t }) => t.variables.CAUDAL_REFRIGERANTE >= 2,
-      v3: ({ t }) => t.condiciones.REFRIGERACION_OK,
-    },
-    cumplido: ({ t }) => t.condiciones.REFRIGERACION_OK,
-  },
-  3: {
-    hardware: {
-      programa: ({ programa }) => on(Boolean(programa), programa?.nombre ?? '', 'SIN PROGRAMA'),
-      criterio: ({ programa }) =>
-        programa
-          ? { estado: `${fmt(programa.distanciaMm)} mm · ${programa.pulsosEstimados} pulsos`, tono: 'info' }
-          : { estado: '—', tono: 'neutral' },
-    },
-    sensores: { v1: ({ programa }) => Boolean(programa), v3: ({ programa }) => Boolean(programa?.criterioFin) },
-    cumplido: ({ programa }) => Boolean(programa),
-  },
-  4: {
-    acciones: [{ etiqueta: 'Habilitar alta tensión', accion: 'habilitar_at' }],
-    hardware: {
-      'hv-hw': () => ({ estado: 'VERIFICAR', tono: 'info' }),
-      'hv-sw': ({ t }) =>
-        on(
-          t.condiciones.AT_ENCENDIDA,
-          `HABILITADA ${fmt(t.variables.TENSION_AT, 1)} kV`,
-          t.actuadores.alta_tension ? `RAMPA ${fmt(t.variables.TENSION_AT, 1)} kV` : 'APAGADA',
-          'neutral',
-        ),
-    },
-    sensores: { v2: ({ t }) => t.condiciones.AT_ENCENDIDA },
-    cumplido: ({ t }) => t.condiciones.AT_ENCENDIDA,
-  },
-  5: {
-    acciones: [{ etiqueta: 'Alinear fibra', accion: 'alinear_fibra' }],
-    hardware: {
-      pd: ({ t }) =>
-        t.condiciones.FIBRA_ALINEADA
-          ? { estado: 'ALINEADO', tono: 'ok' }
-          : t.actuadores.alineando
-            ? { estado: 'ALINEANDO…', tono: 'info' }
-            : { estado: 'NO ALINEADO', tono: 'warn' },
-      'pd-val': ({ t }) =>
-        on(t.extra.sensor_sombra_mw < 0.2, `${fmt(t.extra.sensor_sombra_mw)} mW`, `${fmt(t.extra.sensor_sombra_mw)} mW`, 'neutral'),
-    },
-    sensores: {
-      v1: ({ t }) => t.actuadores.alineando || t.condiciones.FIBRA_ALINEADA,
-      v2: ({ t }) => t.condiciones.FIBRA_ALINEADA,
-      v3: ({ t }) => t.extra.sensor_sombra_mw < 0.2,
-    },
-    cumplido: ({ t }) => t.condiciones.FIBRA_ALINEADA,
-  },
-  6: {
-    acciones: [{ etiqueta: 'Armar shutter', accion: 'armar_shutter' }],
-    hardware: {
-      shutter: ({ t }) => on(t.actuadores.shutter_armado, 'ARMADO', 'DESARMADO'),
-      interlock: ({ t }) => on(t.senales.SHUTTER_CERRADO, 'CERRADO DETECTADO', 'ABIERTO', 'danger'),
-    },
-    sensores: {
-      v1: ({ t }) => t.actuadores.shutter_armado,
-      v2: ({ t }) => t.actuadores.shutter_armado && t.senales.SHUTTER_CERRADO,
-    },
-    cumplido: ({ t }) => t.estado === 'LISTO',
-  },
-  7: {
-    acciones: [{ etiqueta: 'Encender láser y cerrar lazo', accion: 'encender_laser' }],
-    hardware: {
-      laser: ({ t }) => on(t.actuadores.laser, `ENCENDIDO ${fmt(t.variables.POTENCIA_LASER, 1)} W`, 'APAGADO', 'neutral'),
-      lazo: ({ t }) => on(t.actuadores.lazo_cerrado, 'CERRADO', 'ABIERTO'),
-    },
-    sensores: {
-      v1: ({ t }) => t.estado === 'LISTO',
-      v2: ({ t }) => t.actuadores.laser,
-      v3: ({ t }) => t.actuadores.lazo_cerrado,
-    },
-    cumplido: ({ t }) => t.actuadores.laser,
-  },
-  8: {
-    acciones: [
-      { etiqueta: 'Pre-grabado (láser inhibido)', accion: 'iniciar_prueba' },
-      { etiqueta: 'Iniciar grabado', accion: 'iniciar_real' },
-      { etiqueta: 'Abortar', accion: 'abortar' },
-    ],
-    hardware: {
-      loop: ({ t, ensayo }) =>
-        t.estado === 'GRABANDO'
-          ? { estado: t.ejecucion?.modo === 'PRUEBA' ? 'PRE-GRABADO' : 'GRABANDO', tono: 'info' }
-          : ensayo?.resultado
-            ? {
-                estado: ensayo.resultado.estado.toUpperCase(),
-                tono: ensayo.resultado.estado === 'Completado' ? 'ok' : 'danger',
-              }
-            : { estado: 'DETENIDO', tono: 'neutral' },
-      progreso: ({ t, programa }) =>
-        t.ejecucion
-          ? { estado: `${t.ejecucion.pulso} / ${t.ejecucion.pulsos} pulsos`, tono: 'info' }
-          : { estado: `0 / ${programa?.pulsosEstimados ?? 0} pulsos`, tono: 'neutral' },
-    },
-    sensores: {
-      v2: ({ t, ensayo }) => (t.ejecucion?.pulso ?? 0) >= 1 || Boolean(ensayo?.resultado),
-      v3: (c) => terminado(c) && c.ensayo?.resultado?.estado === 'Completado',
-    },
-    cumplido: (c) => terminado(c) && c.ensayo?.modo === 'REAL',
-  },
-  9: {
-    acciones: [{ etiqueta: 'Apagar en orden inverso', accion: 'apagar' }],
-    hardware: {
-      'laser-off': ({ t }) =>
-        on(!t.actuadores.laser && !t.actuadores.alta_tension, 'APAGADO', 'ENCENDIDO', 'danger'),
-      registro: ({ ensayo }) => on(Boolean(ensayo?.resultado), ensayo?.registro ?? '', 'SIN GUARDAR', 'neutral'),
-    },
-    sensores: {
-      v1: ({ t }) => !t.actuadores.laser && !t.actuadores.alta_tension,
-      v2: ({ t }) => !t.actuadores.shutter_armado,
-      v3: ({ ensayo }) => Boolean(ensayo?.resultado),
-    },
-    cumplido: ({ t }) => t.estado === 'REPOSO',
-  },
+  return (
+    <div className={`valid-item ${abierta ? 'abierta' : ''}`}>
+      <div className="valid-linea">
+        {porSensor ? (
+          // Sin `disabled`: el gris nativo hace pensar que está destildado. Se ve
+          // como un checkbox normal y el clic se bloquea acá, mostrando la ayuda.
+          <label className={`valid-row auto ${ok ? 'on' : ''} ${avisoSensor ? 'mostrar-ayuda' : ''}`}>
+            <input
+              type="checkbox"
+              checked={ok}
+              readOnly
+              aria-readonly="true"
+              aria-describedby={`ayuda-${v.id}`}
+              onClick={(e) => {
+                e.preventDefault()
+                onAyudaSensor()
+              }}
+            />
+            {v.texto}
+            <em>
+              <Lock size={11} aria-hidden="true" />
+              {ok ? 'Verificado por sensor' : 'Esperando sensor'}
+            </em>
+            <span className="ayuda-sensor" role="tooltip" id={`ayuda-${v.id}`}>
+              {ayuda}
+            </span>
+          </label>
+        ) : (
+          <label className={`valid-row ${ok ? 'on' : ''}`}>
+            <input type="checkbox" checked={ok} onChange={onToggle} />
+            {v.texto}
+            <em>{ok ? 'Verificado' : 'No verificado'}</em>
+          </label>
+        )}
+        {v.detalle && (
+          <button
+            type="button"
+            className="valid-detalle-btn"
+            aria-expanded={abierta}
+            aria-controls={idDetalle}
+            onClick={() => setAbierta((a) => !a)}
+          >
+            <ChevronDown size={14} aria-hidden="true" />
+            <span className="sr-only">{abierta ? 'Ocultar' : 'Ver'} cómo se hace: </span>
+            ¿Cómo?
+          </button>
+        )}
+      </div>
+      {v.detalle && (
+        <div className="valid-detalle" id={idDetalle} hidden={!abierta}>
+          {v.detalle}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function NuevoEnsayo() {
   const {
     estado,
-    pasos,
+    procedimiento,
+    errorProcedimiento,
+    cargandoProcedimiento,
     pasoActual,
-    maxAlcanzado,
+    visitados,
+    manuales,
     irAPaso,
     toggleValidacion,
     confirmarPaso,
@@ -196,6 +120,7 @@ export function NuevoEnsayo() {
     enviar,
     iniciarPrograma,
     ensayoActual,
+    rol,
   } = useSystem()
   const [pickPrograma, setPickPrograma] = useState(false)
   const [enviando, setEnviando] = useState(false)
@@ -209,64 +134,86 @@ export function NuevoEnsayo() {
   }
   useEffect(() => () => window.clearTimeout(timerAviso.current), [])
 
-  const paso = pasos.find((p) => p.id === pasoActual)!
-  const cableado = CABLEADO[paso.id]
-  const ctx: Contexto | null =
-    controlador && controladorVivo ? { t: controlador, programa, ensayo: ensayoActual } : null
+  const pasos = procedimiento?.pasos ?? []
+  const paso = pasos.find((p) => p.orden === pasoActual) ?? pasos[0] ?? null
+  const fases = fasesDe(pasos)
+  const f: Fuentes | null =
+    controlador && controladorVivo ? fuentesDe({ t: controlador, programa, ensayo: ensayoActual }) : null
 
-  const verificada = (vId: string, manual: boolean) => {
-    const sensor = cableado.sensores?.[vId]
-    return sensor ? (ctx ? sensor(ctx) : false) : manual
-  }
-  const todasVerificadas = paso.validaciones.every((v) => verificada(v.id, v.verificada))
-  const ready = ctx !== null && todasVerificadas && cableado.cumplido(ctx) && estado !== 'EMERGENCIA'
+  const verificada = (v: ValidacionPaso) =>
+    v.tipo === 'SENSOR' ? Boolean(f && v.condicion && evaluar(v.condicion, f)) : Boolean(manuales[v.id])
+  const todasVerificadas = paso?.validaciones.every(verificada) ?? false
+  const cumplido = !paso?.condicionAvance || (f !== null && evaluar(paso.condicionAvance, f))
+  // Un procedimiento sin sensores ni comandos (el PEHLPG, por ejemplo) se puede
+  // seguir sin el controlador; si usa el equipo, necesita su telemetría.
+  const usaEquipo = pasos.some(
+    (p) =>
+      p.acciones.length > 0 ||
+      p.condicionAvance !== null ||
+      p.validaciones.some((v) => v.tipo === 'SENSOR'),
+  )
+  const ready =
+    paso !== null && (f !== null || !usaEquipo) && todasVerificadas && cumplido && estado !== 'EMERGENCIA'
 
-  const ejecutar = async (accion: Accion | 'iniciar_real' | 'iniciar_prueba') => {
+  const ejecutar = async (accion: string) => {
     setEnviando(true)
     if (accion === 'iniciar_real') await iniciarPrograma('REAL')
     else if (accion === 'iniciar_prueba') await iniciarPrograma('PRUEBA')
-    else await enviar(accion)
+    else await enviar(accion as Accion)
     setEnviando(false)
   }
 
-  const bloqueado = !ctx || estado === 'EMERGENCIA'
+  const bloqueado = !f || estado === 'EMERGENCIA'
   const grabando = estado === 'GRABANDO'
   const mensaje = controlador?.mensaje
+  const ordenGrabado = pasos.find((p) => p.acciones.some((a) => comandosDe(a).some((c) => INICIAR.has(c))))?.orden
+  const puedeEditar = rol === 'Investigador' || rol === 'Administrador'
 
   return (
     <>
       <div className="lab-entry"><span>Observá el equipo y las marcas en tiempo real.</span><Link to="/simulador">Ver simulador visual →</Link></div>
-      <ol className="stepper">
-        {FASES.map((fase, i) => {
-          const done = paso.fase > i
-          const active = paso.fase === i
-          return (
-            <li key={fase} className={`stepper-item ${done ? 'done' : ''} ${active ? 'active' : ''}`}>
-              <span>{done ? <Check size={14} /> : i + 1}</span>
-              <strong>{fase}</strong>
-              {i < FASES.length - 1 && <i className="stepper-line" />}
-            </li>
-          )
-        })}
-      </ol>
+      {paso && (
+        <ol className="stepper">
+          {fases.map((fase, i) => {
+            const done = paso.orden > fase.hasta
+            const active = paso.orden >= fase.desde && paso.orden <= fase.hasta
+            return (
+              <li key={`${fase.nombre}-${fase.desde}`} className={`stepper-item ${done ? 'done' : ''} ${active ? 'active' : ''}`}>
+                <span>{done ? <Check size={14} /> : i + 1}</span>
+                <strong>{fase.nombre}</strong>
+                {i < fases.length - 1 && <i className="stepper-line" />}
+              </li>
+            )
+          })}
+        </ol>
+      )}
 
       <div className="ensayo-grid">
         <aside className="col-card">
           <div className="col-head">
             <h3>PASOS DEL PROCEDIMIENTO</h3>
-            <span className="badge">Paso {pasoActual} de 9</span>
+            {paso && (
+              <span className="badge">
+                Paso {paso.orden} de {pasos.length}
+              </span>
+            )}
           </div>
+          {procedimiento && (
+            <p className="proc-nombre">
+              {procedimiento.nombre} <small>v{procedimiento.version}</small>
+            </p>
+          )}
           {pasos.map((p) => {
-            const locked = p.id > maxAlcanzado
+            const locked = !visitados.includes(p.orden)
             return (
               <button
-                key={p.id}
+                key={p.orden}
                 type="button"
-                className={`step-item ${p.id === pasoActual ? 'active' : ''} ${p.id < pasoActual ? 'done' : ''}`}
+                className={`step-item ${p.orden === paso?.orden ? 'active' : ''} ${visitados.includes(p.orden) && p.orden !== paso?.orden ? 'done' : ''}`}
                 disabled={locked}
-                onClick={() => irAPaso(p.id)}
+                onClick={() => irAPaso(p.orden)}
               >
-                <span className="step-num">{p.id}</span>
+                <span className="step-num">{p.orden}</span>
                 <span>
                   {p.titulo}
                   <small>{p.subtitulo}</small>
@@ -277,39 +224,81 @@ export function NuevoEnsayo() {
           })}
         </aside>
 
+        {!paso ? (
+          <section className="col-card paso">
+            <h2>Sin procedimiento</h2>
+            {cargandoProcedimiento ? (
+              <p>Cargando el procedimiento del programa…</p>
+            ) : errorProcedimiento ? (
+              <p className="aviso-ctrl error">No se pudo cargar el procedimiento: {errorProcedimiento}</p>
+            ) : !programa ? (
+              <p>Elegí un programa de grabado para ver su procedimiento.</p>
+            ) : (
+              <p>
+                El programa <b>{programa.nombre}</b> no tiene un procedimiento guiado asignado.{' '}
+                {puedeEditar ? (
+                  <>
+                    Asignale uno desde <Link to="/programas">Programas de grabado</Link>.
+                  </>
+                ) : (
+                  'Pedile a un investigador o administrador que le asigne uno.'
+                )}
+              </p>
+            )}
+          </section>
+        ) : (
         <section className="col-card paso">
           <h2>
-            {paso.id}. {paso.titulo}
+            {paso.orden}. {paso.titulo}
           </h2>
-          <p>{paso.descripcion}</p>
+          {paso.subtitulo && <p>{paso.subtitulo}</p>}
 
           {mensaje && <p className={`aviso-ctrl ${mensaje.nivel}`}>{mensaje.texto}</p>}
 
-          <div className="hw-row">
-            {paso.hardware.map((h) => {
-              const chip: Chip =
-                ctx && cableado.hardware[h.id] ? cableado.hardware[h.id](ctx) : { estado: 'SIN DATOS', tono: 'neutral' }
-              return (
-                <div key={h.id} className="hw-card">
-                  <b>{h.nombre}</b>
-                  <span className={`chip ${chip.tono}`}>{chip.estado}</span>
-                </div>
-              )
-            })}
-          </div>
+          {paso.indicadores.length > 0 && (
+            <div className="hw-row">
+              {paso.indicadores.map((ind, i) => {
+                const chip = f ? estadoDe(ind, f) : { texto: 'SIN DATOS', tono: 'neutral' as const }
+                return (
+                  <div key={`${ind.nombre}-${i}`} className="hw-card">
+                    <b>{ind.nombre}</b>
+                    <span className={`chip ${chip.tono}`}>{chip.texto}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
-          {cableado.acciones && (
+          {paso.acciones.length > 0 && (
             <div className="acciones-paso">
-              {cableado.acciones.map((a) => {
+              {paso.acciones.map((a, i) => {
+                if (a.tipo === 'interruptor') {
+                  // Sin telemetría no se sabe en qué estado está: queda bloqueado.
+                  const encendido = f !== null && evaluar(a.estado, f)
+                  const lado = encendido ? a.apagar : a.encender
+                  return (
+                    <button
+                      key={`interruptor-${i}`}
+                      type="button"
+                      className={`ghost interruptor ${encendido ? 'on' : ''}`}
+                      aria-pressed={encendido}
+                      disabled={bloqueado || enviando || grabando}
+                      onClick={() => ejecutar(lado.accion)}
+                    >
+                      <i className="interruptor-luz" aria-hidden="true" />
+                      {lado.etiqueta}
+                    </button>
+                  )
+                }
                 const esAbortar = a.accion === 'abortar'
                 const deshabilitado =
                   bloqueado ||
                   enviando ||
                   (esAbortar ? !grabando : grabando) ||
-                  (a.accion.startsWith('iniciar') && !programa)
+                  (INICIAR.has(a.accion) && !programa)
                 return (
                   <button
-                    key={a.accion}
+                    key={`${a.accion}-${i}`}
                     type="button"
                     className={a.accion === 'iniciar_real' ? 'primary' : 'ghost'}
                     disabled={deshabilitado}
@@ -322,68 +311,45 @@ export function NuevoEnsayo() {
             </div>
           )}
 
-          <div className="hint">
-            <h4>¿QUÉ DEBE HACER?</h4>
-            <ul>
-              {paso.instrucciones.map((i) => (
-                <li key={i}>{i}</li>
-              ))}
-            </ul>
-          </div>
-
           <div className="valid">
             <h4>VALIDACIONES DEL PASO</h4>
-            {paso.validaciones.map((v) => {
-              const porSensor = Boolean(cableado.sensores?.[v.id])
-              const ok = verificada(v.id, v.verificada)
-              if (porSensor) {
-                // Sin `disabled`: el gris nativo hace pensar que está destildado. Se ve
-                // como un checkbox normal y el clic se bloquea acá, mostrando la ayuda.
-                const ayuda = ok
-                  ? 'Lo confirma el sensor, no se puede destildar a mano. Si la condición se pierde, se destilda sola. Para revertirla, usá la acción del paso o Control manual.'
-                  : 'Se tilda sola cuando el sensor confirma la condición. No hace falta marcarla a mano.'
-                return (
-                  <label
-                    key={v.id}
-                    className={`valid-row auto ${ok ? 'on' : ''} ${avisoSensor === v.id ? 'mostrar-ayuda' : ''}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={ok}
-                      readOnly
-                      aria-readonly="true"
-                      aria-describedby={`ayuda-${v.id}`}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        mostrarAyuda(v.id)
-                      }}
-                    />
-                    {v.label}
-                    <em>
-                      <Lock size={11} aria-hidden="true" />
-                      {ok ? 'Verificado por sensor' : 'Esperando sensor'}
-                    </em>
-                    <span className="ayuda-sensor" role="tooltip" id={`ayuda-${v.id}`}>
-                      {ayuda}
-                    </span>
-                  </label>
-                )
-              }
-              return (
-                <label key={v.id} className={`valid-row ${ok ? 'on' : ''}`}>
-                  <input type="checkbox" checked={ok} onChange={() => toggleValidacion(paso.id, v.id)} />
-                  {v.label}
-                  <em>{ok ? 'Verificado' : 'No verificado'}</em>
-                </label>
-              )
-            })}
+            {paso.validaciones.map((v) => (
+              <FilaValidacion
+                key={v.id}
+                v={v}
+                ok={verificada(v)}
+                porSensor={v.tipo === 'SENSOR'}
+                avisoSensor={avisoSensor === v.id}
+                onToggle={() => toggleValidacion(v.id)}
+                onAyudaSensor={() => mostrarAyuda(v.id)}
+              />
+            ))}
           </div>
 
-          <button className="cta" type="button" disabled={!ready} onClick={confirmarPaso}>
-            {pasoActual >= 9 ? 'Finalizar procedimiento →' : 'Confirmar y continuar →'}
-          </button>
+          {paso.salidas.length > 0 ? (
+            <div className="salidas-paso">
+              {paso.salidas.map((s) => {
+                const destino = pasos.find((p) => p.orden === s.destino)
+                return (
+                  <button
+                    key={`${s.etiqueta}-${s.destino}`}
+                    className="cta"
+                    type="button"
+                    disabled={!ready}
+                    onClick={() => confirmarPaso(s.destino)}
+                  >
+                    {s.etiqueta} → <small>Paso {s.destino}{destino ? `: ${destino.titulo}` : ''}</small>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <button className="cta" type="button" disabled={!ready} onClick={() => confirmarPaso()}>
+              {paso.orden >= pasos.length ? 'Finalizar procedimiento →' : 'Confirmar y continuar →'}
+            </button>
+          )}
 
-          {ensayoActual && (paso.id === 8 || paso.id === 9) && (
+          {ensayoActual && ordenGrabado !== undefined && paso.orden >= ordenGrabado && (
             <div className="resultado-ensayo">
               {ensayoActual.resultado ? (
                 <>
@@ -406,6 +372,7 @@ export function NuevoEnsayo() {
             </div>
           )}
         </section>
+        )}
 
         <aside style={{ display: 'grid', gap: 12 }}>
           <div className="col-card">
@@ -423,6 +390,9 @@ export function NuevoEnsayo() {
             ) : (
               <>
                 <p style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>{programa.nombre}</p>
+                <p className="proc-del-programa">
+                  Procedimiento: <b>{programa.procedimientoNombre || 'sin asignar'}</b>
+                </p>
                 {pickPrograma && (
                   <div className="kv" style={{ marginBottom: 12 }}>
                     {programas.map((p) => (

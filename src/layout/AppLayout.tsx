@@ -9,6 +9,7 @@ import {
   ClipboardList,
   FolderKanban,
   Home,
+  ListChecks,
   LogOut,
   Menu,
   X,
@@ -30,6 +31,7 @@ const NAV = [
   { to: '/simulador', label: 'Simulador visual', icon: MonitorPlay },
   { to: '/registro', label: 'Historial de registros', icon: ClipboardList },
   { to: '/programas', label: 'Programas de grabado', icon: FolderKanban },
+  { to: '/procedimientos', label: 'Procedimientos', icon: ListChecks },
   { to: '/control-manual', label: 'Control manual', icon: SlidersHorizontal },
   { to: '/alertas', label: 'Alertas / Eventos', icon: Bell },
   // Las secciones (usuarios, umbrales, auditoría) se eligen con las tabs de la página.
@@ -177,23 +179,23 @@ export function AppLayout() {
             <div id="telemetria-toolbar" />
             {hayAvisos ? <AvisoEmergencia /> : <StatusIcon estado={estado} />}
           </div>
-          <div className="estop-card">
-              <span className="estop-label">
-                PARADA DE
-                <br />
-                EMERGENCIA
-              </span>
-            <button
-              className="estop-btn"
-              type="button"
-              disabled={estado === 'EMERGENCIA' || sinConexion}
-              title={sinConexion ? 'Sin conexión al controlador: usar el pulsador físico' : undefined}
-              onClick={() => emergencia()}
-              aria-label="Parada de emergencia"
-            >
+          <button
+            className="estop-card"
+            type="button"
+            disabled={estado === 'EMERGENCIA' || sinConexion}
+            title={sinConexion ? 'Sin conexión al controlador: usar el pulsador físico' : undefined}
+            onClick={() => emergencia()}
+            aria-label="Parada de emergencia"
+          >
+            <span className="estop-label">
+              PARADA DE
+              <br />
+              EMERGENCIA
+            </span>
+            <span className="estop-btn" aria-hidden="true">
               <Square size={22} fill="white" />
-            </button>
-          </div>
+            </span>
+          </button>
         </header>
 
         <div className="page">

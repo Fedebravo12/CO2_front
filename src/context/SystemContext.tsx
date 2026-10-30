@@ -17,8 +17,9 @@ import {
   type TelemetriaControlador,
 } from '../api/control'
 import { useTelemetriaControlador } from '../hooks/useTelemetriaControlador'
-import { PASOS, TELEMETRIA_BASE } from '../mock/data'
-import type { Ensayo, EstadoSistema, PasoProcedimiento, Programa, Rol, Telemetria } from '../mock/types'
+import { TELEMETRIA_BASE } from '../mock/data'
+import type { Ensayo, EstadoSistema, ProcedimientoGuiado, Programa, Rol, Telemetria } from '../mock/types'
+import { comandosDe } from '../procedimientos/interprete'
 import { useAuth } from './AuthContext'
 
 /**
@@ -67,13 +68,21 @@ interface SystemValue {
   errorTelemetria: string | null
   setErrorTelemetria: (error: string | null) => void
   ensayoActual: EnsayoActual | null
-  // Procedimiento guiado de «Nuevo ensayo»
+  // Procedimiento guiado de «Nuevo ensayo»: el que tiene asignado el programa.
+  procedimiento: ProcedimientoGuiado | null
+  /** `null` mientras se carga; `string` con el motivo si no se pudo. */
+  errorProcedimiento: string | null
+  cargandoProcedimiento: boolean
+  /** Número (orden) del paso en pantalla. */
   pasoActual: number
-  pasos: PasoProcedimiento[]
-  maxAlcanzado: number
-  toggleValidacion: (pasoId: number, validId: string) => void
-  confirmarPaso: () => void
-  irAPaso: (id: number) => void
+  /** Pasos por los que ya se pasó: se puede volver a ellos desde la lista. */
+  visitados: number[]
+  /** Validaciones manuales tildadas, por id. */
+  manuales: Record<string, boolean>
+  toggleValidacion: (validId: string) => void
+  /** Cierra el paso y va al siguiente, o a `destino` si es una bifurcación. */
+  confirmarPaso: (destino?: number) => void
+  irAPaso: (orden: number) => void
   reiniciarProcedimiento: () => void
   emergencia: () => void
   rearmar: () => void
@@ -82,9 +91,7 @@ interface SystemValue {
 
 const SystemContext = createContext<SystemValue | null>(null)
 
-function clonePasos(): PasoProcedimiento[] {
-  return structuredClone(PASOS)
-}
+const INICIAR = new Set(['iniciar_real', 'iniciar_prueba'])
 
 const TELEMETRIA_SIN_DATOS: Telemetria = { ...TELEMETRIA_BASE, canalesActivos: 0, tempLaser: 0, tempRefrigeracion: 0, caudal: 0 }
 
@@ -105,10 +112,13 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [salud, setSalud] = useState<Conexion>({ api: null, controlador: null })
   const [programas, setProgramas] = useState<Programa[]>([])
   const [programaId, setProgramaId] = useState<string | null>(null)
-  const [pasos, setPasos] = useState(clonePasos)
+  const [procedimiento, setProcedimiento] = useState<ProcedimientoGuiado | null>(null)
+  const [errorProcedimiento, setErrorProcedimiento] = useState<string | null>(null)
+  const [cargandoProcedimiento, setCargandoProcedimiento] = useState(false)
   const [pasoActual, setPasoActual] = useState(1)
-  const [maxAlcanzado, setMaxAlcanzado] = useState(1)
   const [errorTelemetria, setErrorTelemetria] = useState<string | null>(null)
+  const [visitados, setVisitados] = useState<number[]>([1])
+  const [manuales, setManuales] = useState<Record<string, boolean>>({})
   const [errorComando, setErrorComando] = useState<string | null>(null)
   const [ensayoActual, setEnsayoActual] = useState<EnsayoActual | null>(null)
   const [now, setNow] = useState(() => new Date())
@@ -202,43 +212,74 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     [programa],
   )
 
-  const toggleValidacion = (pasoId: number, validId: string) => {
-    setPasos((all) =>
-      all.map((p) =>
-        p.id !== pasoId
-          ? p
-          : {
-              ...p,
-              validaciones: p.validaciones.map((v) =>
-                v.id === validId ? { ...v, verificada: !v.verificada } : v,
-              ),
-            },
-      ),
-    )
+  const toggleValidacion = (validId: string) => {
+    setManuales((m) => ({ ...m, [validId]: !m[validId] }))
   }
 
   const reiniciarProcedimiento = useCallback(() => {
-    setPasos(clonePasos())
+    setManuales({})
     setPasoActual(1)
-    setMaxAlcanzado(1)
+    setVisitados([1])
     setEnsayoActual(null)
     vioGrabando.current = false
   }, [])
 
-  // Quien decide si el paso está cumplido es la pantalla, que conoce los
-  // sensores de cada uno; acá solo se avanza.
-  const confirmarPaso = () => {
-    if (pasoActual >= 9) {
-      reiniciarProcedimiento()
+  // Cada programa trae su procedimiento. Al cambiar de programa (o si el
+  // procedimiento cambió de versión) se empieza de nuevo desde el paso 1.
+  const codigoProcedimiento = programa?.procedimiento ?? null
+  useEffect(() => {
+    let cancelado = false
+    reiniciarProcedimiento()
+    setErrorProcedimiento(null)
+    if (!codigoProcedimiento) {
+      setProcedimiento(null)
       return
     }
-    const next = pasoActual + 1
-    setPasoActual(next)
-    setMaxAlcanzado((m) => Math.max(m, next))
+    setCargandoProcedimiento(true)
+    api
+      .obtenerProcedimiento(codigoProcedimiento)
+      .then((p) => !cancelado && setProcedimiento(p))
+      .catch((e: Error) => {
+        if (cancelado) return
+        setProcedimiento(null)
+        setErrorProcedimiento(e.message)
+      })
+      .finally(() => !cancelado && setCargandoProcedimiento(false))
+    return () => {
+      cancelado = true
+    }
+  }, [codigoProcedimiento, programa?.version, reiniciarProcedimiento])
+
+  // Quien decide si el paso está cumplido es la pantalla, que evalúa sus
+  // condiciones; acá solo se avanza.
+  const confirmarPaso = (destino?: number) => {
+    const pasos = procedimiento?.pasos ?? []
+    if (destino === undefined) {
+      if (pasoActual >= pasos.length) {
+        reiniciarProcedimiento()
+        return
+      }
+      destino = pasoActual + 1
+    } else {
+      // Una bifurcación vuelve a abrir el tramo al que lleva: en el PEHLPG,
+      // «Cambio de fibra → Paso 3» es otra fibra, y sus validaciones se repiten.
+      const reabiertas = new Set(
+        pasos.filter((p) => p.orden >= destino!).flatMap((p) => p.validaciones.map((v) => v.id)),
+      )
+      setManuales((m) => Object.fromEntries(Object.entries(m).filter(([id]) => !reabiertas.has(id))))
+      const pasoGrabado = pasos.find((p) => p.acciones.some((a) => comandosDe(a).some((c) => INICIAR.has(c))))
+      if (pasoGrabado && destino <= pasoGrabado.orden) {
+        setEnsayoActual(null)
+        vioGrabando.current = false
+      }
+    }
+    const siguiente = destino
+    setPasoActual(siguiente)
+    setVisitados((v) => (v.includes(siguiente) ? v : [...v, siguiente]))
   }
 
-  const irAPaso = (id: number) => {
-    if (id <= maxAlcanzado) setPasoActual(id)
+  const irAPaso = (orden: number) => {
+    if (visitados.includes(orden)) setPasoActual(orden)
   }
 
   const telemetria = useMemo(
@@ -275,9 +316,12 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     errorTelemetria,
     setErrorTelemetria,
     ensayoActual,
+    procedimiento,
+    errorProcedimiento,
+    cargandoProcedimiento,
     pasoActual,
-    pasos,
-    maxAlcanzado,
+    visitados,
+    manuales,
     toggleValidacion,
     confirmarPaso,
     irAPaso,
