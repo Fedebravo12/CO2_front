@@ -85,8 +85,8 @@
   .tc-card .tc-foot > span:last-child { display: none; }
 }
 
-/* ── Teléfono: una tarjeta por fila, con scroll, y textos legibles ──────────── */
-@media (max-width: 600px) {
+/* ── Teléfono: tarjetas con scroll y textos legibles ────────────────────────── */
+@media (max-width: 600px), (max-height: 500px) {
   .app-dashboard { height: auto; min-height: 100dvh; overflow: visible; }
   .app-dashboard .page { flex: none; padding: 8px 8px calc(16px + env(safe-area-inset-bottom)); }
   .tc-grid { flex: none; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-rows: auto; gap: 8px; }
@@ -100,4 +100,13 @@
   .tc-card .tc-foot { font-size: 12.5px; }
   .tc-card .tc-foot > span:last-child { display: flex; }
   .tc-simple .tc-progress { margin: 4px 0; }
+}
+/* Teléfono en horizontal: dos columnas. */
+@media (max-height: 500px) and (min-width: 601px) {
+  .tc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* El detalle con la tendencia entra entero en la pantalla, sin scroll interno. */
+  .tc-dialog { max-height: calc(100dvh - 16px); }
+  .tc-detail { padding: 10px 14px; gap: 6px; }
+  .tc-plot.expanded { height: max(110px, calc(100dvh - 190px)); }
+  .tc-detail > p.tc-foot:last-child { display: none; }
 }

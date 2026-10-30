@@ -1580,7 +1580,7 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 
 /* ── Pantallas angostas: barra con el ícono de la app (abre el menú) y la sección ── */
 .mobile-bar { display: none; }
-@media (max-width: 900px) {
+@media (max-width: 900px), (max-height: 500px) {
   /* En la app instalada la barra de estado del teléfono queda encima: se respeta su alto. */
   .topbar { padding-top: max(env(safe-area-inset-top), 0px); }
   .mobile-bar {
@@ -1607,4 +1607,31 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .estop-label { font-size: 15px; }
   .estop-btn { width: 52px; height: 52px; }
   .page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+
+/* ── Teléfono en horizontal: sin menú lateral y la cabecera en una sola fila ── */
+@media (max-height: 500px) and (min-width: 901px) {
+  /* Lo mismo que ya pasa por debajo de 900px de ancho. */
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .sidebar-backdrop { position: fixed; inset: var(--header-outer-height) 0 0; z-index: 1001; background: rgb(0 0 0 / 45%); }
+  .app .sidebar.mobile-open { display: flex; position: fixed; top: var(--header-outer-height); left: 0; z-index: 1002; width: min(300px, 85vw); height: calc(100dvh - var(--header-outer-height)); padding: 12px; overflow-y: auto; overscroll-behavior: contain; box-shadow: var(--shadow); }
+  .sidebar.mobile-open .nav { flex: 1 0 auto; }
+  .sidebar.mobile-open .sidebar-foot { flex: none; }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+  .main { --scada-gap: 8px; --scada-padding: max(10px, env(safe-area-inset-left)); }
+  .app { --header-height: 60px; }
+  .topbar { grid-template-columns: auto minmax(0, 1fr) minmax(0, .85fr); align-items: center; padding: 6px var(--scada-padding); }
+  .mobile-bar { grid-column: 1; min-height: 0; margin: 0; padding: 0; border: 0; }
+  .mobile-bar-title { max-width: 28vw; font-size: 17px; }
+  .status-card { grid-column: 2; }
+  .estop-card { grid-column: 3; }
+  .status-card h2 { font-size: 10px; }
+  .status-value { font-size: 19px; }
+  .estop-label { font-size: 15px; }
+  .estop-btn { width: 44px; height: 44px; }
+  .estop-btn svg { width: 20px; height: 20px; }
+  .app .sidebar.mobile-open { padding-block: 8px; }
+  .sidebar.mobile-open .nav-link { padding-block: 7px; }
 }

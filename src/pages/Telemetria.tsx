@@ -25,7 +25,8 @@ const channels: Channel[] = [
   { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', color: 'teal', digits: 0, icon: Gauge, value: s => (s.ejecucion?.progreso ?? 0) * 100 },
 ]
 
-const MOBILE = '(max-width: 600px)'
+// Teléfono en vertical (angosto) o en horizontal (poca altura).
+const MOBILE = '(max-width: 600px), (max-height: 500px)'
 
 export function Telemetria() {
   const { controlador, controladorVivo, historialTelemetria, now, setErrorTelemetria } = useSystem()

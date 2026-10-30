@@ -43,6 +43,9 @@ function seccionActual(pathname: string) {
   return item?.label ?? 'Sistema de Grabado Láser'
 }
 
+/** Sin menú lateral: pantallas angostas y teléfonos en horizontal (poca altura). */
+const NARROW = '(max-width: 900px), (max-height: 500px)'
+
 function pad(n: number) {
   return String(n).padStart(2, '0')
 }
@@ -71,7 +74,7 @@ export function AppLayout() {
   const { usuario, cerrarSesion } = useAuth()
   const [confirmSalir, setConfirmSalir] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
-  const [narrow, setNarrow] = useState(() => window.matchMedia('(max-width: 900px)').matches)
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches)
   const [mobileOpen, setMobileOpen] = useState(false)
   const menuButton = useRef<HTMLButtonElement>(null)
   const sidebar = useRef<HTMLElement>(null)
@@ -90,7 +93,7 @@ export function AppLayout() {
   }, [])
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 900px)')
+    const media = window.matchMedia(NARROW)
     const resize = () => { setNarrow(media.matches); setMobileOpen(false) }
     media.addEventListener('change', resize)
     return () => media.removeEventListener('change', resize)
@@ -105,7 +108,7 @@ export function AppLayout() {
     window.addEventListener('keydown', escape)
     return () => {
       window.removeEventListener('keydown', escape)
-      if (window.matchMedia('(max-width: 900px)').matches) menuButton.current?.focus()
+      if (window.matchMedia(NARROW).matches) menuButton.current?.focus()
     }
   }, [mobileOpen])
 
