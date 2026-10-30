@@ -23,7 +23,7 @@ const output = path.join(temporary, 'bundle.cjs')
   let states = [], index = 0, commands = []
   global.document = { body: {} }
   global.hooks = { useState(initial) { const i = index++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = value }] } }
-  global.fixture = { controlador: { mensaje: { texto: 'Parada del operador (56 ms)' } }, controladorVivo: true, errorComando: null, enviar: async command => { commands.push(command); return true } }
+  global.fixture = { controlador: { estado: 'EMERGENCIA', mensaje: { texto: 'Parada del operador (56 ms)' } }, controladorVivo: true, errorComando: null, enviar: async command => { commands.push(command); return true } }
   const render = () => { index = 0; return AvisoEmergencia() }
   const nodes = tree => !tree || typeof tree !== 'object' ? [] : Array.isArray(tree) ? tree.flatMap(nodes) : [tree, ...nodes(tree.props?.children)]
   const find = (tree, type, text) => nodes(tree).find(n => n.type === type && (!text || n.props.children === text))
@@ -55,5 +55,21 @@ const output = path.join(temporary, 'bundle.cjs')
   tree = render()
   assert.ok(find(tree, 'p', 'Rearme rechazado'))
   assert.ok(find(tree, 'dialog'))
+  states = []
+  global.fixture.controlador = null
+  global.fixture.controladorVivo = false
+  global.fixture.errorComando = null
+  tree = render()
+  assert.ok(find(tree, 'h3', 'Avisos del sistema'))
+  assert.ok(!find(tree, 'button', 'Rearmar sistema'), 'disconnect is not a confirmed emergency')
+  assert.ok(nodes(tree).some(n => n.type === 'p' && String(n.props.children).includes('Sin conexión al controlador')))
+  states = []
+  global.fixture.controladorVivo = true
+  global.fixture.errorComando = 'Comando rechazado'
+  global.fixture.errorTelemetria = 'No se pudieron cargar los límites configurados.'
+  tree = render()
+  assert.ok(find(tree, 'p', 'Comando rechazado'))
+  assert.ok(find(tree, 'p', global.fixture.errorTelemetria))
+  assert.ok(!find(tree, 'button', 'Rearmar sistema'))
   console.log('PASS: close/Escape without commands, reopen, disconnected reset blocked, explicit reset, wait for controller and visible errors')
 })().finally(() => fs.rmSync(temporary, { recursive: true, force: true }))

@@ -1424,3 +1424,19 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .status-value { font-size: 16px; }
   .mobile-menu-button { width: 32px; height: 32px; }
 }
+
+/* Reservar lugar para el acceso a avisos sin aumentar el alto de la cabecera. */
+.status-card:has(.emergency-details) { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 1fr auto; gap: 4px 8px; }
+.status-card:has(.emergency-details) .status-heading { grid-column: 1; grid-row: 1; }
+.status-card:has(.emergency-details) .emergency-details { grid-column: 2; grid-row: 1; font-size: 11px; padding: 6px 8px; }
+.status-card:has(.emergency-details) #telemetria-toolbar { grid-column: 1 / -1; grid-row: 2; }
+@media (max-width: 600px) {
+  .status-card:has(.emergency-details) { grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr auto auto; }
+  .status-card:has(.emergency-details) .status-heading { grid-column: 1; }
+  .status-card:has(.emergency-details) #telemetria-toolbar { grid-column: 1; }
+  .status-card:has(.emergency-details) .emergency-details { grid-column: 1; grid-row: 3; justify-self: start; padding: 4px 8px; }
+  .status-card:has(.emergency-details) .tc-toolbar { font-size: 9px; flex-wrap: nowrap; gap: 4px; }
+  .status-card:has(.emergency-details) .tc-window { gap: 4px; }
+  .status-card:has(.emergency-details) .tc-window select { padding: 4px 5px; }
+  .status-card:has(.emergency-details) .tc-view-toggle { padding: 4px 6px; }
+}

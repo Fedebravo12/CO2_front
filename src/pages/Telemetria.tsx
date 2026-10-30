@@ -25,7 +25,7 @@ const channels: Channel[] = [
 ]
 
 export function Telemetria() {
-  const { controlador, controladorVivo, historialTelemetria, now } = useSystem()
+  const { controlador, controladorVivo, historialTelemetria, now, setErrorTelemetria } = useSystem()
   const [seconds, setSeconds] = useState(60)
   const [view, setView] = useState<'B' | 'C'>(() => {
     try { return localStorage.getItem('co2.telemetria.vista') === 'C' ? 'C' : 'B' }
@@ -38,13 +38,12 @@ export function Telemetria() {
   }
   const [selected, setSelected] = useState<Channel | null>(null)
   const [thresholds, setThresholds] = useState<Umbral[]>([])
-  const [thresholdError, setThresholdError] = useState(false)
   const dialog = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     let active = true
-    api.listarUmbrales().then(data => { if (active) setThresholds(data.filter(u => u.activo)) }).catch(() => { if (active) setThresholdError(true) })
-    return () => { active = false }
-  }, [])
+    api.listarUmbrales().then(data => { if (active) { setThresholds(data.filter(u => u.activo)); setErrorTelemetria(null) } }).catch(() => { if (active) setErrorTelemetria('No se pudieron cargar los límites configurados.') })
+    return () => { active = false; setErrorTelemetria(null) }
+  }, [setErrorTelemetria])
   useEffect(() => {
     if (!selected) return
     const previous = document.activeElement as HTMLElement | null
@@ -122,7 +121,6 @@ export function Telemetria() {
   const toolbarHost = document.getElementById('telemetria-toolbar')
   return <>
     {toolbarHost ? createPortal(toolbar, toolbarHost) : toolbar}
-    {thresholdError && <p className="tc-warning">No se pudieron cargar los límites configurados.</p>}
     <section className={`tc-grid ${view === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
       {channels.map(c => <button type="button" key={c.id} className={`tc-card ${live && c.badge ? c.badge(last)[1] : 'neutral'}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
         {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>

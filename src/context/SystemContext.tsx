@@ -64,6 +64,8 @@ interface SystemValue {
   enviar: (accion: Accion, extra?: Record<string, unknown>) => Promise<boolean>
   iniciarPrograma: (modo: 'REAL' | 'PRUEBA') => Promise<boolean>
   errorComando: string | null
+  errorTelemetria: string | null
+  setErrorTelemetria: (error: string | null) => void
   ensayoActual: EnsayoActual | null
   // Procedimiento guiado de «Nuevo ensayo»
   pasoActual: number
@@ -106,6 +108,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
   const [pasos, setPasos] = useState(clonePasos)
   const [pasoActual, setPasoActual] = useState(1)
   const [maxAlcanzado, setMaxAlcanzado] = useState(1)
+  const [errorTelemetria, setErrorTelemetria] = useState<string | null>(null)
   const [errorComando, setErrorComando] = useState<string | null>(null)
   const [ensayoActual, setEnsayoActual] = useState<EnsayoActual | null>(null)
   const [now, setNow] = useState(() => new Date())
@@ -269,6 +272,8 @@ export function SystemProvider({ children }: { children: ReactNode }) {
     enviar,
     iniciarPrograma,
     errorComando,
+    errorTelemetria,
+    setErrorTelemetria,
     ensayoActual,
     pasoActual,
     pasos,

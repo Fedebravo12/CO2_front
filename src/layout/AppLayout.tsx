@@ -60,7 +60,7 @@ function StatusIcon({ estado }: { estado: EstadoSistema }) {
 export function AppLayout() {
   const { pathname } = useLocation()
   const dashboard = pathname === '/'
-  const { rol, estado, emergencia, now, controlador, errorComando } = useSystem()
+  const { rol, estado, emergencia, now, controlador, errorComando, errorTelemetria } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
   const [confirmSalir, setConfirmSalir] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
@@ -95,6 +95,8 @@ export function AppLayout() {
   const sinConexion = estado === 'SIN CONEXIÓN'
   // Conservar el aviso si la comunicación se pierde durante una emergencia.
   const emergenciaActiva = controlador?.estado === 'EMERGENCIA'
+  const avisoControlador = controlador?.mensaje?.nivel === 'error' || controlador?.mensaje?.nivel === 'warn'
+  const hayAvisos = emergenciaActiva || sinConexion || errorComando || errorTelemetria || avisoControlador
 
   return (
     <div className={`app ${dashboard ? 'app-dashboard' : ''}`}>
@@ -173,7 +175,7 @@ export function AppLayout() {
               </div>
             </div>
             <div id="telemetria-toolbar" />
-            {emergenciaActiva ? <AvisoEmergencia /> : <StatusIcon estado={estado} />}
+            {hayAvisos ? <AvisoEmergencia /> : <StatusIcon estado={estado} />}
           </div>
           <div className="estop-card">
               <span className="estop-label">
@@ -193,21 +195,6 @@ export function AppLayout() {
             </button>
           </div>
         </header>
-
-        {sinConexion && (
-          <div className="banner">
-            <span>
-              SIN CONEXIÓN AL CONTROLADOR. La telemetría no es actual y los comandos están
-              bloqueados. Ante una emergencia, usar el pulsador físico (interlock por hardware).
-            </span>
-          </div>
-        )}
-
-        {errorComando && !emergenciaActiva && (
-          <div className="banner">
-            <span>{errorComando}</span>
-          </div>
-        )}
 
         <div className="page">
           <Outlet />
