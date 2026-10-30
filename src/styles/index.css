@@ -1477,3 +1477,16 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 .proc-vista em { color: var(--dim); font-style: normal; font-size: 12px; }
 .proc-vista-detalle { color: var(--dim); font-size: 12px; white-space: pre-line; }
 .proc-vista-salidas { margin: 6px 0 0; color: var(--teal); font-size: 12px; }
+
+/* Interruptor: un botón que enciende o apaga según el sensor. */
+.interruptor { display: inline-flex; align-items: center; gap: 8px; }
+.interruptor-luz {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dim);
+  flex-shrink: 0;
+}
+.interruptor.on .interruptor-luz { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.interruptor-editor { border: 1px dashed var(--border); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; display: grid; gap: 4px; }
+.interruptor-lado { width: 64px; color: var(--muted); font-size: 12px; }

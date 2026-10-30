@@ -5,7 +5,7 @@ import type { Accion } from '../api/control'
 import { fmt, LinearBar } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
 import type { PasoGuiado, ValidacionPaso } from '../mock/types'
-import { estadoDe, evaluar, fuentesDe, type Fuentes } from '../procedimientos/interprete'
+import { comandosDe, estadoDe, evaluar, fuentesDe, type Fuentes } from '../procedimientos/interprete'
 
 const INICIAR = new Set(['iniciar_real', 'iniciar_prueba'])
 
@@ -166,7 +166,7 @@ export function NuevoEnsayo() {
   const bloqueado = !f || estado === 'EMERGENCIA'
   const grabando = estado === 'GRABANDO'
   const mensaje = controlador?.mensaje
-  const ordenGrabado = pasos.find((p) => p.acciones.some((a) => INICIAR.has(a.accion)))?.orden
+  const ordenGrabado = pasos.find((p) => p.acciones.some((a) => comandosDe(a).some((c) => INICIAR.has(c))))?.orden
   const puedeEditar = rol === 'Investigador' || rol === 'Administrador'
 
   return (
@@ -271,7 +271,25 @@ export function NuevoEnsayo() {
 
           {paso.acciones.length > 0 && (
             <div className="acciones-paso">
-              {paso.acciones.map((a) => {
+              {paso.acciones.map((a, i) => {
+                if (a.tipo === 'interruptor') {
+                  // Sin telemetría no se sabe en qué estado está: queda bloqueado.
+                  const encendido = f !== null && evaluar(a.estado, f)
+                  const lado = encendido ? a.apagar : a.encender
+                  return (
+                    <button
+                      key={`interruptor-${i}`}
+                      type="button"
+                      className={`ghost interruptor ${encendido ? 'on' : ''}`}
+                      aria-pressed={encendido}
+                      disabled={bloqueado || enviando || grabando}
+                      onClick={() => ejecutar(lado.accion)}
+                    >
+                      <i className="interruptor-luz" aria-hidden="true" />
+                      {lado.etiqueta}
+                    </button>
+                  )
+                }
                 const esAbortar = a.accion === 'abortar'
                 const deshabilitado =
                   bloqueado ||
@@ -280,7 +298,7 @@ export function NuevoEnsayo() {
                   (INICIAR.has(a.accion) && !programa)
                 return (
                   <button
-                    key={a.accion}
+                    key={`${a.accion}-${i}`}
                     type="button"
                     className={a.accion === 'iniciar_real' ? 'primary' : 'ghost'}
                     disabled={deshabilitado}

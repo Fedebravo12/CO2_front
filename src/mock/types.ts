@@ -158,10 +158,22 @@ export interface Indicador {
   estados: EstadoIndicador[]
 }
 
-export interface AccionPaso {
+/** Botón que manda un comando. */
+export interface BotonPaso {
+  tipo?: 'boton'
   etiqueta: string
   accion: string
 }
+
+/** Un solo botón: manda `apagar` si `estado` se cumple y `encender` si no. */
+export interface InterruptorPaso {
+  tipo: 'interruptor'
+  estado: Condicion
+  encender: { etiqueta: string; accion: string }
+  apagar: { etiqueta: string; accion: string }
+}
+
+export type AccionPaso = BotonPaso | InterruptorPaso
 
 /** Bifurcación: el número de paso al que lleva. */
 export interface SalidaPaso {

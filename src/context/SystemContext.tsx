@@ -19,6 +19,7 @@ import {
 import { useTelemetriaControlador } from '../hooks/useTelemetriaControlador'
 import { TELEMETRIA_BASE } from '../mock/data'
 import type { Ensayo, EstadoSistema, ProcedimientoGuiado, Programa, Rol, Telemetria } from '../mock/types'
+import { comandosDe } from '../procedimientos/interprete'
 import { useAuth } from './AuthContext'
 
 /**
@@ -263,7 +264,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
         pasos.filter((p) => p.orden >= destino!).flatMap((p) => p.validaciones.map((v) => v.id)),
       )
       setManuales((m) => Object.fromEntries(Object.entries(m).filter(([id]) => !reabiertas.has(id))))
-      const pasoGrabado = pasos.find((p) => p.acciones.some((a) => INICIAR.has(a.accion)))
+      const pasoGrabado = pasos.find((p) => p.acciones.some((a) => comandosDe(a).some((c) => INICIAR.has(c))))
       if (pasoGrabado && destino <= pasoGrabado.orden) {
         setEnsayoActual(null)
         vioGrabando.current = false

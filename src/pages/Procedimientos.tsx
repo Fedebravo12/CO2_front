@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Copy, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { api, type DatosProcedimiento } from '../api/client'
 import { useSystem } from '../context/SystemContext'
 import type {
+  AccionPaso,
   CatalogoProcedimientos,
   Condicion,
   PasoGuiado,
@@ -171,6 +172,119 @@ function EditorCondicion({
       <button type="button" className="link-btn" onClick={() => setComoJson(true)}>
         Combinar condiciones (JSON)
       </button>
+    </div>
+  )
+}
+
+/** Selector de comando + texto del botón. */
+function CampoBoton({
+  boton,
+  catalogo,
+  onChange,
+  etiqueta,
+  sinIniciar = false,
+}: {
+  boton: { etiqueta: string; accion: string }
+  catalogo: CatalogoProcedimientos
+  onChange: (b: { etiqueta: string; accion: string }) => void
+  etiqueta: string
+  sinIniciar?: boolean
+}) {
+  const opciones = catalogo.acciones.filter((x) => !sinIniciar || !x.accion.startsWith('iniciar'))
+  return (
+    <>
+      <select
+        value={boton.accion}
+        aria-label={`Comando ${etiqueta}`}
+        onChange={(e) => {
+          const accion = e.target.value
+          onChange({ accion, etiqueta: catalogo.acciones.find((x) => x.accion === accion)?.etiqueta ?? accion })
+        }}
+      >
+        {opciones.map((x) => (
+          <option key={x.accion} value={x.accion}>
+            {x.accion}
+          </option>
+        ))}
+      </select>
+      <input
+        className="valid-editor-texto"
+        value={boton.etiqueta}
+        aria-label={`Texto del botón ${etiqueta}`}
+        onChange={(e) => onChange({ ...boton, etiqueta: e.target.value })}
+      />
+    </>
+  )
+}
+
+/** Un botón de comando o un interruptor (encender/apagar según un sensor). */
+function EditorAccion({
+  accion,
+  catalogo,
+  onChange,
+  onQuitar,
+}: {
+  accion: AccionPaso
+  catalogo: CatalogoProcedimientos
+  onChange: (a: AccionPaso) => void
+  onQuitar: () => void
+}) {
+  const boton = (comando: string) => ({
+    accion: comando,
+    etiqueta: catalogo.acciones.find((x) => x.accion === comando)?.etiqueta ?? comando,
+  })
+  const cambiarTipo = (tipo: string) => {
+    if (tipo === 'interruptor') {
+      onChange({
+        tipo: 'interruptor',
+        estado: { fuente: 'actuadores.refrigeracion', op: 'es_verdadero' },
+        encender: boton('encender_refrigeracion'),
+        apagar: boton('apagar_refrigeracion'),
+      })
+    } else {
+      onChange(boton(catalogo.acciones[0].accion))
+    }
+  }
+  const selectorTipo = (
+    <select value={accion.tipo ?? 'boton'} aria-label="Tipo de acción" onChange={(e) => cambiarTipo(e.target.value)}>
+      <option value="boton">Botón</option>
+      <option value="interruptor">Interruptor</option>
+    </select>
+  )
+  const quitar = (
+    <button type="button" className="icon-btn" aria-label="Quitar acción" onClick={onQuitar}>
+      <X size={14} />
+    </button>
+  )
+
+  if (accion.tipo !== 'interruptor') {
+    return (
+      <div className="valid-editor-fila">
+        {selectorTipo}
+        <CampoBoton boton={accion} catalogo={catalogo} etiqueta="" onChange={(b) => onChange(b)} />
+        {quitar}
+      </div>
+    )
+  }
+  return (
+    <div className="interruptor-editor">
+      <div className="valid-editor-fila">
+        {selectorTipo}
+        <span className="editor-ayuda" style={{ margin: 0, flex: 1 }}>
+          Un solo botón: apaga si la condición se cumple, enciende si no.
+        </span>
+        {quitar}
+      </div>
+      <label className="editor-ayuda">Está encendido cuando…</label>
+      <EditorCondicion valor={accion.estado} catalogo={catalogo} onChange={(c) => c && onChange({ ...accion, estado: c })} />
+      <div className="valid-editor-fila">
+        <span className="interruptor-lado">Encender</span>
+        <CampoBoton sinIniciar boton={accion.encender} catalogo={catalogo} etiqueta="para encender" onChange={(b) => onChange({ ...accion, encender: b })} />
+      </div>
+      <div className="valid-editor-fila">
+        <span className="interruptor-lado">Apagar</span>
+        <CampoBoton sinIniciar boton={accion.apagar} catalogo={catalogo} etiqueta="para apagar" onChange={(b) => onChange({ ...accion, apagar: b })} />
+      </div>
     </div>
   )
 }
@@ -382,34 +496,15 @@ function EditorProcedimiento({
 
               <details className="editor-avanzado">
                 <summary>Equipo: comandos, condición de avance e indicadores</summary>
-                <h5>Botones de comando</h5>
+                <h5>Botones de comando e interruptores</h5>
                 {paso.acciones.map((a, j) => (
-                  <div key={j} className="valid-editor-fila">
-                    <select
-                      value={a.accion}
-                      aria-label="Comando"
-                      onChange={(e) => {
-                        const accion = e.target.value
-                        const etiqueta = catalogo.acciones.find((x) => x.accion === accion)?.etiqueta ?? accion
-                        setPaso(i, { acciones: paso.acciones.map((x, n) => (n === j ? { accion, etiqueta } : x)) })
-                      }}
-                    >
-                      {catalogo.acciones.map((x) => (
-                        <option key={x.accion} value={x.accion}>
-                          {x.accion}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      className="valid-editor-texto"
-                      value={a.etiqueta}
-                      aria-label="Texto del botón"
-                      onChange={(e) => setPaso(i, { acciones: paso.acciones.map((x, n) => (n === j ? { ...x, etiqueta: e.target.value } : x)) })}
-                    />
-                    <button type="button" className="icon-btn" aria-label="Quitar comando" onClick={() => setPaso(i, { acciones: paso.acciones.filter((_, n) => n !== j) })}>
-                      <X size={14} />
-                    </button>
-                  </div>
+                  <EditorAccion
+                    key={j}
+                    accion={a}
+                    catalogo={catalogo}
+                    onChange={(nueva) => setPaso(i, { acciones: paso.acciones.map((x, n) => (n === j ? nueva : x)) })}
+                    onQuitar={() => setPaso(i, { acciones: paso.acciones.filter((_, n) => n !== j) })}
+                  />
                 ))}
                 <button
                   type="button"

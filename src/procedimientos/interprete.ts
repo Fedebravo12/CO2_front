@@ -13,7 +13,7 @@
 import type { TelemetriaControlador } from '../api/control'
 import { fmt } from '../components/Meters'
 import type { EnsayoActual } from '../context/SystemContext'
-import type { Condicion, Indicador, Programa, Tono } from '../mock/types'
+import type { AccionPaso, Condicion, Indicador, Programa, Tono } from '../mock/types'
 
 export interface ContextoPaso {
   t: TelemetriaControlador
@@ -122,4 +122,9 @@ export function describir(c: Condicion | null): string {
   if (c.op === 'es_verdadero') return c.fuente
   if (c.op === 'es_falso') return `no ${c.fuente}`
   return `${c.fuente} ${c.op} ${c.valor}`
+}
+
+/** Los comandos que puede mandar una acción (uno si es botón, dos si es interruptor). */
+export function comandosDe(a: AccionPaso): string[] {
+  return a.tipo === 'interruptor' ? [a.encender.accion, a.apagar.accion] : [a.accion]
 }
