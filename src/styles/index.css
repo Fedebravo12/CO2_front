@@ -1601,11 +1601,13 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 }
 @media (max-width: 600px) {
   /* Sin selector de tendencias, la cabecera puede ser más baja y con texto más grande. */
-  .app { --header-height: 104px; }
+  .app { --header-height: 90px; }
   .status-card h2 { font-size: 11px; letter-spacing: .1em; }
   .status-value { font-size: 22px; }
   .estop-label { font-size: 15px; }
-  .estop-btn { width: 52px; height: 52px; }
+  .estop-btn { width: 44px; height: 44px; }
+  .estop-btn svg { width: 20px; height: 20px; }
+  .mobile-bar { min-height: 48px; }
   .page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 }
 
@@ -1634,4 +1636,23 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .estop-btn svg { width: 20px; height: 20px; }
   .app .sidebar.mobile-open { padding-block: 8px; }
   .sidebar.mobile-open .nav-link { padding-block: 7px; }
+}
+
+/* ── Teléfono: la parada de emergencia es solo el botón, sin el texto ─────────
+   El botón conserva aria-label="Parada de emergencia". */
+@media (max-width: 600px), (max-height: 500px) {
+  .estop-label { display: none; }
+  .estop-card { justify-content: center; padding-inline: 10px; }
+  /* Solo el botón, pero con un área de toque amplia: un cuarto del ancho de la pantalla. */
+  .topbar { grid-template-columns: minmax(0, 1fr) 25vw; }
+  .status-card { grid-column: 1; }
+  .estop-card { grid-column: 2; width: auto; }
+  .estop-btn { width: 52px; height: 52px; }
+  .estop-btn svg { width: 22px; height: 22px; }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+  .topbar { grid-template-columns: auto minmax(0, 1fr) 25vw; }
+  .status-card { grid-column: 2; }
+  .estop-card { grid-column: 3; }
+  .estop-btn { width: 44px; height: 44px; }
 }

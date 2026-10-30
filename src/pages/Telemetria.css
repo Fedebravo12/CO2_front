@@ -85,25 +85,36 @@
   .tc-card .tc-foot > span:last-child { display: none; }
 }
 
-/* ── Teléfono: tarjetas con scroll y textos legibles ────────────────────────── */
+/* ── Teléfono: tarjeta mínima (nombre, estado y valor) en varias columnas ────
+   Mín/máx y tendencia quedan en el detalle, al tocar la tarjeta. */
 @media (max-width: 600px), (max-height: 500px) {
   .app-dashboard { height: auto; min-height: 100dvh; overflow: visible; }
-  .app-dashboard .page { flex: none; padding: 8px 8px calc(16px + env(safe-area-inset-bottom)); }
-  .tc-grid { flex: none; grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-rows: auto; gap: 8px; }
-  .tc-grid > .tc-card { padding: 12px 14px; gap: 8px; }
-  .tc-card .tc-heading { gap: 10px; }
-  .tc-card .tc-icon { display: grid; width: 34px; height: 34px; }
-  .tc-card .tc-heading h3 { font-size: 15px; letter-spacing: .04em; }
-  .tc-card .tc-badge { font-size: 13px; padding: 4px 10px; }
-  .tc-simple .tc-card .tc-value { font-size: 32px; }
+  /* Las tarjetas se estiran hasta llenar la pantalla; si no entran, hay scroll. */
+  .app-dashboard .page { flex: 1 0 auto; padding: 8px 8px calc(12px + env(safe-area-inset-bottom)); }
+  .tc-grid { flex: 1 0 auto; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: auto; align-content: stretch; gap: 8px; }
+  /* Nueve tarjetas en dos columnas: el progreso ocupa la última fila entera. */
+  .tc-grid > .tc-card:last-child { grid-column: 1 / -1; }
+  .tc-grid > .tc-card { padding: 10px 12px; gap: 6px; justify-content: space-between; border-width: 2px; }
+  .tc-card .tc-heading { flex-wrap: wrap; align-items: flex-start; gap: 5px 8px; }
+  .tc-card .tc-icon { display: none; }
+  .tc-card .tc-heading h3 { flex: 1 1 100%; font-size: 13px; line-height: 1.2; letter-spacing: .04em; white-space: normal; }
+  /* El estado va a la derecha, en su propia línea debajo del nombre. */
+  .tc-card .tc-badge { font-size: 12px; padding: 2px 8px; margin-left: auto; }
+  .tc-simple .tc-card .tc-value { font-size: 26px; }
   .tc-card .tc-value small { font-size: .45em; }
-  .tc-card .tc-foot { font-size: 12.5px; }
-  .tc-card .tc-foot > span:last-child { display: flex; }
-  .tc-simple .tc-progress { margin: 4px 0; }
+  .tc-card .tc-foot { display: none; }
+  .tc-simple .tc-progress { margin: 2px 0 0; height: 6px; }
 }
-/* Teléfono en horizontal: dos columnas. */
+/* Teléfono en horizontal: tres columnas y el estado al lado del nombre. */
 @media (max-height: 500px) and (min-width: 601px) {
-  .tc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tc-grid > .tc-card:last-child { grid-column: auto; }
+  .tc-card .tc-heading { flex-wrap: nowrap; align-items: center; }
+  .tc-card .tc-heading h3 { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tc-card .tc-heading { gap: 6px; }
+  .tc-card .tc-heading h3 { font-size: 12.5px; letter-spacing: .02em; }
+  .tc-card .tc-badge { font-size: 11px; padding: 2px 6px; }
+  .app-dashboard .page { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
   /* El detalle con la tendencia entra entero en la pantalla, sin scroll interno. */
   .tc-dialog { max-height: calc(100dvh - 16px); }
   .tc-detail { padding: 10px 14px; gap: 6px; }

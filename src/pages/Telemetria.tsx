@@ -83,8 +83,9 @@ export function Telemetria() {
     const bounds = limits(c)
     return !live ? 'var(--dim)' : bounds.length && (c.value(last) < Math.min(...bounds) || c.value(last) > Math.max(...bounds)) ? 'var(--red)' : `var(--${c.color})`
   }
-  const heading = (c: Channel) => {
-    const badge = c.badge ? (live ? c.badge(last) : ['Sin datos', 'neutral']) : null
+  // `minima`: tarjeta del teléfono. El shutter no repite su estado: ya es el valor.
+  const heading = (c: Channel, minima = false) => {
+    const badge = c.badge && !(minima && c.id === 'shutter') ? (live ? c.badge(last) : ['Sin datos', 'neutral']) : null
     return <div className="tc-heading"><span className="tc-icon"><c.icon size={19} /></span><h3 title={c.title}>{c.title}</h3>{badge && <span className={`tc-badge ${badge[1]}`}>{badge[0]}</span>}</div>
   }
   const chart = (c: Channel, expanded = false) => {
@@ -138,7 +139,7 @@ export function Telemetria() {
     {!mobile && (toolbarHost ? createPortal(toolbar, toolbarHost) : toolbar)}
     <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
       {channels.map(c => <button type="button" key={c.id} className={`tc-card ${live && c.badge ? c.badge(last)[1] : 'neutral'}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
-        {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>
+        {heading(c, mobile)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>
         {c.id === 'prog' ? <div className="tc-progress" role="progressbar" aria-label="Progreso del proceso" aria-valuenow={live ? Math.min(100, Math.max(0, c.value(last))) : undefined}><i style={{ width: `${live ? Math.min(100, Math.max(0, c.value(last))) : 0}%` }} /></div> : cardView === 'C' ? chart(c) : null}
         <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> {cardView === 'B' ? 'Tendencia' : 'Ampliar'}</span></div>
       </button>)}
