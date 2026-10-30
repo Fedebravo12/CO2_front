@@ -135,23 +135,23 @@ export function AppLayout() {
             </div>
             <StatusIcon estado={estado} />
           </div>
-          <div className="estop-card">
-              <span className="estop-label">
-                PARADA DE
-                <br />
-                EMERGENCIA
-              </span>
-            <button
-              className="estop-btn"
-              type="button"
-              disabled={estado === 'EMERGENCIA' || sinConexion}
-              title={sinConexion ? 'Sin conexión al controlador: usar el pulsador físico' : undefined}
-              onClick={() => emergencia()}
-              aria-label="Parada de emergencia"
-            >
+          <button
+            className="estop-card"
+            type="button"
+            disabled={estado === 'EMERGENCIA' || sinConexion}
+            title={sinConexion ? 'Sin conexión al controlador: usar el pulsador físico' : undefined}
+            onClick={() => emergencia()}
+            aria-label="Parada de emergencia"
+          >
+            <span className="estop-label">
+              PARADA DE
+              <br />
+              EMERGENCIA
+            </span>
+            <span className="estop-btn" aria-hidden="true">
               <Square size={22} fill="white" />
-            </button>
-          </div>
+            </span>
+          </button>
         </header>
 
         {sinConexion && (
