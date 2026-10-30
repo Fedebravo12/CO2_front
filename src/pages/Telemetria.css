@@ -56,14 +56,16 @@
 .app-dashboard .banner { flex: none; margin-block: 6px; padding-block: 6px; }
 .app-dashboard .tc-warning { margin: 0 0 6px; }
 .tc-grid > .tc-card { min-height: 0; padding: clamp(6px, 1.2dvh, 12px) clamp(8px, 1vw, 16px); gap: clamp(3px, .7dvh, 8px); container-type: inline-size; }
-.tc-card .tc-heading { flex: none; gap: 6px; flex-wrap: nowrap; }
-.tc-card .tc-heading h3 { font-size: clamp(9px, 1.5dvh, 12px); letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tc-card .tc-icon { width: 26px; height: 26px; }
-.tc-card .tc-badge { font-size: clamp(9px, 1.4dvh, 11px); padding: 3px 6px; flex: none; white-space: nowrap; }
-.tc-card .tc-value { flex: none; font-size: min(clamp(20px, 4.5dvh, 48px), 12cqi); white-space: nowrap; }
-.tc-simple .tc-card .tc-value { font-size: min(clamp(24px, 6dvh, 64px), 14cqi); }
+/* Título y datos de alrededor con más presencia; el valor central, más contenido. */
+.tc-card .tc-heading { flex: none; gap: 8px; flex-wrap: nowrap; }
+.tc-card .tc-heading h3 { font-size: min(clamp(11px, 2dvh, 15px), 4.5cqi); font-weight: 600; letter-spacing: .05em; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tc-card .tc-icon { width: 32px; height: 32px; }
+.tc-card .tc-badge { font-size: clamp(10px, 1.7dvh, 13px); padding: 4px 9px; flex: none; white-space: nowrap; }
+.tc-card .tc-value { flex: none; font-size: min(clamp(18px, 3.6dvh, 38px), 10cqi); white-space: nowrap; }
+.tc-simple .tc-card .tc-value { font-size: min(clamp(22px, 4.6dvh, 46px), 11cqi); }
+.tc-card .tc-value small { font-size: .42em; }
 .tc-card .tc-plot { min-height: 0; }
-.tc-card .tc-foot { flex: none; font-size: clamp(9px, 1.4dvh, 11px); gap: 4px; }
+.tc-card .tc-foot { flex: none; font-size: clamp(10px, 1.7dvh, 13px); gap: 4px; }
 .tc-card .tc-foot > span:first-child { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tc-card .tc-foot > span:last-child { flex: none; }
 .tc-card .tc-progress { flex-shrink: 0; }
