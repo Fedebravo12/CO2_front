@@ -169,11 +169,23 @@ export function NuevoEnsayo() {
   const ordenGrabado = pasos.find((p) => p.acciones.some((a) => comandosDe(a).some((c) => INICIAR.has(c))))?.orden
   const puedeEditar = rol === 'Investigador' || rol === 'Administrador'
 
+  // En pantallas angostas el indicador de fases se desplaza por dentro: se
+  // centra la fase actual para que no quede fuera de la vista.
+  const stepper = useRef<HTMLOListElement>(null)
+  const ordenActual = paso?.orden
+  useEffect(() => {
+    const lista = stepper.current
+    const activa = lista?.querySelector<HTMLElement>('.stepper-item.active')
+    if (!lista || !activa || lista.scrollWidth <= lista.clientWidth) return
+    const desde = activa.getBoundingClientRect().left - lista.getBoundingClientRect().left + lista.scrollLeft
+    lista.scrollTo({ left: desde - (lista.clientWidth - activa.offsetWidth) / 2, behavior: 'smooth' })
+  }, [ordenActual])
+
   return (
     <>
       <div className="lab-entry"><span>Observá el equipo y las marcas en tiempo real.</span><Link to="/simulador">Ver simulador visual →</Link></div>
       {paso && (
-        <ol className="stepper">
+        <ol ref={stepper} className="stepper">
           {fases.map((fase, i) => {
             const done = paso.orden > fase.hasta
             const active = paso.orden >= fase.desde && paso.orden <= fase.hasta

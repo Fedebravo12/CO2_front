@@ -1656,3 +1656,13 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .estop-card { grid-column: 3; }
   .estop-btn { width: 44px; height: 44px; }
 }
+
+/* ── Nuevo ensayo: en pantallas angostas los pasos no entran en una fila.
+   Cada paso conserva su ancho y el indicador se desplaza por dentro,
+   sin ensanchar la página. ── */
+@media (max-width: 900px) {
+  .stepper { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding: 12px 14px; }
+  .stepper-item { flex: none; }
+  .stepper-item strong { white-space: nowrap; }
+  .stepper-line { flex: none; width: 24px; }
+}
