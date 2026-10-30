@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Activity, Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, Sun, Target, Thermometer, TrendingUp, X, Zap } from 'lucide-react'
+import { Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, Sun, Target, Thermometer, Timer, TrendingUp, X, Zap } from 'lucide-react'
 import type { TelemetriaControlador as Sample } from '../api/control'
 import { api } from '../api/client'
 import type { Umbral } from '../mock/types'
@@ -14,7 +14,8 @@ const shutter = (s: Sample) => s.actuadores.shutter_abierto ? 'Abierto' : s.actu
 const shutterColors = { Abierto: 'var(--blue)', Armado: 'var(--green)', Desarmado: 'var(--dim)' }
 const channels: Channel[] = [
   { id: 'pot', title: 'POTENCIA LÁSER', unit: 'W', color: 'blue', digits: 2, icon: Sun, parameter: 'POTENCIA_LASER', value: s => s.variables.POTENCIA_LASER, badge: s => s.actuadores.laser ? ['Encendido', 'ok'] : ['Apagado', 'neutral'] },
-  { id: 'freq', title: 'FRECUENCIA DE PULSO', unit: 'Hz', color: 'blue', digits: 2, icon: Activity, value: s => s.extra.frecuencia_hz },
+  // Sin grabado en curso no hay tiempo de pulso: NaN se muestra como «—».
+  { id: 'pulso', title: 'TIEMPO DE PULSO', unit: 'ms', color: 'blue', digits: 0, icon: Timer, value: s => s.ejecucion?.duracion_pulso_ms ?? NaN },
   { id: 'shutter', title: 'SHUTTER', unit: '', color: 'blue', digits: 0, icon: Aperture, value: () => 0, badge: s => [shutter(s), s.actuadores.shutter_abierto ? 'info' : s.actuadores.shutter_armado ? 'ok' : 'neutral'] },
   { id: 'hv', title: 'ALTA TENSIÓN', unit: 'kV', color: 'orange', digits: 1, icon: Zap, parameter: 'TENSION_AT', value: s => s.variables.TENSION_AT, badge: s => s.condiciones.AT_ENCENDIDA ? ['Activa', 'ok'] : ['Apagada', 'neutral'] },
   { id: 'sombra', title: 'SENSOR DE SOMBRA', unit: 'mW', color: 'yellow', digits: 2, icon: Target, value: s => s.extra.sensor_sombra_mw, badge: s => s.condiciones.FIBRA_ALINEADA ? ['Alineada', 'ok'] : ['No alineada', 'warn'] },

@@ -68,6 +68,8 @@ export interface TelemetriaControlador {
     modo: 'REAL' | 'PRUEBA'
     pulso: number
     pulsos: number
+    /** Tiempo que el shutter queda abierto en cada marca (tiempo de pulso). */
+    duracion_pulso_ms: number
     progreso: number
     distancia_mm: number
   } | null
