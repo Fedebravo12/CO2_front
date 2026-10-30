@@ -1359,7 +1359,7 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 /* Selector de tema encima del usuario, también con el menú compacto. */
 .theme-toggle { flex-shrink: 0; min-height: 38px; }
 .theme-toggle:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
-.login-card > .theme-toggle { justify-self: end; }
+.theme-toggle.solo-icono { margin-left: auto; padding: 8px; min-width: 38px; justify-content: center; }
 .sidebar-foot > .theme-toggle { width: 100%; margin-bottom: 10px; }
 .sidebar-foot > .theme-toggle svg { flex-shrink: 0; }
 .sidebar.compact .theme-toggle { justify-content: center; padding-inline: 0; }
