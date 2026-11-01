@@ -562,7 +562,7 @@ export const api = {
         origen: `Parada de emergencia · ${e.origen_display}`,
         mensaje:
           `${e.descripcion} Respuesta en ${e.tiempo_respuesta_ms} ms ` +
-          `(${e.cumple_rnf001 ? 'dentro' : 'FUERA'} de los 500 ms de RNF001).` +
+          `(${e.cumple_rnf001 ? 'dentro' : 'FUERA'} de los 500 ms).` +
           (e.rearmado_por ? ` Rearmado por ${e.rearmado_por}.` : ' Sin rearmar.'),
         // Una emergencia no se "reconoce": se rearma, desde el banner de la
         // barra superior. Acá figura resuelta si ya se rearmó.

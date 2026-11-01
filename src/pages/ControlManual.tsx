@@ -41,7 +41,7 @@ export function ControlManual() {
     },
     {
       nombre: 'Láser CO₂',
-      detalle: a?.laser ? `${fmt(c?.variables.POTENCIA_LASER ?? 0, 1)} W · lazo cerrado` : 'Requiere el sistema LISTO (RN003)',
+      detalle: a?.laser ? `${fmt(c?.variables.POTENCIA_LASER ?? 0, 1)} W · lazo cerrado` : 'Requiere el sistema LISTO',
       encendido: Boolean(a?.laser),
       encender: 'encender_laser',
       apagar: 'apagar_laser',
@@ -155,7 +155,7 @@ export function ControlManual() {
             <h3>SIMULACIÓN DE FALLAS</h3>
             <p style={{ color: 'var(--muted)', marginTop: 0 }}>
               Solo con el hardware simulado. Sirve para probar la respuesta del sistema: alertas,
-              parada de emergencia y tiempo de respuesta (RNF001).
+              parada de emergencia y tiempo de respuesta.
             </p>
             {fallas.map((f) => (
               <div key={f.valor} className="control-row">
