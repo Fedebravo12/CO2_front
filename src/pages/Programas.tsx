@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { api, CRITERIOS_FIN, PERFILES_PERIODO } from '../api/client'
-import type { PerfilPeriodo, Programa } from '../mock/types'
+import type { PerfilPeriodo, ProcedimientoGuiado, Programa } from '../mock/types'
 import { useSystem } from '../context/SystemContext'
 import { fmt } from '../components/Meters'
 
@@ -16,6 +17,8 @@ const FORM_INICIAL = {
   criterioFin: CRITERIOS_FIN[0].etiqueta,
   distanciaMm: '',
   pulsosEstimados: '',
+  /** Código del procedimiento guiado; vacío = sin asignar. */
+  procedimiento: '',
 }
 
 /** Período de la marca `n` (µm), igual que `Periodo.calcular_distancia` del backend. */
@@ -73,6 +76,11 @@ export function Programas() {
   const [confirmDelete, setConfirmDelete] = useState<Programa | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
+  const [procedimientos, setProcedimientos] = useState<ProcedimientoGuiado[]>([])
+
+  useEffect(() => {
+    api.listarProcedimientos().then(setProcedimientos).catch(() => setProcedimientos([]))
+  }, [])
 
   const setField = (campo: keyof typeof FORM_INICIAL, valor: string) =>
     setForm((f) => derivar({ ...f, [campo]: valor }))
@@ -108,6 +116,7 @@ export function Programas() {
       criterioFin: CRITERIOS_FIN.some((c) => c.etiqueta === p.criterioFin) ? p.criterioFin : 'Manual',
       distanciaMm: String(p.distanciaMm),
       pulsosEstimados: String(p.pulsosEstimados),
+      procedimiento: p.procedimiento ?? '',
     })
     setShowModal(true)
   }
@@ -125,6 +134,7 @@ export function Programas() {
       criterioFin: form.criterioFin,
       distanciaMm: Number(form.distanciaMm) || 0,
       pulsosEstimados: Number(form.pulsosEstimados) || 0,
+      procedimiento: form.procedimiento || null,
     }
     setGuardando(true)
     try {
@@ -259,6 +269,18 @@ export function Programas() {
                 <b>{sel.pulsosEstimados}</b>
               </div>
               <div>
+                <span>Procedimiento guiado</span>
+                <b>
+                  {sel.procedimiento ? (
+                    <Link to={`/procedimientos?id=${encodeURIComponent(sel.procedimiento)}`}>
+                      {sel.procedimientoNombre}
+                    </Link>
+                  ) : (
+                    'Sin asignar'
+                  )}
+                </b>
+              </div>
+              <div>
                 <span>Última actualización</span>
                 <b>{sel.actualizado}</b>
               </div>
@@ -384,6 +406,17 @@ export function Programas() {
                   onChange={(e) => setField('pulsosEstimados', e.target.value)}
                   placeholder="Ej: 18"
                 />
+              </div>
+              <div className="field full">
+                <label>Procedimiento guiado (lo que sigue el operador en «Nuevo ensayo»)</label>
+                <select value={form.procedimiento} onChange={(e) => setField('procedimiento', e.target.value)}>
+                  <option value="">Sin asignar</option>
+                  {procedimientos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.id} · {p.nombre} (v{p.version})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             {error && <p className="login-error" style={{ margin: '0 0 12px' }}>{error}</p>}

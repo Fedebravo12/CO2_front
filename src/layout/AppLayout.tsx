@@ -1,6 +1,7 @@
+import { AvisoEmergencia } from '../components/AvisoEmergencia'
 import { ThemeToggle } from '../components/ThemeToggle'
-import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   Bell,
   Check,
@@ -8,7 +9,9 @@ import {
   ClipboardList,
   FolderKanban,
   Home,
+  ListChecks,
   LogOut,
+  X,
   Play,
   Settings,
   SlidersHorizontal,
@@ -27,11 +30,21 @@ const NAV = [
   { to: '/simulador', label: 'Simulador visual', icon: MonitorPlay },
   { to: '/registro', label: 'Historial de registros', icon: ClipboardList },
   { to: '/programas', label: 'Programas de grabado', icon: FolderKanban },
+  { to: '/procedimientos', label: 'Procedimientos', icon: ListChecks },
   { to: '/control-manual', label: 'Control manual', icon: SlidersHorizontal },
   { to: '/alertas', label: 'Alertas / Eventos', icon: Bell },
   // Las secciones (usuarios, umbrales, auditoría) se eligen con las tabs de la página.
   { to: '/admin', label: 'Administración', icon: Settings },
 ]
+
+/** Nombre de la sección actual, para la barra superior en pantallas angostas. */
+function seccionActual(pathname: string) {
+  const item = NAV.find((n) => (n.end ? pathname === n.to : pathname === n.to || pathname.startsWith(`${n.to}/`)))
+  return item?.label ?? 'Sistema de Grabado Láser'
+}
+
+/** Sin menú lateral: pantallas angostas y teléfonos en horizontal (poca altura). */
+const NARROW = '(max-width: 900px), (max-height: 500px)'
 
 function pad(n: number) {
   return String(n).padStart(2, '0')
@@ -55,29 +68,73 @@ function StatusIcon({ estado }: { estado: EstadoSistema }) {
 }
 
 export function AppLayout() {
-  const { rol, estado, emergencia, rearmar, now, controlador, errorComando } = useSystem()
+  const { pathname } = useLocation()
+  const dashboard = pathname === '/'
+  const { rol, estado, emergencia, now, controlador, errorComando, errorTelemetria } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
   const [confirmSalir, setConfirmSalir] = useState(false)
   const [sidebarCompact, setSidebarCompact] = useState(false)
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const menuButton = useRef<HTMLButtonElement>(null)
+  const sidebar = useRef<HTMLElement>(null)
+  const app = useRef<HTMLDivElement>(null)
+  const topbar = useRef<HTMLElement>(null)
+
+  // El menú desplegable empieza justo debajo de la cabecera, para que la parada
+  // de emergencia siga visible. Se mide la altura real: cambia con la pantalla.
+  useEffect(() => {
+    const cabecera = topbar.current
+    if (!cabecera) return
+    const medir = () => app.current?.style.setProperty('--header-outer-height', `${cabecera.offsetHeight}px`)
+    const observer = new ResizeObserver(medir)
+    observer.observe(cabecera)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia(NARROW)
+    const resize = () => { setNarrow(media.matches); setMobileOpen(false) }
+    media.addEventListener('change', resize)
+    return () => media.removeEventListener('change', resize)
+  }, [])
+  useEffect(() => { setMobileOpen(false) }, [pathname, estado])
+  useEffect(() => {
+    if (!mobileOpen) return
+    sidebar.current?.querySelector<HTMLButtonElement>('button')?.focus()
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setMobileOpen(false) }
+    }
+    window.addEventListener('keydown', escape)
+    return () => {
+      window.removeEventListener('keydown', escape)
+      if (window.matchMedia(NARROW).matches) menuButton.current?.focus()
+    }
+  }, [mobileOpen])
 
   const fecha = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`
   const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
   const statusCls = claseDeEstado(estado)
   const sinConexion = estado === 'SIN CONEXIÓN'
+  // Conservar el aviso si la comunicación se pierde durante una emergencia.
+  const emergenciaActiva = controlador?.estado === 'EMERGENCIA'
+  const avisoControlador = controlador?.mensaje?.nivel === 'error' || controlador?.mensaje?.nivel === 'warn'
+  const hayAvisos = emergenciaActiva || sinConexion || errorComando || errorTelemetria || avisoControlador
 
   return (
-    <div className="app">
-      <aside className={`sidebar ${sidebarCompact ? 'compact' : ''}`}>
+    <div ref={app} className={`app ${dashboard ? 'app-dashboard' : ''}`}>
+      {narrow && mobileOpen && <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} aria-hidden="true" />}
+      <aside id="app-sidebar" ref={sidebar} aria-label="Menú principal" className={`sidebar ${!narrow && sidebarCompact ? 'compact' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <div className="brand">
             <button
               type="button"
               className="brand-mark"
-              onClick={() => setSidebarCompact(!sidebarCompact)}
-              aria-label={sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
-              title={sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
+              onClick={() => narrow ? setMobileOpen(false) : setSidebarCompact(!sidebarCompact)}
+              aria-label={narrow ? 'Cerrar menú' : sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
+              title={narrow ? 'Cerrar menú' : sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
             >
-              <ScanLine size={18} />
+              {narrow ? <X size={18} /> : <ScanLine size={18} />}
             </button>
             <div className="brand-title">Sistema de Grabado Láser</div>
           </div>
@@ -88,6 +145,7 @@ export function AppLayout() {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={() => setMobileOpen(false)}
               end={item.end}
               title={sidebarCompact ? item.label : undefined}
               className={({ isActive }) =>
@@ -111,7 +169,7 @@ export function AppLayout() {
                 <span>{rol}</span>
               </div>
             </div>
-            <button type="button" onClick={() => setConfirmSalir(true)} aria-label="Cerrar sesión" title="Cerrar sesión">
+            <button type="button" onClick={() => { setMobileOpen(false); setConfirmSalir(true) }} aria-label="Cerrar sesión" title="Cerrar sesión">
               <LogOut size={16} />
             </button>
           </div>
@@ -125,64 +183,47 @@ export function AppLayout() {
       </aside>
 
       <div className="main">
-        <header className="topbar">
-          <div className="status-card">
-            <div>
-              <h2>ESTADO DEL SISTEMA</h2>
-              <p className={`status-value ${statusCls}`}>{estado}</p>
+        <header ref={topbar} className="topbar">
+          {narrow && (
+            // Pantallas angostas: el ícono de la app abre el menú y al lado va la sección actual.
+            <div className="mobile-bar">
+              <button ref={menuButton} type="button" className="brand-mark mobile-bar-menu"
+                aria-label={mobileOpen ? 'Cerrar menú principal' : 'Abrir menú principal'}
+                aria-expanded={mobileOpen} aria-controls="app-sidebar"
+                onClick={() => setMobileOpen(open => !open)}>
+                {mobileOpen ? <X size={18} /> : <ScanLine size={18} />}
+              </button>
+              <h1 className="mobile-bar-title">{seccionActual(pathname)}</h1>
             </div>
-            <StatusIcon estado={estado} />
+          )}
+          <div className="status-card">
+            <div className="status-heading">
+              <div>
+                <h2>ESTADO DEL SISTEMA</h2>
+                <p className={`status-value ${statusCls}`}>{estado}</p>
+              </div>
+            </div>
+            <div id="telemetria-toolbar" />
+            {hayAvisos ? <AvisoEmergencia /> : <StatusIcon estado={estado} />}
           </div>
-          <div className="estop-card">
-              <span className="estop-label">
-                PARADA DE
-                <br />
-                EMERGENCIA
-              </span>
-            <button
-              className="estop-btn"
-              type="button"
-              disabled={estado === 'EMERGENCIA' || sinConexion}
-              title={sinConexion ? 'Sin conexión al controlador: usar el pulsador físico' : undefined}
-              onClick={() => emergencia()}
-              aria-label="Parada de emergencia"
-            >
+          <button
+            className="estop-card"
+            type="button"
+            disabled={estado === 'EMERGENCIA' || sinConexion}
+            title={sinConexion ? 'Sin conexión al controlador: usar el pulsador físico' : undefined}
+            onClick={() => emergencia()}
+            aria-label="Parada de emergencia"
+          >
+            <span className="estop-label">
+              PARADA DE
+              <br />
+              EMERGENCIA
+            </span>
+            <span className="estop-btn" aria-hidden="true">
               <Square size={22} fill="white" />
-            </button>
-          </div>
+            </span>
+          </button>
         </header>
-
-        {sinConexion && (
-          <div className="banner">
-            <span>
-              SIN CONEXIÓN AL CONTROLADOR. La telemetría no es actual y los comandos están
-              bloqueados. Ante una emergencia, usar el pulsador físico (interlock por hardware).
-            </span>
-          </div>
-        )}
-
-        {estado === 'EMERGENCIA' && controlador?.mensaje && (
-          <div className="banner" style={{ background: 'var(--red-dim)' }}>
-            <span>{controlador.mensaje.texto}</span>
-          </div>
-        )}
-
-        {errorComando && (
-          <div className="banner">
-            <span>{errorComando}</span>
-          </div>
-        )}
-
-        {estado === 'EMERGENCIA' && (
-          <div className="banner">
-            <span>
-              Emisión del láser y actuadores deshabilitados. Motivo: parada de emergencia.
-            </span>
-            <button type="button" onClick={rearmar}>
-              Rearmar sistema
-            </button>
-          </div>
-        )}
 
         <div className="page">
           <Outlet />

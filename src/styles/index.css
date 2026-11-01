@@ -425,7 +425,14 @@ a { color: inherit; text-decoration: none; }
   background: linear-gradient(180deg, var(--tone-2a1216), var(--tone-1a0d10));
   border-color: var(--tone-5a1d24);
   min-width: 340px;
+  /* Toda la tarjeta es el botón: se anulan los estilos nativos de <button> */
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
 }
+.estop-card:disabled { cursor: not-allowed; }
 .estop-card h2 {
   margin: 0 0 4px;
   font-size: 30px;
@@ -452,8 +459,14 @@ a { color: inherit; text-decoration: none; }
   place-items: center;
   box-shadow: 0 0 22px rgba(255, 60, 70, 0.45);
 }
-.estop-btn:hover { filter: brightness(1.08); }
-.estop-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+/* Al pasar el mouse se aclaran el fondo de la tarjeta y el ícono */
+.estop-card:hover:not(:disabled) {
+  background:
+    linear-gradient(rgba(255, 90, 100, 0.12), rgba(255, 90, 100, 0.12)),
+    linear-gradient(180deg, var(--tone-2a1216), var(--tone-1a0d10));
+}
+.estop-card:hover:not(:disabled) .estop-btn { filter: brightness(1.08); }
+.estop-card:disabled .estop-btn { opacity: 0.55; }
 
 .page { padding: 8px 20px 24px; min-width: 0; }
 
@@ -771,6 +784,55 @@ a { color: inherit; text-decoration: none; }
 .valid-row.on { color: var(--text); }
 .valid-row em { margin-left: auto; font-style: normal; font-size: 12px; color: var(--dim); }
 .valid-row.on em { color: var(--teal); }
+
+/* Validación con su detalle desplegable: el «cómo se hace» vive en cada una. */
+.valid-item { border-bottom: 1px solid var(--border-soft); }
+.valid-linea { display: flex; align-items: center; gap: 8px; }
+.valid-linea .valid-row { flex: 1; min-width: 0; border-bottom: 0; }
+.valid-detalle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.valid-detalle-btn:hover, .valid-detalle-btn[aria-expanded='true'] { color: var(--teal); border-color: rgba(42, 212, 196, 0.45); }
+.valid-detalle-btn svg { transition: transform 0.15s ease; }
+.valid-detalle-btn[aria-expanded='true'] svg { transform: rotate(180deg); }
+.valid-detalle {
+  margin: 0 0 10px 26px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(42, 212, 196, 0.28);
+  background: rgba(42, 212, 196, 0.06);
+  color: var(--tone-c9d6e0);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.salidas-paso { display: grid; gap: 8px; margin-top: 16px; }
+.salidas-paso .cta { margin-top: 0; text-align: left; }
+.salidas-paso .cta small { font-weight: 500; opacity: 0.8; }
+.proc-nombre { margin: -4px 0 10px; color: var(--muted); font-size: 12px; }
+.proc-nombre small { color: var(--dim); }
+.proc-del-programa { margin: 0 0 8px; color: var(--muted); font-size: 13px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .cta {
   width: 100%;
@@ -1359,10 +1421,248 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 /* Selector de tema encima del usuario, también con el menú compacto. */
 .theme-toggle { flex-shrink: 0; min-height: 38px; }
 .theme-toggle:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
-.login-card > .theme-toggle { justify-self: end; }
+.theme-toggle.solo-icono { margin-left: auto; padding: 8px; min-width: 38px; justify-content: center; }
 .sidebar-foot > .theme-toggle { width: 100%; margin-bottom: 10px; }
 .sidebar-foot > .theme-toggle svg { flex-shrink: 0; }
 .sidebar.compact .theme-toggle { justify-content: center; padding-inline: 0; }
 .sidebar.compact .theme-toggle span { display: none; }
 
 :root[data-theme="light"] { --manual-text: var(--text); }
+
+/* Emergencia en la capa modal: no agrega filas ni desplaza la telemetría. */
+.emergency-dialog { color: var(--text); border-color: var(--red); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.emergency-dialog::backdrop { background: rgba(0, 0, 0, .65); }
+.emergency-dialog .modal-actions { flex-wrap: wrap; }
+.emergency-dialog p.emergency-feedback { color: var(--red); }
+.emergency-details { flex-shrink: 0; border: 1px solid var(--red); background: var(--red-dim); color: var(--red); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
+.emergency-details:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+/* La cabecera comparte tres columnas, márgenes y separación con el dashboard. */
+.main { --scada-gap: clamp(6px, 1.4dvh, 14px); --scada-padding: 16px; }
+.app { --header-height: clamp(76px, 12dvh, 96px); --header-outer-height: calc(var(--header-height) + 19px); }
+.topbar { flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--scada-gap); padding: 10px var(--scada-padding) 8px; }
+.status-card, .estop-card { height: var(--header-height); min-height: 0; min-width: 0; padding: 8px 12px; gap: 10px; flex-wrap: nowrap; }
+.status-card { grid-column: span 2; }
+.estop-card { grid-column: 3; }
+.status-card > div:first-child { min-width: 0; }
+.status-card h2 { font-size: 12px; white-space: nowrap; }
+.status-value { font-size: clamp(18px, 3dvh, 26px); white-space: nowrap; }
+.status-ico { width: 40px; height: 40px; }
+.estop-label { font-size: clamp(18.4px, 2.875dvh, 25.3px); white-space: nowrap; }
+.estop-card { padding-block: 6px; }
+.estop-btn { width: 57.5px; height: 57.5px; flex: none; }
+.estop-btn svg { width: 25.3px; height: 25.3px; }
+@media (max-width: 1100px) {
+  .status-ico { display: none; }
+  .status-card h2 { font-size: 10px; }
+}
+@media (max-width: 900px) {
+  .app { --header-height: 94px; }
+}
+@media (max-width: 600px) {
+  .main { --scada-gap: 6px; --scada-padding: 6px; }
+  .app { --header-height: 132px; --header-outer-height: 145px; }
+  .topbar { padding: 6px var(--scada-padding); }
+  .status-card, .estop-card { padding: 6px; }
+  .status-card { flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; }
+  .estop-card { flex-direction: column; justify-content: center; }
+  .estop-label { font-size: 13.8px; }
+}
+
+.status-heading { display: flex; align-items: center; gap: 8px; }
+.mobile-menu-button { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface-2); cursor: pointer; }
+.mobile-menu-button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+@media (max-width: 900px) {
+  /* El cajón comienza debajo de la cabecera: la parada sigue accesible. */
+  .sidebar-backdrop { position: fixed; inset: var(--header-outer-height) 0 0; z-index: 1001; background: rgb(0 0 0 / 45%); }
+  .app .sidebar.mobile-open { display: flex; position: fixed; top: var(--header-outer-height); left: 0; z-index: 1002; width: min(300px, 85vw); height: calc(100dvh - var(--header-outer-height)); padding: 12px; overflow-y: auto; overscroll-behavior: contain; box-shadow: var(--shadow); }
+  .sidebar.mobile-open .nav { flex: 1 0 auto; }
+  .sidebar.mobile-open .sidebar-foot { flex: none; }
+  .status-heading > div { min-width: 0; }
+}
+@media (max-width: 400px) {
+  .status-heading { gap: 5px; }
+  .status-card h2 { font-size: 8px; letter-spacing: .05em; }
+  .status-value { font-size: 16px; }
+  .mobile-menu-button { width: 32px; height: 32px; }
+}
+
+/* Reservar lugar para el acceso a avisos sin aumentar el alto de la cabecera. */
+.status-card:has(.emergency-details) { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 1fr auto; gap: 4px 8px; }
+.status-card:has(.emergency-details) .status-heading { grid-column: 1; grid-row: 1; }
+.status-card:has(.emergency-details) .emergency-details { grid-column: 2; grid-row: 1; font-size: 11px; padding: 6px 8px; }
+.status-card:has(.emergency-details) #telemetria-toolbar { grid-column: 1 / -1; grid-row: 2; }
+@media (max-width: 600px) {
+  .status-card:has(.emergency-details) { grid-template-columns: minmax(0, 1fr); grid-template-rows: 1fr auto auto; }
+  .status-card:has(.emergency-details) .status-heading { grid-column: 1; }
+  .status-card:has(.emergency-details) #telemetria-toolbar { grid-column: 1; }
+  .status-card:has(.emergency-details) .emergency-details { grid-column: 1; grid-row: 3; justify-self: start; padding: 4px 8px; }
+  .status-card:has(.emergency-details) .tc-toolbar { font-size: 9px; flex-wrap: nowrap; gap: 4px; }
+  .status-card:has(.emergency-details) .tc-window { gap: 4px; }
+  .status-card:has(.emergency-details) .tc-window select { padding: 4px 5px; }
+  .status-card:has(.emergency-details) .tc-view-toggle { padding: 4px 6px; }
+}
+
+/* ── Procedimientos guiados: editor y vista ──────────────────────────────── */
+.editor-proc textarea, .cond-editor textarea, .valid-editor textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  color: inherit;
+  resize: vertical;
+}
+.editor-proc textarea.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.editor-proc select, .editor-proc .valid-editor-fila input {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 9px;
+  color: inherit;
+  min-width: 0;
+}
+.editor-sub { margin: 18px 0 8px; font-size: 12px; letter-spacing: 0.08em; color: var(--muted); }
+.editor-proc h5 { margin: 14px 0 6px; font-size: 12px; color: var(--muted); }
+.editor-ayuda { margin: 0 0 8px; color: var(--dim); font-size: 12px; }
+.campo-error { color: var(--red); font-size: 12px; }
+.paso-editor { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; background: var(--surface-2); }
+.paso-editor.abierto { border-color: rgba(42, 212, 196, 0.45); }
+.paso-editor-head { display: flex; align-items: center; gap: 6px; padding: 6px 8px; }
+.paso-editor-titulo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 4px;
+}
+.paso-editor-titulo small { display: block; color: var(--dim); font-size: 11px; }
+.paso-editor-body { padding: 4px 12px 14px; border-top: 1px solid var(--border-soft); }
+.valid-editor { display: grid; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
+.valid-editor-fila { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
+.valid-editor-texto { flex: 1 1 220px; }
+.cond-editor { display: grid; gap: 4px; }
+.cond-fila { display: flex; gap: 6px; flex-wrap: wrap; }
+.cond-fila select:first-child { flex: 1 1 260px; }
+.cond-fila input { width: 110px; }
+.cond-desc { color: var(--dim); font-size: 12px; }
+.link-btn { background: none; border: 0; padding: 0; color: var(--teal); font-size: 12px; cursor: pointer; justify-self: start; }
+.editor-avanzado { margin-top: 14px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.editor-avanzado summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+.icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.proc-vista { margin: 8px 0 0; padding-left: 0; list-style: none; display: grid; gap: 12px; }
+.proc-vista small { color: var(--dim); }
+.proc-vista ul { margin: 6px 0 0; padding-left: 18px; color: var(--tone-c9d6e0); font-size: 13px; }
+.proc-vista ul li { margin: 4px 0; }
+.proc-vista em { color: var(--dim); font-style: normal; font-size: 12px; }
+.proc-vista-detalle { color: var(--dim); font-size: 12px; white-space: pre-line; }
+.proc-vista-salidas { margin: 6px 0 0; color: var(--teal); font-size: 12px; }
+
+/* Interruptor: un botón que enciende o apaga según el sensor. */
+.interruptor { display: inline-flex; align-items: center; gap: 8px; }
+.interruptor-luz {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dim);
+  flex-shrink: 0;
+}
+.interruptor.on .interruptor-luz { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.interruptor-editor { border: 1px dashed var(--border); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; display: grid; gap: 4px; }
+.interruptor-lado { width: 64px; color: var(--muted); font-size: 12px; }
+
+/* ── Pantallas angostas: barra con el ícono de la app (abre el menú) y la sección ── */
+.mobile-bar { display: none; }
+@media (max-width: 900px), (max-height: 500px) {
+  /* En la app instalada la barra de estado del teléfono queda encima: se respeta su alto. */
+  .topbar { padding-top: max(env(safe-area-inset-top), 0px); }
+  .mobile-bar {
+    display: flex;
+    grid-column: 1 / -1;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    margin-inline: calc(-1 * var(--scada-padding));
+    padding-inline: var(--scada-padding);
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .mobile-bar-menu { width: 40px; height: 40px; cursor: pointer; }
+  .mobile-bar-menu:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
+  .mobile-bar-title { margin: 0; min-width: 0; font-size: 19px; font-weight: 700; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* El cierre del menú es el mismo ícono de la barra: el encabezado del cajón sobra. */
+  .app .sidebar.mobile-open .sidebar-header { display: none; }
+}
+@media (max-width: 600px) {
+  /* Sin selector de tendencias, la cabecera puede ser más baja y con texto más grande. */
+  .app { --header-height: 90px; }
+  .status-card h2 { font-size: 11px; letter-spacing: .1em; }
+  .status-value { font-size: 22px; }
+  .estop-label { font-size: 15px; }
+  .estop-btn { width: 44px; height: 44px; }
+  .estop-btn svg { width: 20px; height: 20px; }
+  .mobile-bar { min-height: 48px; }
+  .page { padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}
+
+/* ── Teléfono en horizontal: sin menú lateral y la cabecera en una sola fila ── */
+@media (max-height: 500px) and (min-width: 901px) {
+  /* Lo mismo que ya pasa por debajo de 900px de ancho. */
+  .app { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .sidebar-backdrop { position: fixed; inset: var(--header-outer-height) 0 0; z-index: 1001; background: rgb(0 0 0 / 45%); }
+  .app .sidebar.mobile-open { display: flex; position: fixed; top: var(--header-outer-height); left: 0; z-index: 1002; width: min(300px, 85vw); height: calc(100dvh - var(--header-outer-height)); padding: 12px; overflow-y: auto; overscroll-behavior: contain; box-shadow: var(--shadow); }
+  .sidebar.mobile-open .nav { flex: 1 0 auto; }
+  .sidebar.mobile-open .sidebar-foot { flex: none; }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+  .main { --scada-gap: 8px; --scada-padding: max(10px, env(safe-area-inset-left)); }
+  .app { --header-height: 60px; }
+  .topbar { grid-template-columns: auto minmax(0, 1fr) minmax(0, .85fr); align-items: center; padding: 6px var(--scada-padding); }
+  .mobile-bar { grid-column: 1; min-height: 0; margin: 0; padding: 0; border: 0; }
+  .mobile-bar-title { max-width: 28vw; font-size: 17px; }
+  .status-card { grid-column: 2; }
+  .estop-card { grid-column: 3; }
+  .status-card h2 { font-size: 10px; }
+  .status-value { font-size: 19px; }
+  .estop-label { font-size: 15px; }
+  .estop-btn { width: 44px; height: 44px; }
+  .estop-btn svg { width: 20px; height: 20px; }
+  .app .sidebar.mobile-open { padding-block: 8px; }
+  .sidebar.mobile-open .nav-link { padding-block: 7px; }
+}
+
+/* ── Teléfono: la parada de emergencia es solo el botón, sin el texto ─────────
+   El botón conserva aria-label="Parada de emergencia". */
+@media (max-width: 600px), (max-height: 500px) {
+  .estop-label { display: none; }
+  .estop-card { justify-content: center; padding-inline: 10px; }
+  /* Solo el botón, pero con un área de toque amplia: un cuarto del ancho de la pantalla. */
+  .topbar { grid-template-columns: minmax(0, 1fr) 25vw; }
+  .status-card { grid-column: 1; }
+  .estop-card { grid-column: 2; width: auto; }
+  .estop-btn { width: 52px; height: 52px; }
+  .estop-btn svg { width: 22px; height: 22px; }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+  .topbar { grid-template-columns: auto minmax(0, 1fr) 25vw; }
+  .status-card { grid-column: 2; }
+  .estop-card { grid-column: 3; }
+  .estop-btn { width: 44px; height: 44px; }
+}
+
+/* ── Nuevo ensayo: en pantallas angostas los pasos no entran en una fila.
+   Cada paso conserva su ancho y el indicador se desplaza por dentro,
+   sin ensanchar la página. ── */
+@media (max-width: 900px) {
+  .stepper { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding: 12px 14px; }
+  .stepper-item { flex: none; }
+  .stepper-item strong { white-space: nowrap; }
+  .stepper-line { flex: none; width: 24px; }
+}
