@@ -176,7 +176,7 @@ export function AppLayout() {
         {estado === 'EMERGENCIA' && (
           <div className="banner">
             <span>
-              Emisión del láser y actuadores deshabilitados. Motivo: parada de emergencia (RN005).
+              Emisión del láser y actuadores deshabilitados. Motivo: parada de emergencia.
             </span>
             <button type="button" onClick={rearmar}>
               Rearmar sistema
