@@ -160,7 +160,11 @@ export function AppLayout() {
         </nav>
 
         <div className="sidebar-foot">
-          <ThemeToggle />
+          {/* Preferencias de visualización; el dashboard agrega su engranaje en el hueco. */}
+          <div className="sidebar-prefs">
+            <ThemeToggle />
+            <div id="telemetria-vista" />
+          </div>
           <div className="user-card">
             <div className="user-meta">
               <User size={16} />
@@ -203,7 +207,6 @@ export function AppLayout() {
                 <p className={`status-value ${statusCls}`}>{estado}</p>
               </div>
             </div>
-            <div id="telemetria-toolbar" />
             {hayAvisos ? <AvisoEmergencia /> : <StatusIcon estado={estado} />}
           </div>
           <button

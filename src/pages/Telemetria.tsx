@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, Sun, Target, Thermometer, Timer, TrendingUp, X, Zap } from 'lucide-react'
+import { Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, Settings2, Sun, Target, Thermometer, Timer, X, Zap } from 'lucide-react'
 import type { TelemetriaControlador as Sample } from '../api/control'
 import { api } from '../api/client'
 import type { Umbral } from '../mock/types'
@@ -24,6 +24,42 @@ const channels: Channel[] = [
   { id: 'pos', title: 'POSICIÓN DESPLAZADOR', unit: 'µm', color: 'green', digits: 0, icon: MoveHorizontal, parameter: 'POSICION_MOTOR', factor: 1000, value: s => s.variables.POSICION_MOTOR * 1000, badge: s => s.ejecucion ? ['En curso', 'info'] : ['Detenido', 'ok'] },
   { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', color: 'teal', digits: 0, icon: Gauge, value: s => (s.ejecucion?.progreso ?? 0) * 100 },
 ]
+
+const VENTANAS = [30, 60, 120]
+const etiquetaVentana = (s: number) => s === 120 ? '2 min' : `${s} s`
+
+/** Engranaje de la barra lateral: ventana de tendencia y gráficos en las tarjetas.
+ *  Usa el popover nativo para salir del recorte de la barra; se cierra al tocar
+ *  afuera o con Esc, y deja ver el dashboard mientras se cambia la vista. */
+function VistaTelemetria({ seconds, onSeconds, tendencias, onTendencias }: { seconds: number; onSeconds: (s: number) => void; tendencias: boolean; onTendencias: (on: boolean) => void }) {
+  const panel = useRef<HTMLDivElement>(null)
+  const ubicar = (boton: HTMLElement) => {
+    const r = boton.getBoundingClientRect(), p = panel.current
+    if (!p) return
+    // A la derecha de la barra lateral, alineado con el borde inferior del engranaje.
+    const borde = boton.closest('aside')?.getBoundingClientRect().right ?? r.right
+    p.style.left = `${borde + 10}px`
+    p.style.bottom = `${Math.max(8, window.innerHeight - r.bottom)}px`
+  }
+  return <>
+    <button type="button" className="ghost vista-btn" popoverTarget="vista-telemetria" onClick={e => ubicar(e.currentTarget)} aria-label="Vista del dashboard" title="Vista del dashboard">
+      <Settings2 size={18} aria-hidden="true" />
+    </button>
+    <div ref={panel} id="vista-telemetria" popover="auto" className="vista-pop" role="dialog" aria-label="Vista del dashboard">
+      <h3>Vista del dashboard</h3>
+      <div className="vista-campo">
+        <span id="vista-ventana">Ventana de tendencia</span>
+        <div className="vista-seg" role="radiogroup" aria-labelledby="vista-ventana">
+          {VENTANAS.map(s => <button key={s} type="button" role="radio" aria-checked={seconds === s} onClick={() => onSeconds(s)}>{etiquetaVentana(s)}</button>)}
+        </div>
+      </div>
+      <label className="vista-campo vista-switch">
+        <span>Tendencias en las tarjetas<small>Gráfico chico en cada tarjeta</small></span>
+        <input type="checkbox" role="switch" checked={tendencias} onChange={e => onTendencias(e.target.checked)} />
+      </label>
+    </div>
+  </>
+}
 
 // Teléfono en vertical (angosto) o en horizontal (poca altura).
 const MOBILE = '(max-width: 600px), (max-height: 500px)'
@@ -71,7 +107,7 @@ export function Telemetria() {
   const live = controladorVivo && !!last
   const time = last ? new Date(last.ts).toLocaleTimeString('es-AR', { hour12: false }) : '—'
   const notice = !live ? (last ? `Sin datos desde ${time}` : 'Sin datos') : samples.length < 2 ? 'Esperando muestras del controlador…' : ''
-  const windowLabel = seconds === 120 ? '2 min' : `${seconds} s`
+  const windowLabel = etiquetaVentana(seconds)
   const limits = (c: Channel) => thresholds.filter(u => c.parameter && u.variable === c.parameter).flatMap(u => [u.min, u.max]).map(v => v * (c.factor ?? 1)).filter(Number.isFinite)
   const value = (c: Channel) => live && Number.isFinite(c.value(last)) ? (c.id === 'shutter' ? shutter(last) : fmt(c.value(last), c.digits)) : '—'
   const stats = (c: Channel) => {
@@ -125,18 +161,11 @@ export function Telemetria() {
       {notice && <div className="tc-notice"><span>{notice}</span></div>}
     </div>
   }
-  const picker = <label className="tc-window">Ventana <select aria-label="Ventana de tendencia" value={seconds} onChange={e => setSeconds(Number(e.target.value))}>{[30, 60, 120].map(s => <option key={s} value={s}>{s === 120 ? '2 min' : `${s} s`}</option>)}</select></label>
-  const toolbar = <div className="tc-toolbar">
-    {picker}
-    <button type="button" className="tc-view-toggle" aria-pressed={view === 'C'}
-      onClick={() => changeView(view === 'C' ? 'B' : 'C')}
-      title={view === 'C' ? 'Ocultar tendencias en las tarjetas' : 'Mostrar tendencias en las tarjetas'}>
-      <TrendingUp size={15} aria-hidden="true" /> Tendencias
-    </button>
-  </div>
-  const toolbarHost = document.getElementById('telemetria-toolbar')
+  const picker = <label className="tc-window">Ventana <select aria-label="Ventana de tendencia" value={seconds} onChange={e => setSeconds(Number(e.target.value))}>{VENTANAS.map(s => <option key={s} value={s}>{etiquetaVentana(s)}</option>)}</select></label>
+  const vista = <VistaTelemetria seconds={seconds} onSeconds={setSeconds} tendencias={view === 'C'} onTendencias={on => changeView(on ? 'C' : 'B')} />
+  const vistaHost = document.getElementById('telemetria-vista')
   return <>
-    {!mobile && (toolbarHost ? createPortal(toolbar, toolbarHost) : toolbar)}
+    {!mobile && vistaHost && createPortal(vista, vistaHost)}
     <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
       {channels.map(c => <button type="button" key={c.id} className={`tc-card ${live && c.badge ? c.badge(last)[1] : 'neutral'}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
         {heading(c, mobile)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>
