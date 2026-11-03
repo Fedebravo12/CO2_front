@@ -1439,7 +1439,8 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 .sidebar-prefs > .theme-toggle svg { flex-shrink: 0; }
 .sidebar-prefs > div:empty { display: none; }
 .sidebar.compact .sidebar-prefs { flex-direction: column; }
-.sidebar.compact .theme-toggle { justify-content: center; padding-inline: 0; }
+.sidebar.compact .theme-toggle,
+.sidebar.compact .vista-btn { justify-content: center; padding-inline: 0; min-width: 0; width: 100%; }
 .sidebar.compact .theme-toggle span { display: none; }
 
 :root[data-theme="light"] { --manual-text: var(--text); }
