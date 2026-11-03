@@ -15,6 +15,7 @@
   --teal: #2ad4c4;
   --teal-dim: rgba(42, 212, 196, 0.14);
   --cyan: #3ecbff;
+  --cyan-dim: rgba(62, 203, 255, 0.14);
   --blue: #4aa3ff;
   --blue-dim: rgba(74, 163, 255, 0.16);
   --yellow: #f5c542;
@@ -29,6 +30,14 @@
   --sidebar-w: 268px;
   --mono: 'JetBrains Mono', ui-monospace, monospace;
   --sans: 'DM Sans', system-ui, sans-serif;
+  /* Acento de cada estado (bordes, íconos, franjas). En oscuro es el mismo color del texto. */
+  --green-line: var(--green);
+  --teal-line: var(--teal);
+  --cyan-line: var(--cyan);
+  --blue-line: var(--blue);
+  --yellow-line: var(--yellow);
+  --orange-line: var(--orange);
+  --red-line: var(--red);
   --tone-0c141c: #0c141c;
   --tone-090e14: #090e14;
   --tone-b7c4d0: #b7c4d0;
@@ -88,19 +97,29 @@
   --text: #1b2d40;
   --muted: #526579;
   --dim: #627388;
-  --green: #137b45;
-  --teal: #087e73;
-  --cyan: #08799e;
-  --blue: #246ac2;
-  --yellow: #896300;
-  --orange: #b4510d;
-  --red: #c52b3b;
-  --green-dim: #e2f4e9;
-  --teal-dim: #def3ef;
-  --blue-dim: #e4effc;
-  --yellow-dim: #fff4cf;
-  --orange-dim: #fff0e2;
-  --red-dim: #ffe8ec;
+  /* Estados: texto oscuro legible (≥4.5:1 sobre su fondo), acento vivo para
+     bordes e íconos, y un fondo con tinte que se distingue del blanco. */
+  --green: #0f6d3a;
+  --teal: #05685f;
+  --cyan: #075e9c;
+  --blue: #1f5fb8;
+  --yellow: #7a4f00;
+  --orange: #a8480a;
+  --red: #b8243a;
+  --green-line: #16a34a;
+  --teal-line: #0d9488;
+  --cyan-line: #0284c7;
+  --blue-line: #2563eb;
+  --yellow-line: #c28500;
+  --orange-line: #dd6a0e;
+  --red-line: #dc2626;
+  --green-dim: #d3f2df;
+  --teal-dim: #ccf0ea;
+  --cyan-dim: #d6ecfa;
+  --blue-dim: #dbe6ff;
+  --yellow-dim: #ffeeb0;
+  --orange-dim: #ffe2c7;
+  --red-dim: #ffdade;
   --shadow: 0 10px 40px rgba(35, 57, 78, 0.12);
   --panel-dark: #edf3f8;
   --tone-0c141c: #f6f9fc;
@@ -1666,3 +1685,19 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .stepper-item strong { white-space: nowrap; }
   .stepper-line { flex: none; width: 24px; }
 }
+
+/* ——— Modo claro: colores de estado ———
+   Sobre blanco, el estado se marca con borde/franja de acento y fondo con tinte;
+   los brillos pensados para fondo oscuro se quitan porque ensucian. */
+:root[data-theme="light"] .status-ico { box-shadow: none; }
+:root[data-theme="light"] .status-ico.ready { border-color: var(--green-line); background: var(--green-dim); }
+:root[data-theme="light"] .status-ico.prep { border-color: var(--teal-line); background: var(--teal-dim); animation-name: pulse-light; }
+:root[data-theme="light"] .status-ico.run { border-color: var(--cyan-line); background: var(--cyan-dim); }
+:root[data-theme="light"] .status-ico.emg { border-color: var(--red-line); background: var(--red-dim); }
+@keyframes pulse-light {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(13, 148, 136, 0); }
+  50% { box-shadow: 0 0 0 5px rgba(13, 148, 136, 0.22); }
+}
+:root[data-theme="light"] .subsys.info { border-color: var(--blue-line); box-shadow: inset 4px 0 0 var(--blue-line); }
+:root[data-theme="light"] .subsys.warn { border-color: var(--yellow-line); box-shadow: inset 4px 0 0 var(--yellow-line); }
+:root[data-theme="light"] .subsys.ok { border-color: var(--green-line); box-shadow: inset 4px 0 0 var(--green-line); }

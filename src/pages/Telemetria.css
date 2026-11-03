@@ -121,3 +121,13 @@
   .tc-plot.expanded { height: max(110px, calc(100dvh - 190px)); }
   .tc-detail > p.tc-foot:last-child { display: none; }
 }
+
+/* Modo claro: borde y franja con el acento del estado; badges con borde para
+   que se lean como etiqueta y no como texto suelto. */
+:root[data-theme="light"] .tc-card.ok { border-color: var(--green-line); box-shadow: inset 4px 0 0 var(--green-line); }
+:root[data-theme="light"] .tc-card.info { border-color: var(--blue-line); box-shadow: inset 4px 0 0 var(--blue-line); }
+:root[data-theme="light"] .tc-card.warn { border-color: var(--yellow-line); box-shadow: inset 4px 0 0 var(--yellow-line); }
+:root[data-theme="light"] .tc-badge { border: 1px solid var(--border); font-weight: 600; }
+:root[data-theme="light"] .tc-badge.ok { border-color: var(--green-line); }
+:root[data-theme="light"] .tc-badge.info { border-color: var(--blue-line); }
+:root[data-theme="light"] .tc-badge.warn { border-color: var(--yellow-line); }
