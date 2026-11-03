@@ -5,6 +5,11 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   Bell,
   Check,
+  Hourglass,
+  OctagonAlert,
+  Pause,
+  Unplug,
+  Zap,
   ScanLine,
   ClipboardList,
   FolderKanban,
@@ -58,11 +63,21 @@ function claseDeEstado(estado: EstadoSistema) {
   return 'emg' // EMERGENCIA y SIN CONEXIÓN
 }
 
+const ICONO_ESTADO: Partial<Record<EstadoSistema, typeof Check>> = {
+  REPOSO: Pause,
+  'PREPARACIÓN': Hourglass,
+  LISTO: Check,
+  GRABANDO: Zap,
+  'SIN CONEXIÓN': Unplug,
+}
+
 function StatusIcon({ estado }: { estado: EstadoSistema }) {
   const cls = claseDeEstado(estado)
+  // ISA-101: el estado no depende solo del color; cada uno tiene su forma.
+  const Icono = ICONO_ESTADO[estado] ?? OctagonAlert
   return (
     <div className={`status-ico ${cls}`}>
-      {estado === 'LISTO' ? <Check size={28} /> : <span style={{ fontSize: 22 }}>●</span>}
+      <Icono size={26} aria-hidden="true" />
     </div>
   )
 }

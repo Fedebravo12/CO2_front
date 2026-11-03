@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, Settings2, Sun, Target, Thermometer, Timer, X, Zap } from 'lucide-react'
+import { Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, OctagonAlert, Settings2, Sun, Target, Thermometer, Timer, TriangleAlert, X, Zap } from 'lucide-react'
 import type { TelemetriaControlador as Sample } from '../api/control'
 import { api } from '../api/client'
 import type { Umbral } from '../mock/types'
@@ -8,21 +8,28 @@ import { fmt } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
 import './Telemetria.css'
 
-type Tone = 'ok' | 'info' | 'warn' | 'neutral'
-type Channel = { id: string; title: string; unit: string; color: string; digits: number; icon: typeof Sun; value: (s: Sample) => number; parameter?: string; factor?: number; badge?: (s: Sample) => [string, Tone] }
+/* Criterio ISA-101 (HMI de alto rendimiento): en operación normal la pantalla es
+ * neutra y el color queda reservado para lo anormal, siempre con ícono y texto.
+ *  - normal: estado esperado, gris.
+ *  - activo: equipo energizado o en marcha; se distingue por relleno, no por color.
+ *  - warn: condición anormal que requiere atención (amarillo + triángulo).
+ *  - alarm: variable fuera de su límite configurado (rojo + octógono). */
+type Tone = 'normal' | 'activo' | 'warn' | 'alarm'
+type Channel = { id: string; title: string; unit: string; digits: number; icon: typeof Sun; value: (s: Sample) => number; parameter?: string; factor?: number; badge?: (s: Sample) => [string, Tone] }
 const shutter = (s: Sample) => s.actuadores.shutter_abierto ? 'Abierto' : s.actuadores.shutter_armado ? 'Armado' : 'Desarmado'
-const shutterColors = { Abierto: 'var(--blue)', Armado: 'var(--green)', Desarmado: 'var(--dim)' }
+// Escala de grises: más oscuro/claro cuanto más abierto el camino del haz.
+const shutterColors = { Abierto: 'var(--trend-strong)', Armado: 'var(--trend)', Desarmado: 'var(--border)' }
 const channels: Channel[] = [
-  { id: 'pot', title: 'POTENCIA LÁSER', unit: 'W', color: 'blue', digits: 2, icon: Sun, parameter: 'POTENCIA_LASER', value: s => s.variables.POTENCIA_LASER, badge: s => s.actuadores.laser ? ['Encendido', 'ok'] : ['Apagado', 'neutral'] },
+  { id: 'pot', title: 'POTENCIA LÁSER', unit: 'W', digits: 2, icon: Sun, parameter: 'POTENCIA_LASER', value: s => s.variables.POTENCIA_LASER, badge: s => s.actuadores.laser ? ['Encendido', 'activo'] : ['Apagado', 'normal'] },
   // Sin grabado en curso no hay tiempo de pulso: NaN se muestra como «—».
-  { id: 'pulso', title: 'TIEMPO DE PULSO', unit: 'ms', color: 'blue', digits: 0, icon: Timer, value: s => s.ejecucion?.duracion_pulso_ms ?? NaN },
-  { id: 'shutter', title: 'SHUTTER', unit: '', color: 'blue', digits: 0, icon: Aperture, value: () => 0, badge: s => [shutter(s), s.actuadores.shutter_abierto ? 'info' : s.actuadores.shutter_armado ? 'ok' : 'neutral'] },
-  { id: 'hv', title: 'ALTA TENSIÓN', unit: 'kV', color: 'orange', digits: 1, icon: Zap, parameter: 'TENSION_AT', value: s => s.variables.TENSION_AT, badge: s => s.condiciones.AT_ENCENDIDA ? ['Activa', 'ok'] : ['Apagada', 'neutral'] },
-  { id: 'sombra', title: 'SENSOR DE SOMBRA', unit: 'mW', color: 'yellow', digits: 2, icon: Target, value: s => s.extra.sensor_sombra_mw, badge: s => s.condiciones.FIBRA_ALINEADA ? ['Alineada', 'ok'] : ['No alineada', 'warn'] },
-  { id: 'temp', title: 'TEMP. REFRIGERACIÓN', unit: '°C', color: 'teal', digits: 1, icon: Thermometer, parameter: 'TEMPERATURA_AGUA', value: s => s.variables.TEMPERATURA_AGUA, badge: s => s.condiciones.REFRIGERACION_OK ? ['Estable', 'ok'] : s.actuadores.refrigeracion ? ['Estabilizando', 'warn'] : ['Apagada', 'neutral'] },
-  { id: 'caudal', title: 'CAUDAL REFRIGERANTE', unit: 'L/min', color: 'green', digits: 2, icon: Droplets, parameter: 'CAUDAL_REFRIGERANTE', value: s => s.variables.CAUDAL_REFRIGERANTE },
-  { id: 'pos', title: 'POSICIÓN DESPLAZADOR', unit: 'µm', color: 'green', digits: 0, icon: MoveHorizontal, parameter: 'POSICION_MOTOR', factor: 1000, value: s => s.variables.POSICION_MOTOR * 1000, badge: s => s.ejecucion ? ['En curso', 'info'] : ['Detenido', 'ok'] },
-  { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', color: 'teal', digits: 0, icon: Gauge, value: s => (s.ejecucion?.progreso ?? 0) * 100 },
+  { id: 'pulso', title: 'TIEMPO DE PULSO', unit: 'ms', digits: 0, icon: Timer, value: s => s.ejecucion?.duracion_pulso_ms ?? NaN },
+  { id: 'shutter', title: 'SHUTTER', unit: '', digits: 0, icon: Aperture, value: () => 0, badge: s => [shutter(s), s.actuadores.shutter_abierto ? 'activo' : 'normal'] },
+  { id: 'hv', title: 'ALTA TENSIÓN', unit: 'kV', digits: 1, icon: Zap, parameter: 'TENSION_AT', value: s => s.variables.TENSION_AT, badge: s => s.condiciones.AT_ENCENDIDA ? ['Activa', 'activo'] : ['Apagada', 'normal'] },
+  { id: 'sombra', title: 'SENSOR DE SOMBRA', unit: 'mW', digits: 2, icon: Target, value: s => s.extra.sensor_sombra_mw, badge: s => s.condiciones.FIBRA_ALINEADA ? ['Alineada', 'normal'] : ['No alineada', 'warn'] },
+  { id: 'temp', title: 'TEMP. REFRIGERACIÓN', unit: '°C', digits: 1, icon: Thermometer, parameter: 'TEMPERATURA_AGUA', value: s => s.variables.TEMPERATURA_AGUA, badge: s => s.condiciones.REFRIGERACION_OK ? ['Estable', 'normal'] : s.actuadores.refrigeracion ? ['Estabilizando', 'warn'] : ['Apagada', 'normal'] },
+  { id: 'caudal', title: 'CAUDAL REFRIGERANTE', unit: 'L/min', digits: 2, icon: Droplets, parameter: 'CAUDAL_REFRIGERANTE', value: s => s.variables.CAUDAL_REFRIGERANTE },
+  { id: 'pos', title: 'POSICIÓN DESPLAZADOR', unit: 'µm', digits: 0, icon: MoveHorizontal, parameter: 'POSICION_MOTOR', factor: 1000, value: s => s.variables.POSICION_MOTOR * 1000, badge: s => s.ejecucion ? ['En curso', 'activo'] : ['Detenido', 'normal'] },
+  { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', digits: 0, icon: Gauge, value: s => (s.ejecucion?.progreso ?? 0) * 100 },
 ]
 
 const VENTANAS = [30, 60, 120]
@@ -115,14 +122,18 @@ export function Telemetria() {
     const values = samples.map(c.value).filter(Number.isFinite)
     return values.length ? `mín ${fmt(Math.min(...values), c.digits)} · máx ${fmt(Math.max(...values), c.digits)} · ${windowLabel}` : 'Sin muestras'
   }
-  const color = (c: Channel) => {
-    const bounds = limits(c)
-    return !live ? 'var(--dim)' : bounds.length && (c.value(last) < Math.min(...bounds) || c.value(last) > Math.max(...bounds)) ? 'var(--red)' : `var(--${c.color})`
+  const fuera = (c: Channel) => {
+    const bounds = limits(c), v = live ? c.value(last) : NaN
+    return Number.isFinite(v) && bounds.length > 0 && (v < Math.min(...bounds) || v > Math.max(...bounds))
   }
+  // Fuera de límite pisa al estado del equipo: es lo que el operador tiene que ver primero.
+  const tono = (c: Channel): Tone => fuera(c) ? 'alarm' : live && c.badge ? c.badge(last)[1] : 'normal'
+  const color = (c: Channel) => !live ? 'var(--dim)' : fuera(c) ? 'var(--red)' : 'var(--text)'
   // `minima`: tarjeta del teléfono. El shutter no repite su estado: ya es el valor.
   const heading = (c: Channel, minima = false) => {
-    const badge = c.badge && !(minima && c.id === 'shutter') ? (live ? c.badge(last) : ['Sin datos', 'neutral']) : null
-    return <div className="tc-heading"><span className="tc-icon"><c.icon size={19} /></span><h3 title={c.title}>{c.title}</h3>{badge && <span className={`tc-badge ${badge[1]}`}>{badge[0]}</span>}</div>
+    const badge: [string, Tone] | null = fuera(c) ? ['Fuera de límite', 'alarm'] : c.badge && !(minima && c.id === 'shutter') ? (live ? c.badge(last) : ['Sin datos', 'normal']) : null
+    const Icono = badge?.[1] === 'alarm' ? OctagonAlert : badge?.[1] === 'warn' ? TriangleAlert : null
+    return <div className="tc-heading"><span className="tc-icon"><c.icon size={19} /></span><h3 title={c.title}>{c.title}</h3>{badge && <span className={`tc-badge ${badge[1]}`}>{Icono && <Icono size={13} aria-hidden="true" />}{badge[0]}</span>}</div>
   }
   const chart = (c: Channel, expanded = false) => {
     const width = 1000, height = expanded ? 320 : 100, padding = 15
@@ -150,14 +161,15 @@ export function Telemetria() {
           const until = Math.min(end, next - t > 3500 || i === samples.length - 1 ? t + 1000 : next)
           return <rect key={s.ts} x={x(t)} y={height * .3} width={Math.max(0, x(until) - x(t))} height={height * .4} fill={shutterColors[shutter(s)]} opacity={live ? 1 : .3} />
         }) : <>
-          {bounds.map((v, i) => <line key={i} x1="0" x2={width} y1={y(v)} y2={y(v)} stroke="var(--red)" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />)}
-          <path d={area} fill={`var(--${c.color})`} opacity={live ? .1 : .03} />
-          <path d={path} fill="none" stroke={`var(--${c.color})`} strokeWidth="2" vectorEffect="non-scaling-stroke" opacity={live ? 1 : .3} />
+          {/* Los límites se dibujan discretos; el rojo aparece recién cuando se cruzan. */}
+          {bounds.map((v, i) => <line key={i} x1="0" x2={width} y1={y(v)} y2={y(v)} stroke="var(--trend-limit)" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />)}
+          <path d={area} fill="var(--trend)" opacity={live ? .12 : .04} />
+          <path d={path} fill="none" stroke="var(--trend)" strokeWidth="2" vectorEffect="non-scaling-stroke" opacity={live ? 1 : .3} />
         </>}
       </svg>
       {c.id !== 'shutter' && bounds.map((v, i) => <span className="tc-limit" key={i} style={{ top: `${y(v) / height * 100}%` }}>Límite {fmt(v, c.digits)} {c.unit}</span>)}
       {expanded && c.id !== 'shutter' && <div className="tc-axis"><span>{fmt(high, c.digits)}</span><span>{fmt((high + low) / 2, c.digits)}</span><span>{fmt(low, c.digits)}</span></div>}
-      {live && latest && c.id !== 'shutter' && <i className="tc-dot" style={{ left: `${x(latest.t) / width * 100}%`, top: `${y(latest.v) / height * 100}%`, background: `var(--${c.color})` }} />}
+      {live && latest && c.id !== 'shutter' && <i className="tc-dot" style={{ left: `${x(latest.t) / width * 100}%`, top: `${y(latest.v) / height * 100}%`, background: fuera(c) ? 'var(--red)' : 'var(--trend-strong)' }} />}
       {notice && <div className="tc-notice"><span>{notice}</span></div>}
     </div>
   }
@@ -167,8 +179,8 @@ export function Telemetria() {
   return <>
     {!mobile && vistaHost && createPortal(vista, vistaHost)}
     <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
-      {channels.map(c => <button type="button" key={c.id} className={`tc-card ${live && c.badge ? c.badge(last)[1] : 'neutral'}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
-        {heading(c, mobile)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>
+      {channels.map(c => <button type="button" key={c.id} className={`tc-card ${tono(c)}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
+        {heading(c, mobile)}<div className="tc-value" style={{ color: color(c) }}>{fuera(c) && <OctagonAlert className="tc-value-alarma" aria-label="Fuera de límite" />}{value(c)} <small>{c.unit}</small></div>
         {c.id === 'prog' ? <div className="tc-progress" role="progressbar" aria-label="Progreso del proceso" aria-valuenow={live ? Math.min(100, Math.max(0, c.value(last))) : undefined}><i style={{ width: `${live ? Math.min(100, Math.max(0, c.value(last))) : 0}%` }} /></div> : cardView === 'C' ? chart(c) : null}
         <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> {cardView === 'B' ? 'Tendencia' : 'Ampliar'}</span></div>
       </button>)}
