@@ -417,8 +417,10 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: 0.04em;
 }
 /* ISA-101: los estados normales van en neutro y se distinguen por el texto y el
-   ícono; el rojo queda para emergencia y sin conexión. */
-.status-value.ready, .status-value.prep, .status-value.run { color: var(--text); }
+   ícono; el rojo queda para emergencia y sin conexión. LISTO es la excepción:
+   va en verde porque confirma que todo está correcto para grabar. */
+.status-value.prep, .status-value.run { color: var(--text); }
+.status-value.ready { color: var(--green); }
 .status-value.emg { color: var(--red); }
 .status-ico {
   width: 58px;
@@ -428,9 +430,14 @@ a { color: inherit; text-decoration: none; }
   place-items: center;
   flex-shrink: 0;
 }
-.status-ico.ready, .status-ico.prep, .status-ico.run {
+.status-ico.prep, .status-ico.run {
   border: 3px solid var(--trend);
   color: var(--text);
+  background: var(--surface-2);
+}
+.status-ico.ready {
+  border: 3px solid var(--green-line);
+  color: var(--green);
   background: var(--surface-2);
 }
 .status-ico.emg {

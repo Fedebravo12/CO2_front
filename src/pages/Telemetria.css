@@ -5,9 +5,9 @@
 .tc-card { text-align: left; color: var(--text); background: var(--surface); border: 3px solid var(--border); border-radius: 14px; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; cursor: pointer; }
 .tc-card:hover { background: var(--surface-2); }
 .tc-card:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
-/* ISA-101: la tarjeta solo toma color si hay algo anormal. Activo se marca con
-   un borde más oscuro/claro, sin tono. */
-.tc-card.activo { border-color: var(--trend); }
+/* La tarjeta toma color si hay algo anormal o si el equipo está activo
+   (encendido / en marcha), que va con borde verde. */
+.tc-card.activo { border-color: var(--green-line); box-shadow: inset 4px 0 0 var(--green-line); }
 .tc-card.warn { border-color: var(--yellow-line); box-shadow: inset 4px 0 0 var(--yellow-line); }
 .tc-card.alarm { border-color: var(--red-line); box-shadow: inset 4px 0 0 var(--red-line); }
 .tc-heading { display: flex; align-items: center; gap: 9px; min-width: 0; }
@@ -15,8 +15,9 @@
 .tc-icon { flex-shrink: 0; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--surface-2); }
 .tc-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 30px; padding: 4px 8px; font-size: 11px; font-weight: 600; background: transparent; color: var(--muted); border: 1px solid var(--border); }
 .tc-badge svg { flex: none; }
-/* Activo: relleno invertido (claro sobre oscuro o al revés), sin color. */
-.tc-badge.activo { background: var(--text); color: var(--surface); border-color: var(--text); }
+/* Activo: relleno verde. Se distingue de `ok`, que es verde sin relleno. */
+.tc-badge.activo { background: var(--green); color: var(--surface); border-color: var(--green); }
+.tc-badge.ok { color: var(--green); border-color: var(--green-line); }
 .tc-badge.warn { background: var(--yellow-dim); color: var(--yellow); border-color: var(--yellow-line); }
 .tc-badge.alarm { background: var(--red-dim); color: var(--red); border-color: var(--red-line); }
 .tc-value-alarma { width: .7em; height: .7em; margin-right: .2em; vertical-align: -.05em; }

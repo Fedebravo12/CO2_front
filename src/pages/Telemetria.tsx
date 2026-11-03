@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Aperture, Droplets, Gauge, Maximize2, MoveHorizontal, OctagonAlert, Settings2, Sun, Target, Thermometer, Timer, TriangleAlert, X, Zap } from 'lucide-react'
+import { Aperture, CircleCheck, Droplets, Gauge, Maximize2, MoveHorizontal, OctagonAlert, Settings2, Sun, Target, Thermometer, Timer, TriangleAlert, X, Zap } from 'lucide-react'
 import type { TelemetriaControlador as Sample } from '../api/control'
 import { api } from '../api/client'
 import type { Umbral } from '../mock/types'
@@ -11,10 +11,12 @@ import './Telemetria.css'
 /* Criterio ISA-101 (HMI de alto rendimiento): en operación normal la pantalla es
  * neutra y el color queda reservado para lo anormal, siempre con ícono y texto.
  *  - normal: estado esperado, gris.
- *  - activo: equipo energizado o en marcha; se distingue por relleno, no por color.
+ *  - ok: condición confirmada como correcta (alineada, estable). Verde sin
+ *    relleno + check: queda por debajo de warn y alarm, que sí llevan relleno.
+ *  - activo: equipo encendido o en marcha; borde de tarjeta verde y badge con relleno verde.
  *  - warn: condición anormal que requiere atención (amarillo + triángulo).
  *  - alarm: variable fuera de su límite configurado (rojo + octógono). */
-type Tone = 'normal' | 'activo' | 'warn' | 'alarm'
+type Tone = 'normal' | 'ok' | 'activo' | 'warn' | 'alarm'
 type Channel = { id: string; title: string; unit: string; digits: number; icon: typeof Sun; value: (s: Sample) => number; parameter?: string; factor?: number; badge?: (s: Sample) => [string, Tone] }
 const shutter = (s: Sample) => s.actuadores.shutter_abierto ? 'Abierto' : s.actuadores.shutter_armado ? 'Armado' : 'Desarmado'
 // Escala de grises: más oscuro/claro cuanto más abierto el camino del haz.
@@ -25,8 +27,8 @@ const channels: Channel[] = [
   { id: 'pulso', title: 'TIEMPO DE PULSO', unit: 'ms', digits: 0, icon: Timer, value: s => s.ejecucion?.duracion_pulso_ms ?? NaN },
   { id: 'shutter', title: 'SHUTTER', unit: '', digits: 0, icon: Aperture, value: () => 0, badge: s => [shutter(s), s.actuadores.shutter_abierto ? 'activo' : 'normal'] },
   { id: 'hv', title: 'ALTA TENSIÓN', unit: 'kV', digits: 1, icon: Zap, parameter: 'TENSION_AT', value: s => s.variables.TENSION_AT, badge: s => s.condiciones.AT_ENCENDIDA ? ['Activa', 'activo'] : ['Apagada', 'normal'] },
-  { id: 'sombra', title: 'SENSOR DE SOMBRA', unit: 'mW', digits: 2, icon: Target, value: s => s.extra.sensor_sombra_mw, badge: s => s.condiciones.FIBRA_ALINEADA ? ['Alineada', 'normal'] : ['No alineada', 'warn'] },
-  { id: 'temp', title: 'TEMP. REFRIGERACIÓN', unit: '°C', digits: 1, icon: Thermometer, parameter: 'TEMPERATURA_AGUA', value: s => s.variables.TEMPERATURA_AGUA, badge: s => s.condiciones.REFRIGERACION_OK ? ['Estable', 'normal'] : s.actuadores.refrigeracion ? ['Estabilizando', 'warn'] : ['Apagada', 'normal'] },
+  { id: 'sombra', title: 'SENSOR DE SOMBRA', unit: 'mW', digits: 2, icon: Target, value: s => s.extra.sensor_sombra_mw, badge: s => s.condiciones.FIBRA_ALINEADA ? ['Alineada', 'ok'] : ['No alineada', 'warn'] },
+  { id: 'temp', title: 'TEMP. REFRIGERACIÓN', unit: '°C', digits: 1, icon: Thermometer, parameter: 'TEMPERATURA_AGUA', value: s => s.variables.TEMPERATURA_AGUA, badge: s => s.condiciones.REFRIGERACION_OK ? ['Estable', 'ok'] : s.actuadores.refrigeracion ? ['Estabilizando', 'warn'] : ['Apagada', 'normal'] },
   { id: 'caudal', title: 'CAUDAL REFRIGERANTE', unit: 'L/min', digits: 2, icon: Droplets, parameter: 'CAUDAL_REFRIGERANTE', value: s => s.variables.CAUDAL_REFRIGERANTE },
   { id: 'pos', title: 'POSICIÓN DESPLAZADOR', unit: 'µm', digits: 0, icon: MoveHorizontal, parameter: 'POSICION_MOTOR', factor: 1000, value: s => s.variables.POSICION_MOTOR * 1000, badge: s => s.ejecucion ? ['En curso', 'activo'] : ['Detenido', 'normal'] },
   { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', digits: 0, icon: Gauge, value: s => (s.ejecucion?.progreso ?? 0) * 100 },
@@ -132,7 +134,7 @@ export function Telemetria() {
   // `minima`: tarjeta del teléfono. El shutter no repite su estado: ya es el valor.
   const heading = (c: Channel, minima = false) => {
     const badge: [string, Tone] | null = fuera(c) ? ['Fuera de límite', 'alarm'] : c.badge && !(minima && c.id === 'shutter') ? (live ? c.badge(last) : ['Sin datos', 'normal']) : null
-    const Icono = badge?.[1] === 'alarm' ? OctagonAlert : badge?.[1] === 'warn' ? TriangleAlert : null
+    const Icono = badge?.[1] === 'alarm' ? OctagonAlert : badge?.[1] === 'warn' ? TriangleAlert : badge?.[1] === 'ok' ? CircleCheck : null
     return <div className="tc-heading"><span className="tc-icon"><c.icon size={19} /></span><h3 title={c.title}>{c.title}</h3>{badge && <span className={`tc-badge ${badge[1]}`}>{Icono && <Icono size={13} aria-hidden="true" />}{badge[0]}</span>}</div>
   }
   const chart = (c: Channel, expanded = false) => {
