@@ -137,7 +137,7 @@ export function AppLayout() {
   const hayAvisos = emergenciaActiva || sinConexion || errorComando || errorTelemetria || avisoControlador
 
   return (
-    <div ref={app} className={`app ${dashboard ? 'app-dashboard' : ''}`}>
+    <div ref={app} className={`app ${dashboard ? 'app-dashboard' : ''} ${pathname === '/nuevo-ensayo' ? 'app-ensayo' : ''}`}>
       {narrow && mobileOpen && <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} aria-hidden="true" />}
       <aside id="app-sidebar" ref={sidebar} aria-label="Menú principal" className={`sidebar ${!narrow && sidebarCompact ? 'compact' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">

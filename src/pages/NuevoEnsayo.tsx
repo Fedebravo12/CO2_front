@@ -1,21 +1,23 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, ChevronDown, Lock } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, Lock } from 'lucide-react'
 import type { Accion } from '../api/control'
-import { fmt, LinearBar } from '../components/Meters'
+import { fmt } from '../components/Meters'
+import { channels, EncabezadoCanal, lecturaCanal, useUmbrales } from '../components/canalesTelemetria'
 import { useSystem } from '../context/SystemContext'
 import type { PasoGuiado, ValidacionPaso } from '../mock/types'
 import { comandosDe, estadoDe, evaluar, fuentesDe, type Fuentes } from '../procedimientos/interprete'
 
 const INICIAR = new Set(['iniciar_real', 'iniciar_prueba'])
+const OCULTOS = new Set(['pulso', 'sombra', 'hv'])
 
-/** Fases del indicador superior: tramos seguidos de pasos con la misma fase. */
-function fasesDe(pasos: PasoGuiado[]): { nombre: string; desde: number; hasta: number }[] {
-  const fases: { nombre: string; desde: number; hasta: number }[] = []
+/** Fases del procedimiento: tramos seguidos de pasos con la misma fase. */
+function fasesDe(pasos: PasoGuiado[]): { nombre: string; pasos: PasoGuiado[] }[] {
+  const fases: { nombre: string; pasos: PasoGuiado[] }[] = []
   for (const p of pasos) {
     const ultima = fases[fases.length - 1]
-    if (ultima && ultima.nombre === p.fase) ultima.hasta = p.orden
-    else fases.push({ nombre: p.fase, desde: p.orden, hasta: p.orden })
+    if (ultima && ultima.nombre === p.fase) ultima.pasos.push(p)
+    else fases.push({ nombre: p.fase, pasos: [p] })
   }
   return fases
 }
@@ -169,174 +171,274 @@ export function NuevoEnsayo() {
   const ordenGrabado = pasos.find((p) => p.acciones.some((a) => comandosDe(a).some((c) => INICIAR.has(c))))?.orden
   const puedeEditar = rol === 'Investigador' || rol === 'Administrador'
 
-  // En pantallas angostas el indicador de fases se desplaza por dentro: se
-  // centra la fase actual para que no quede fuera de la vista.
-  const stepper = useRef<HTMLOListElement>(null)
-  const ordenActual = paso?.orden
+  // Lista de pasos desplegable desde el encabezado de la card.
+  const [lista, setLista] = useState(false)
+  const cabecera = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const lista = stepper.current
-    const activa = lista?.querySelector<HTMLElement>('.stepper-item.active')
-    if (!lista || !activa || lista.scrollWidth <= lista.clientWidth) return
-    const desde = activa.getBoundingClientRect().left - lista.getBoundingClientRect().left + lista.scrollLeft
-    lista.scrollTo({ left: desde - (lista.clientWidth - activa.offsetWidth) / 2, behavior: 'smooth' })
-  }, [ordenActual])
+    if (!lista) return
+    const afuera = (e: PointerEvent) => {
+      if (!cabecera.current?.contains(e.target as Node)) setLista(false)
+    }
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLista(false)
+    }
+    document.addEventListener('pointerdown', afuera)
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.removeEventListener('pointerdown', afuera)
+      document.removeEventListener('keydown', escape)
+    }
+  }, [lista])
+  const ordenActual = paso?.orden
+  useEffect(() => setLista(false), [ordenActual])
+
+  // Por qué no se puede avanzar: se muestra debajo del botón de confirmar.
+  const faltan = paso ? paso.validaciones.filter((v) => !verificada(v)).length : 0
+  const siguiente = paso ? pasos.find((p) => p.orden === paso.orden + 1) : undefined
+  const motivo =
+    estado === 'EMERGENCIA'
+      ? 'Parada de emergencia activa'
+      : usaEquipo && !f
+        ? 'Sin telemetría del controlador'
+        : faltan > 0
+          ? `Falta${faltan > 1 ? 'n' : ''} ${faltan} validaci${faltan > 1 ? 'ones' : 'ón'} del paso`
+          : !cumplido
+            ? 'Esperando que el equipo cumpla la condición del paso'
+            : null
+
+  const umbrales = useUmbrales()
+  const live = controladorVivo && !!controlador
+  // La vista previa muestra los canales del dashboard, sin tiempo de pulso, sensor de sombra ni alta tensión.
+  const canales = channels.filter((c) => !OCULTOS.has(c.id))
 
   return (
-    <>
-      {paso && (
-        <ol ref={stepper} className="stepper">
-          {fases.map((fase, i) => {
-            const done = paso.orden > fase.hasta
-            const active = paso.orden >= fase.desde && paso.orden <= fase.hasta
-            return (
-              <li key={`${fase.nombre}-${fase.desde}`} className={`stepper-item ${done ? 'done' : ''} ${active ? 'active' : ''}`}>
-                <span>{done ? <Check size={14} /> : i + 1}</span>
-                <strong>{fase.nombre}</strong>
-                {i < fases.length - 1 && <i className="stepper-line" />}
-              </li>
-            )
-          })}
-        </ol>
-      )}
-
-      <div className="ensayo-grid">
-        <aside className="col-card">
-          <div className="col-head">
-            <h3>PASOS DEL PROCEDIMIENTO</h3>
-            {paso && (
-              <span className="badge">
-                Paso {paso.orden} de {pasos.length}
+    <div className="ensayo-grid">
+      <section className="col-card paso">
+        {paso && (
+          <div ref={cabecera} className="paso-cabecera">
+            <button
+              type="button"
+              className={`paso-selector ${lista ? 'abierta' : ''}`}
+              aria-expanded={lista}
+              aria-controls="lista-pasos"
+              onClick={() => setLista((v) => !v)}
+            >
+              <span className="paso-selector-linea">
+                <span className="paso-selector-orden">
+                  PASO {paso.orden} DE {pasos.length}
+                  {paso.fase && <> · {paso.fase.toUpperCase()}</>}
+                </span>
+                <span className="paso-selector-ver">Ver todos los pasos</span>
+                <ChevronDown size={16} aria-hidden="true" />
               </span>
-            )}
-          </div>
-          {procedimiento && (
-            <p className="proc-nombre">
-              {procedimiento.nombre} <small>v{procedimiento.version}</small>
-            </p>
-          )}
-          {pasos.map((p) => {
-            const locked = !visitados.includes(p.orden)
-            return (
-              <button
-                key={p.orden}
-                type="button"
-                className={`step-item ${p.orden === paso?.orden ? 'active' : ''} ${visitados.includes(p.orden) && p.orden !== paso?.orden ? 'done' : ''}`}
-                disabled={locked}
-                onClick={() => irAPaso(p.orden)}
-              >
-                <span className="step-num">{p.orden}</span>
-                <span>{p.titulo}</span>
-                {locked && <Lock className="lock" size={14} />}
-              </button>
-            )
-          })}
-        </aside>
-
-        {!paso ? (
-          <section className="col-card paso">
-            <h2>Sin procedimiento</h2>
-            {cargandoProcedimiento ? (
-              <p>Cargando el procedimiento del programa…</p>
-            ) : errorProcedimiento ? (
-              <p className="aviso-ctrl error">No se pudo cargar el procedimiento: {errorProcedimiento}</p>
-            ) : !programa ? (
-              <p>Elegí un programa de grabado para ver su procedimiento.</p>
-            ) : (
-              <p>
-                El programa <b>{programa.nombre}</b> no tiene un procedimiento guiado asignado.{' '}
-                {puedeEditar ? (
-                  <>
-                    Asignale uno desde <Link to="/programas">Programas de grabado</Link>.
-                  </>
-                ) : (
-                  'Pedile a un investigador o administrador que le asigne uno.'
-                )}
-              </p>
-            )}
-          </section>
-        ) : (
-        <section className="col-card paso">
-          <h2>
-            {paso.orden}. {paso.titulo}
-          </h2>
-          {paso.subtitulo && <p>{paso.subtitulo}</p>}
-
-          {mensaje && <p className={`aviso-ctrl ${mensaje.nivel}`}>{mensaje.texto}</p>}
-
-          {paso.indicadores.length > 0 && (
-            <div className="hw-row">
-              {paso.indicadores.map((ind, i) => {
-                const chip = f ? estadoDe(ind, f) : { texto: 'SIN DATOS', tono: 'neutral' as const }
-                return (
-                  <div key={`${ind.nombre}-${i}`} className="hw-card">
-                    <b>{ind.nombre}</b>
-                    <span className={`chip ${chip.tono}`}>{chip.texto}</span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {paso.acciones.length > 0 && (
-            <div className="acciones-paso">
-              {paso.acciones.map((a, i) => {
-                if (a.tipo === 'interruptor') {
-                  // Sin telemetría no se sabe en qué estado está: queda bloqueado.
-                  const encendido = f !== null && evaluar(a.estado, f)
-                  const lado = encendido ? a.apagar : a.encender
+              <span className="paso-titulo">{paso.titulo}</span>
+              <span className="paso-fases" aria-hidden="true">
+                {fases.map((fase, i) => {
+                  const activa = fase.pasos.some((p) => p.orden === paso.orden)
+                  const hecha = fase.pasos.every((p) => visitados.includes(p.orden) && p.orden !== paso.orden)
                   return (
-                    <button
-                      key={`interruptor-${i}`}
-                      type="button"
-                      className={`ghost interruptor ${encendido ? 'on' : ''}`}
-                      aria-pressed={encendido}
-                      disabled={bloqueado || enviando || grabando}
-                      onClick={() => ejecutar(lado.accion)}
+                    <span
+                      key={`${fase.nombre}-${i}`}
+                      className={`paso-fase ${activa ? 'active' : hecha ? 'done' : ''}`}
+                      style={{ flex: fase.pasos.length }}
                     >
-                      <i className="interruptor-luz" aria-hidden="true" />
-                      {lado.etiqueta}
-                    </button>
+                      <span className="paso-segmentos">
+                        {fase.pasos.map((p) => (
+                          <i
+                            key={p.orden}
+                            className={
+                              p.orden === paso.orden ? 'active' : visitados.includes(p.orden) ? 'done' : ''
+                            }
+                          />
+                        ))}
+                      </span>
+                      <span className="paso-fase-nombre">{fase.nombre}</span>
+                    </span>
                   )
-                }
-                const esAbortar = a.accion === 'abortar'
-                const deshabilitado =
-                  bloqueado ||
-                  enviando ||
-                  (esAbortar ? !grabando : grabando) ||
-                  (INICIAR.has(a.accion) && !programa)
-                return (
-                  <button
-                    key={`${a.accion}-${i}`}
-                    type="button"
-                    className={a.accion === 'iniciar_real' ? 'primary' : 'ghost'}
-                    disabled={deshabilitado}
-                    onClick={() => ejecutar(a.accion)}
-                  >
-                    {a.etiqueta}
-                  </button>
-                )
-              })}
-            </div>
-          )}
+                })}
+              </span>
+            </button>
 
-          <div className="valid">
-            <h4>VALIDACIONES DEL PASO</h4>
-            {paso.validaciones.map((v) => (
-              <FilaValidacion
-                key={v.id}
-                v={v}
-                ok={verificada(v)}
-                porSensor={v.tipo === 'SENSOR'}
-                avisoSensor={avisoSensor === v.id}
-                onToggle={() => toggleValidacion(v.id)}
-                onAyudaSensor={() => mostrarAyuda(v.id)}
-              />
-            ))}
+            {lista && (
+              <div id="lista-pasos" className="paso-lista">
+                <div className="paso-lista-head">
+                  <h3>
+                    {procedimiento?.nombre.toUpperCase()} <small>v{procedimiento?.version}</small>
+                  </h3>
+                  <span>Solo podés volver a pasos ya visitados</span>
+                </div>
+                <div className="paso-lista-fases">
+                  {fases.map((fase, i) => {
+                    const activa = fase.pasos.some((p) => p.orden === paso.orden)
+                    const hecha = fase.pasos.every((p) => visitados.includes(p.orden) && p.orden !== paso.orden)
+                    return (
+                      <div key={`${fase.nombre}-${i}`}>
+                        <div className={`paso-lista-fase ${activa ? 'active' : hecha ? 'done' : ''}`}>
+                          {fase.nombre.toUpperCase()}
+                        </div>
+                        {fase.pasos.map((p) => {
+                          const actual = p.orden === paso.orden
+                          const locked = !visitados.includes(p.orden)
+                          return (
+                            <button
+                              key={p.orden}
+                              type="button"
+                              className={`step-item ${actual ? 'active' : locked ? '' : 'done'}`}
+                              disabled={locked}
+                              aria-current={actual ? 'step' : undefined}
+                              onClick={() => irAPaso(p.orden)}
+                            >
+                              <span className="step-num">{p.orden}</span>
+                              <span className="step-titulo">{p.titulo}</span>
+                              {actual ? (
+                                <span className="badge">Actual</span>
+                              ) : locked ? (
+                                <Lock className="lock" size={14} aria-label="Bloqueado" />
+                              ) : (
+                                <Check className="check" size={14} aria-label="Visitado" />
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
+        )}
 
-          {paso.salidas.length > 0 ? (
-            <div className="salidas-paso">
-              {paso.salidas.map((s) => {
+        <div className="paso-cuerpo">
+          {!paso ? (
+            <>
+              <h2>Sin procedimiento</h2>
+              {cargandoProcedimiento ? (
+                <p>Cargando el procedimiento del programa…</p>
+              ) : errorProcedimiento ? (
+                <p className="aviso-ctrl error">No se pudo cargar el procedimiento: {errorProcedimiento}</p>
+              ) : !programa ? (
+                <p>Elegí un programa de grabado para ver su procedimiento.</p>
+              ) : (
+                <p>
+                  El programa <b>{programa.nombre}</b> no tiene un procedimiento guiado asignado.{' '}
+                  {puedeEditar ? (
+                    <>
+                      Asignale uno desde <Link to="/programas">Programas de grabado</Link>.
+                    </>
+                  ) : (
+                    'Pedile a un investigador o administrador que le asigne uno.'
+                  )}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              {paso.subtitulo && <p className="paso-subtitulo">{paso.subtitulo}</p>}
+
+              {mensaje && <p className={`aviso-ctrl ${mensaje.nivel}`}>{mensaje.texto}</p>}
+
+              {paso.indicadores.length > 0 && (
+                <div className="hw-row">
+                  {paso.indicadores.map((ind, i) => {
+                    const chip = f ? estadoDe(ind, f) : { texto: 'SIN DATOS', tono: 'neutral' as const }
+                    return (
+                      <div key={`${ind.nombre}-${i}`} className="hw-card">
+                        <b>{ind.nombre}</b>
+                        <span className={`chip ${chip.tono}`}>{chip.texto}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {paso.acciones.length > 0 && (
+                <div className="acciones-paso">
+                  {paso.acciones.map((a, i) => {
+                    if (a.tipo === 'interruptor') {
+                      // Sin telemetría no se sabe en qué estado está: queda bloqueado.
+                      const encendido = f !== null && evaluar(a.estado, f)
+                      const lado = encendido ? a.apagar : a.encender
+                      return (
+                        <button
+                          key={`interruptor-${i}`}
+                          type="button"
+                          className={`ghost interruptor ${encendido ? 'on' : ''}`}
+                          aria-pressed={encendido}
+                          disabled={bloqueado || enviando || grabando}
+                          onClick={() => ejecutar(lado.accion)}
+                        >
+                          <i className="interruptor-luz" aria-hidden="true" />
+                          {lado.etiqueta}
+                        </button>
+                      )
+                    }
+                    const esAbortar = a.accion === 'abortar'
+                    const deshabilitado =
+                      bloqueado ||
+                      enviando ||
+                      (esAbortar ? !grabando : grabando) ||
+                      (INICIAR.has(a.accion) && !programa)
+                    return (
+                      <button
+                        key={`${a.accion}-${i}`}
+                        type="button"
+                        className={a.accion === 'iniciar_real' ? 'primary' : 'ghost'}
+                        disabled={deshabilitado}
+                        onClick={() => ejecutar(a.accion)}
+                      >
+                        {a.etiqueta}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              <div className="valid">
+                <h4>VALIDACIONES DEL PASO</h4>
+                {paso.validaciones.map((v) => (
+                  <FilaValidacion
+                    key={v.id}
+                    v={v}
+                    ok={verificada(v)}
+                    porSensor={v.tipo === 'SENSOR'}
+                    avisoSensor={avisoSensor === v.id}
+                    onToggle={() => toggleValidacion(v.id)}
+                    onAyudaSensor={() => mostrarAyuda(v.id)}
+                  />
+                ))}
+              </div>
+
+              {ensayoActual && ordenGrabado !== undefined && paso.orden >= ordenGrabado && (
+                <div className="resultado-ensayo">
+                  {ensayoActual.resultado ? (
+                    <>
+                      Ensayo <b>{ensayoActual.registro}</b> {ensayoActual.resultado.estado.toLowerCase()}
+                      {ensayoActual.modo === 'REAL' && <> · red {ensayoActual.resultado.codigoLpg}</>}
+                      {ensayoActual.resultado.lambda && (
+                        <>
+                          {' '}
+                          · λ {ensayoActual.resultado.lambda}, L {ensayoActual.resultado.l}
+                        </>
+                      )}
+                      {' · '}
+                      <Link to={`/registro/${ensayoActual.registro}`}>ver detalle →</Link>
+                    </>
+                  ) : (
+                    <>
+                      Ensayo <b>{ensayoActual.registro}</b> en curso…
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {paso && (
+          <div className="paso-pie">
+            {paso.salidas.length > 0 ? (
+              paso.salidas.map((s) => {
                 const destino = pasos.find((p) => p.orden === s.destino)
                 return (
                   <button
@@ -346,142 +448,141 @@ export function NuevoEnsayo() {
                     disabled={!ready}
                     onClick={() => confirmarPaso(s.destino)}
                   >
-                    {s.etiqueta} → <small>Paso {s.destino}{destino ? `: ${destino.titulo}` : ''}</small>
+                    <span className="cta-texto">
+                      <span className="cta-titulo">{s.etiqueta}</span>
+                      <span className="cta-sub">
+                        {motivo ?? `Paso ${s.destino}${destino ? ` · ${destino.titulo}` : ''}`}
+                      </span>
+                    </span>
+                    <ArrowRight size={20} aria-hidden="true" />
                   </button>
                 )
-              })}
-            </div>
-          ) : (
-            <button className="cta" type="button" disabled={!ready} onClick={() => confirmarPaso()}>
-              {paso.orden >= pasos.length ? 'Finalizar procedimiento →' : 'Confirmar y continuar →'}
-            </button>
-          )}
+              })
+            ) : (
+              <button className="cta" type="button" disabled={!ready} onClick={() => confirmarPaso()}>
+                <span className="cta-texto">
+                  <span className="cta-titulo">
+                    {paso.orden >= pasos.length ? 'Finalizar procedimiento' : 'Confirmar y continuar'}
+                  </span>
+                  <span className="cta-sub">
+                    {motivo ?? (siguiente ? `Siguiente: ${siguiente.orden} · ${siguiente.titulo}` : 'Cierra el ensayo')}
+                  </span>
+                </span>
+                <ArrowRight size={20} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        )}
+      </section>
 
-          {ensayoActual && ordenGrabado !== undefined && paso.orden >= ordenGrabado && (
-            <div className="resultado-ensayo">
-              {ensayoActual.resultado ? (
-                <>
-                  Ensayo <b>{ensayoActual.registro}</b> {ensayoActual.resultado.estado.toLowerCase()}
-                  {ensayoActual.modo === 'REAL' && <> · red {ensayoActual.resultado.codigoLpg}</>}
-                  {ensayoActual.resultado.lambda && (
-                    <>
-                      {' '}
-                      · λ {ensayoActual.resultado.lambda}, L {ensayoActual.resultado.l}
-                    </>
-                  )}
-                  {' · '}
-                  <Link to={`/registro/${ensayoActual.registro}`}>ver detalle →</Link>
-                </>
-              ) : (
-                <>
-                  Ensayo <b>{ensayoActual.registro}</b> en curso…
-                </>
+      <div className="ensayo-lateral">
+        <section className="col-card ensayo-programa">
+          <div className="col-head">
+            <h3>PROGRAMA DE GRABADO</h3>
+            <button className="ghost" type="button" disabled={grabando} onClick={() => setPickPrograma((v) => !v)}>
+              Cambiar programa
+            </button>
+          </div>
+          {!programa ? (
+            <p style={{ color: 'var(--orange)', margin: 0 }}>
+              No hay programas cargados. Un investigador o administrador puede crearlos desde «Programas de
+              grabado».
+            </p>
+          ) : (
+            <>
+              <p className="programa-nombre">{programa.nombre}</p>
+              <p className="proc-del-programa">
+                Procedimiento: <b>{programa.procedimientoNombre || 'sin asignar'}</b>
+              </p>
+              {pickPrograma && (
+                <div className="programa-opciones">
+                  {programas.map((p) => (
+                    <button
+                      key={p.id}
+                      className={`ghost ${p.id === programa.id ? 'on' : ''}`}
+                      type="button"
+                      onClick={() => {
+                        setProgramaId(p.id)
+                        setPickPrograma(false)
+                      }}
+                    >
+                      {p.nombre}
+                    </button>
+                  ))}
+                </div>
               )}
-            </div>
+              <div className="kv kv-filas">
+                <div>
+                  <span>Potencia objetivo</span>
+                  <b>{fmt(programa.potenciaObjetivoMw)} mW</b>
+                </div>
+                <div>
+                  <span>Duración de pulso</span>
+                  <b>{programa.duracionPulsoMs} ms</b>
+                </div>
+                <div>
+                  <span>Desplazamiento</span>
+                  <b>{programa.desplazamientoUm} µm</b>
+                </div>
+                <div>
+                  <span>Criterio de fin</span>
+                  <b>
+                    {programa.criterioFin} · {fmt(programa.distanciaMm)} mm
+                  </b>
+                </div>
+                <div>
+                  <span>Pulsos estimados</span>
+                  <b>{programa.pulsosEstimados} pulsos</b>
+                </div>
+              </div>
+            </>
           )}
         </section>
-        )}
 
-        <aside style={{ display: 'grid', gap: 12 }}>
-          <div className="col-card">
-            <div className="col-head">
-              <h3>PROGRAMA DE GRABADO</h3>
-              <button className="ghost" type="button" disabled={grabando} onClick={() => setPickPrograma((v) => !v)}>
-                Cambiar programa
-              </button>
-            </div>
-            {!programa ? (
-              <p style={{ color: 'var(--orange)', margin: 0 }}>
-                No hay programas cargados. Un investigador o administrador puede crearlos desde
-                «Programas de grabado».
-              </p>
-            ) : (
-              <>
-                <p style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 700 }}>{programa.nombre}</p>
-                <p className="proc-del-programa">
-                  Procedimiento: <b>{programa.procedimientoNombre || 'sin asignar'}</b>
-                </p>
-                {pickPrograma && (
-                  <div className="kv" style={{ marginBottom: 12 }}>
-                    {programas.map((p) => (
-                      <button
-                        key={p.id}
-                        className="ghost"
-                        type="button"
-                        onClick={() => {
-                          setProgramaId(p.id)
-                          setPickPrograma(false)
-                        }}
+        <section className="col-card ensayo-telemetria" aria-label="Telemetría en vivo">
+          <div className="col-head">
+            <h3>
+              <i className="live-dot" />
+              TELEMETRÍA (EN VIVO)
+            </h3>
+            <span className="pill">{controladorVivo ? `${fmt(tel.actualizacionHz, 1)} Hz` : 'SIN DATOS'}</span>
+          </div>
+          <div className="ensayo-canales">
+            {canales.map((c) => {
+              const l = lecturaCanal(c, controlador, live, umbrales)
+              const progreso = Math.min(100, Math.max(0, Number.isFinite(l.crudo) ? l.crudo : 0))
+              return (
+                <div key={c.id} className={`tc-card ${l.tono}`}>
+                  <EncabezadoCanal c={c} badge={l.badge} />
+                  <div className="tc-value" style={{ color: l.color }}>
+                    {l.valor} <small>{c.unit}</small>
+                  </div>
+                  {c.id === 'prog' && (
+                    <>
+                      <div
+                        className="tc-progress"
+                        role="progressbar"
+                        aria-label="Progreso del proceso"
+                        aria-valuenow={live ? progreso : undefined}
                       >
-                        {p.nombre}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <div className="kv">
-                  <div>
-                    <span>Potencia objetivo</span>
-                    <b>{fmt(programa.potenciaObjetivoMw)} mW</b>
-                  </div>
-                  <div>
-                    <span>Duración de pulso</span>
-                    <b>{programa.duracionPulsoMs} ms</b>
-                  </div>
-                  <div>
-                    <span>Desplazamiento</span>
-                    <b>{programa.desplazamientoUm} µm</b>
-                  </div>
-                  <div>
-                    <span>Criterio de fin</span>
-                    <b>
-                      {programa.criterioFin} · {fmt(programa.distanciaMm)} mm
-                    </b>
-                  </div>
-                  <div>
-                    <span>Pulsos estimados</span>
-                    <b>{programa.pulsosEstimados} pulsos</b>
-                  </div>
+                        <i style={{ width: `${live ? progreso : 0}%` }} />
+                      </div>
+                      {controlador?.ejecucion && (
+                        <div className="tc-foot">
+                          <span>
+                            {controlador.ejecucion.pulso}/{controlador.ejecucion.pulsos} pulsos ·{' '}
+                            {fmt(controlador.ejecucion.distancia_mm)} mm
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
-              </>
-            )}
+              )
+            })}
           </div>
-
-          <div className="col-card">
-            <div className="col-head">
-              <h3>
-                <i className="live-dot" />
-                TELEMETRÍA PRINCIPAL (EN VIVO)
-              </h3>
-              <span className="pill">{controladorVivo ? `${fmt(tel.actualizacionHz, 1)} Hz` : 'SIN DATOS'}</span>
-            </div>
-            <div className="mini-grid">
-              {[
-                ['Potencia', `${fmt(tel.potenciaMw)} mW`, tel.potenciaMw, Math.max(20, (programa?.potenciaObjetivoMw ?? 10) * 1.5)],
-                ['Temp. láser', `${fmt(tel.tempLaser, 1)} °C`, tel.tempLaser, 80],
-                ['Temp. refr.', `${fmt(tel.tempRefrigeracion, 1)} °C`, tel.tempRefrigeracion, 40],
-                ['Pos. despl.', `${fmt(tel.posicionUm, 0)} µm`, tel.posicionUm, Math.max(10000, (programa?.distanciaMm ?? 10) * 1000)],
-                ['Alta tensión', `${fmt(tel.voltajeHv / 1000, 1)} kV`, tel.voltajeHv / 1000, 30],
-                ['Sensor som.', `${fmt(tel.sensorSombraMw)} mW`, tel.sensorSombraMw, 3],
-              ].map(([label, val, raw, max]) => (
-                <div key={String(label)} className="mini">
-                  <label>{label}</label>
-                  <b>{val}</b>
-                  <LinearBar value={Number(raw)} min={0} max={Number(max)} color="var(--teal)" />
-                </div>
-              ))}
-            </div>
-            {controlador?.ejecucion && (
-              <div style={{ marginTop: 12 }}>
-                <label style={{ color: 'var(--muted)', fontSize: 12 }}>
-                  {controlador.ejecucion.programa} · {controlador.ejecucion.pulso}/{controlador.ejecucion.pulsos} pulsos ·{' '}
-                  {fmt(controlador.ejecucion.distancia_mm)} mm
-                </label>
-                <LinearBar value={controlador.ejecucion.progreso * 100} min={0} max={100} color="var(--green)" />
-              </div>
-            )}
-          </div>
-        </aside>
+        </section>
       </div>
-    </>
+    </div>
   )
 }

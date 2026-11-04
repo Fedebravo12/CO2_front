@@ -1,38 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Aperture, CircleCheck, Droplets, Gauge, Maximize2, MoveHorizontal, OctagonAlert, Settings2, Sun, Target, Thermometer, Timer, TriangleAlert, X, Zap } from 'lucide-react'
+import { Maximize2, OctagonAlert, Settings2, X } from 'lucide-react'
 import type { TelemetriaControlador as Sample } from '../api/control'
-import { api } from '../api/client'
-import type { Umbral } from '../mock/types'
 import { fmt } from '../components/Meters'
+import { channels, EncabezadoCanal, lecturaCanal, shutter, useUmbrales, type Channel } from '../components/canalesTelemetria'
 import { useSystem } from '../context/SystemContext'
 import './Telemetria.css'
-
-/* Criterio ISA-101 (HMI de alto rendimiento): en operación normal la pantalla es
- * neutra y el color queda reservado para lo anormal, siempre con ícono y texto.
- *  - normal: estado esperado, gris.
- *  - ok: condición confirmada como correcta (alineada, estable). Verde sin
- *    relleno + check: queda por debajo de warn y alarm, que sí llevan relleno.
- *  - activo: equipo encendido o en marcha; borde de tarjeta verde y badge con relleno verde.
- *  - warn: condición anormal que requiere atención (amarillo + triángulo).
- *  - alarm: variable fuera de su límite configurado (rojo + octógono). */
-type Tone = 'normal' | 'ok' | 'activo' | 'warn' | 'alarm'
-type Channel = { id: string; title: string; unit: string; digits: number; icon: typeof Sun; value: (s: Sample) => number; parameter?: string; factor?: number; badge?: (s: Sample) => [string, Tone] }
-// El shutter tiene dos datos: armado/desarmado (badge) y abierto/cerrado (valor).
-const shutter = (s: Sample) => s.actuadores.shutter_abierto ? 'Abierto' : 'Cerrado'
-// Escala de grises: más oscuro/claro cuanto más abierto el camino del haz.
-const channels: Channel[] = [
-  { id: 'pot', title: 'POTENCIA LÁSER', unit: 'W', digits: 2, icon: Sun, parameter: 'POTENCIA_LASER', value: s => s.variables.POTENCIA_LASER, badge: s => s.actuadores.laser ? ['Encendido', 'activo'] : ['Apagado', 'normal'] },
-  // Sin grabado en curso no hay tiempo de pulso: NaN se muestra como «—».
-  { id: 'pulso', title: 'TIEMPO DE PULSO', unit: 'ms', digits: 0, icon: Timer, value: s => s.ejecucion?.duracion_pulso_ms ?? NaN },
-  { id: 'shutter', title: 'SHUTTER', unit: '', digits: 0, icon: Aperture, value: () => 0, badge: s => s.actuadores.shutter_armado ? ['Armado', 'activo'] : ['Desarmado', 'normal'] },
-  { id: 'hv', title: 'ALTA TENSIÓN', unit: 'kV', digits: 1, icon: Zap, parameter: 'TENSION_AT', value: s => s.variables.TENSION_AT, badge: s => s.condiciones.AT_ENCENDIDA ? ['Activa', 'activo'] : ['Apagada', 'normal'] },
-  { id: 'sombra', title: 'SENSOR DE SOMBRA', unit: 'mW', digits: 2, icon: Target, value: s => s.extra.sensor_sombra_mw, badge: s => s.condiciones.FIBRA_ALINEADA ? ['Alineada', 'ok'] : ['No alineada', 'warn'] },
-  { id: 'temp', title: 'TEMP. REFRIGERACIÓN', unit: '°C', digits: 1, icon: Thermometer, parameter: 'TEMPERATURA_AGUA', value: s => s.variables.TEMPERATURA_AGUA, badge: s => s.condiciones.REFRIGERACION_OK ? ['Estable', 'ok'] : s.actuadores.refrigeracion ? ['Estabilizando', 'warn'] : ['Apagada', 'normal'] },
-  { id: 'caudal', title: 'CAUDAL REFRIGERANTE', unit: 'L/min', digits: 2, icon: Droplets, parameter: 'CAUDAL_REFRIGERANTE', value: s => s.variables.CAUDAL_REFRIGERANTE },
-  { id: 'pos', title: 'POSICIÓN DESPLAZADOR', unit: 'µm', digits: 0, icon: MoveHorizontal, parameter: 'POSICION_MOTOR', factor: 1000, value: s => s.variables.POSICION_MOTOR * 1000, badge: s => s.ejecucion ? ['En curso', 'activo'] : ['Detenido', 'normal'] },
-  { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', digits: 0, icon: Gauge, value: s => (s.ejecucion?.progreso ?? 0) * 100 },
-]
 
 const VENTANAS = [30, 60, 120]
 const etiquetaVentana = (s: number) => s === 120 ? '2 min' : `${s} s`
@@ -97,13 +70,8 @@ export function Telemetria() {
   }, [])
   const cardView = mobile ? 'B' : view
   const [selected, setSelected] = useState<Channel | null>(null)
-  const [thresholds, setThresholds] = useState<Umbral[]>([])
+  const thresholds = useUmbrales(setErrorTelemetria)
   const dialog = useRef<HTMLDialogElement>(null)
-  useEffect(() => {
-    let active = true
-    api.listarUmbrales().then(data => { if (active) { setThresholds(data.filter(u => u.activo)); setErrorTelemetria(null) } }).catch(() => { if (active) setErrorTelemetria('No se pudieron cargar los límites configurados.') })
-    return () => { active = false; setErrorTelemetria(null) }
-  }, [setErrorTelemetria])
   useEffect(() => {
     if (!selected) return
     const previous = document.activeElement as HTMLElement | null
@@ -117,25 +85,18 @@ export function Telemetria() {
   const time = last ? new Date(last.ts).toLocaleTimeString('es-AR', { hour12: false }) : '—'
   const notice = !live ? (last ? `Sin datos desde ${time}` : 'Sin datos') : samples.length < 2 ? 'Esperando muestras del controlador…' : ''
   const windowLabel = etiquetaVentana(seconds)
-  const limits = (c: Channel) => thresholds.filter(u => c.parameter && u.variable === c.parameter).flatMap(u => [u.min, u.max]).map(v => v * (c.factor ?? 1)).filter(Number.isFinite)
-  const value = (c: Channel) => live && Number.isFinite(c.value(last)) ? (c.id === 'shutter' ? shutter(last) : fmt(c.value(last), c.digits)) : '—'
+  const leer = (c: Channel) => lecturaCanal(c, last, live, thresholds)
+  const limits = (c: Channel) => leer(c).limites
+  const value = (c: Channel) => leer(c).valor
   const stats = (c: Channel) => {
     if (c.id === 'shutter') return `${samples.reduce((n, s, i) => n + (i > 0 && Date.parse(s.ts) - Date.parse(samples[i - 1].ts) <= 3500 && shutter(s) !== shutter(samples[i - 1]) ? 1 : 0), 0)} cambios · ${windowLabel}`
     const values = samples.map(c.value).filter(Number.isFinite)
     return values.length ? `mín ${fmt(Math.min(...values), c.digits)} · máx ${fmt(Math.max(...values), c.digits)} · ${windowLabel}` : 'Sin muestras'
   }
-  const fuera = (c: Channel) => {
-    const bounds = limits(c), v = live ? c.value(last) : NaN
-    return Number.isFinite(v) && bounds.length > 0 && (v < Math.min(...bounds) || v > Math.max(...bounds))
-  }
-  // Fuera de límite pisa al estado del equipo: es lo que el operador tiene que ver primero.
-  const tono = (c: Channel): Tone => fuera(c) ? 'alarm' : live && c.badge ? c.badge(last)[1] : 'normal'
-  const color = (c: Channel) => !live ? 'var(--dim)' : fuera(c) ? 'var(--red)' : 'var(--text)'
-  const heading = (c: Channel) => {
-    const badge: [string, Tone] | null = fuera(c) ? ['Fuera de límite', 'alarm'] : c.badge ? (live ? c.badge(last) : ['Sin datos', 'normal']) : null
-    const Icono = badge?.[1] === 'alarm' ? OctagonAlert : badge?.[1] === 'warn' ? TriangleAlert : badge?.[1] === 'ok' ? CircleCheck : null
-    return <div className="tc-heading"><span className="tc-icon"><c.icon size={19} /></span><h3 title={c.title}>{c.title}</h3>{badge && <span className={`tc-badge ${badge[1]}`}>{Icono && <Icono size={13} aria-hidden="true" />}{badge[0]}</span>}</div>
-  }
+  const fuera = (c: Channel) => leer(c).fuera
+  const tono = (c: Channel) => leer(c).tono
+  const color = (c: Channel) => leer(c).color
+  const heading = (c: Channel) => <EncabezadoCanal c={c} badge={leer(c).badge} />
   const chart = (c: Channel, expanded = false) => {
     const width = 1000, height = expanded ? 320 : 100, padding = 15
     // Shutter: hasta dónde vale cada muestra (1 s si después hay un corte) y la señal abierto/cerrado.
