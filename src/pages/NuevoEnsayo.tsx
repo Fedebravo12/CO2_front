@@ -183,7 +183,6 @@ export function NuevoEnsayo() {
 
   return (
     <>
-      <div className="lab-entry"><span>Observá el equipo y las marcas en tiempo real.</span><Link to="/simulador">Ver simulador visual →</Link></div>
       {paso && (
         <ol ref={stepper} className="stepper">
           {fases.map((fase, i) => {
@@ -226,10 +225,7 @@ export function NuevoEnsayo() {
                 onClick={() => irAPaso(p.orden)}
               >
                 <span className="step-num">{p.orden}</span>
-                <span>
-                  {p.titulo}
-                  <small>{p.subtitulo}</small>
-                </span>
+                <span>{p.titulo}</span>
                 {locked && <Lock className="lock" size={14} />}
               </button>
             )
