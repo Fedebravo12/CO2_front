@@ -5,7 +5,8 @@
 // - Páginas: primero la red; sin red, la última versión guardada de la app.
 // - /assets/: llevan hash en el nombre, se guardan la primera vez que se piden.
 
-const CACHE = 'co2-app-v1'
+// Subir la versión cuando cambian los íconos: así se descartan los guardados.
+const CACHE = 'co2-app-v2'
 
 self.addEventListener('install', () => self.skipWaiting())
 

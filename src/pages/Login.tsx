@@ -1,7 +1,8 @@
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useState, type FormEvent } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { LogIn, ScanLine } from 'lucide-react'
+import { LogIn } from 'lucide-react'
+import logoApp from '../assets/logo-app.webp'
 import { ErrorApi } from '../api/http'
 import { useAuth } from '../context/AuthContext'
 
@@ -44,7 +45,7 @@ export function Login() {
       <form className="login-card" onSubmit={enviar}>
         <div className="brand" style={{ marginBottom: 24 }}>
           <div className="brand-mark">
-            <ScanLine size={18} />
+            <img className="brand-logo" src={logoApp} alt="" />
           </div>
           <div className="brand-title">Sistema de Grabado Láser</div>
           <ThemeToggle soloIcono />
