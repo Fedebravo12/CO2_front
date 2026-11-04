@@ -7,6 +7,7 @@ import type { Umbral } from '../mock/types'
 import { fmt } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
 import './Telemetria.css'
+import { HardwareManual } from '../components/HardwareManual'
 
 type Tone = 'ok' | 'info' | 'warn' | 'neutral'
 type Channel = { id: string; title: string; unit: string; color: string; digits: number; icon: typeof Sun; value: (s: Sample) => number; parameter?: string; factor?: number; badge?: (s: Sample) => [string, Tone] }
@@ -135,6 +136,7 @@ export function Telemetria() {
     </button>
   </div>
   const toolbarHost = document.getElementById('telemetria-toolbar')
+  if (controlador?.modo_hal === 'gpio') return <HardwareManual soloLectura />
   return <>
     {!mobile && (toolbarHost ? createPortal(toolbar, toolbarHost) : toolbar)}
     <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">

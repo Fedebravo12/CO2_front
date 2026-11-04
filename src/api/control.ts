@@ -34,6 +34,7 @@ export type Falla = 'ninguna' | 'sobretemperatura' | 'caudal'
 
 /** Mensaje de telemetría tal como lo publica el controlador. */
 export interface TelemetriaControlador {
+  modo_hal?: 'gpio' | 'simulado'
   ts: string
   estado: EstadoControlador
   condiciones: Record<Condicion, boolean>

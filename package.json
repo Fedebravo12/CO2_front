@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test:telemetria": "node tests/telemetria.cjs",
-    "test:emergencia": "node tests/emergencia.cjs"
+    "test:emergencia": "node tests/emergencia.cjs",
+    "test:hardware": "node tests/hardware.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.544.0",

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Accion, Falla } from '../api/control'
 import { fmt } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
+import { HardwareManual } from '../components/HardwareManual'
 
 /**
  * Operación manual de los actuadores.
@@ -48,7 +49,7 @@ export function ControlManual() {
     },
   ]
 
-  const simulado = c?.falla !== undefined
+  const simulado = c?.modo_hal === 'simulado'
   const fallas: { valor: Falla; etiqueta: string; descripcion: string }[] = [
     { valor: 'ninguna', etiqueta: 'Sin fallas', descripcion: 'Funcionamiento normal.' },
     {
@@ -62,6 +63,8 @@ export function ControlManual() {
       descripcion: 'La bomba pierde caudal. Con alta tensión, dispara la parada de emergencia.',
     },
   ]
+
+  if (c?.modo_hal === 'gpio') return <HardwareManual />
 
   return (
     <>

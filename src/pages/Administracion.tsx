@@ -16,6 +16,7 @@ import type {
 } from '../mock/types'
 import { useAuth } from '../context/AuthContext'
 import { useSystem } from '../context/SystemContext'
+import { hardwareApi, type DriverInfo } from '../api/hardware'
 
 const ROLES: Rol[] = ['Operador', 'Investigador', 'Administrador']
 
@@ -197,6 +198,16 @@ export function Administracion() {
 
   // Estado para la configuración de hardware (mapeado por componente)
   const [hardware, setHardware] = useState<HardwareConfig>({ componentes: {} })
+  const [revisionHw, setRevisionHw] = useState('')
+  const [errorHw, setErrorHw] = useState('')
+  const [catalogo, setCatalogo] = useState<Record<string, DriverInfo>>({})
+  const [editComp, setEditComp] = useState<string | null>(null)
+  const [parametrosTexto, setParametrosTexto] = useState('{}')
+  const cargarHardware = () => api.obtenerHardwareConfig().then(({ config, revision }) => {
+    setHardware(config)
+    setRevisionHw(revision)
+    setErrorHw('')
+  }).catch((e: Error) => { setRevisionHw(''); setErrorHw(e.message) })
   const [mostrarInhabilitados, setMostrarInhabilitados] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [guardandoHw, setGuardandoHw] = useState(false)
@@ -212,11 +223,8 @@ export function Administracion() {
     api.listarUmbrales().then(setUmbrales).catch(() => setUmbrales([]))
 
     // Carga la configuración de hardware desde el JSON
-    if (api.obtenerHardwareConfig) {
-      api.obtenerHardwareConfig()
-        .then((data) => setHardware(data || { componentes: {} }))
-        .catch(() => setHardware({ componentes: {} }))
-    }
+    void cargarHardware()
+    hardwareApi.catalogo().then(setCatalogo).catch((e: Error) => setErrorHw(e.message))
 
     // La auditoría es solo del administrador (RN010): el resto recibe 403.
     api
@@ -280,16 +288,22 @@ export function Administracion() {
     const nombreLimpio = formComp.nombre.trim()
     if (!nombreLimpio) return
 
-    if (hardware.componentes[nombreLimpio]) {
+    if (hardware.componentes[nombreLimpio] && editComp !== nombreLimpio) {
       alert('Ya existe un componente registrado con este nombre.')
       return
     }
 
+    let parametros: Record<string, unknown>
+    try {
+      parametros = JSON.parse(parametrosTexto)
+      if (!parametros || typeof parametros !== 'object' || Array.isArray(parametros)) throw new Error()
+    } catch { setErrorHw('Los parámetros deben ser un objeto JSON válido.'); return }
+    if (!catalogo[formComp.config.tipo]) { setErrorHw('Seleccione un driver del catálogo.'); return }
     const nuevoComponente: ComponenteConfig = {
       tipo: formComp.config.tipo.trim(),
       pines: formComp.config.pines,
-      estado: 'Vigente',
-      parametros: formComp.config.parametros || {},
+      estado: editComp ? hardware.componentes[editComp].estado : 'Vigente',
+      parametros,
     }
 
     setHardware((prev) => ({
@@ -301,6 +315,8 @@ export function Administracion() {
     }))
 
     setModalOpen(false)
+    setEditComp(null)
+    setErrorHw('')
     setFormComp(NUEVO_COMPONENTE_VACIO)
   }
 
@@ -309,12 +325,14 @@ export function Administracion() {
     setGuardandoHw(true)
     try {
       if (api.guardarHardwareConfig) {
-        await api.guardarHardwareConfig(hardware)
+        const respuesta = await api.guardarHardwareConfig(hardware, revisionHw)
+        setRevisionHw(respuesta.revision)
+        setErrorHw('')
         setGuardadoExito(true)
         setTimeout(() => setGuardadoExito(false), 3000)
       }
     } catch (err) {
-      console.error('Error al guardar hardware config:', err)
+      setErrorHw((err as Error).message)
     } finally {
       setGuardandoHw(false)
     }
@@ -521,6 +539,13 @@ export function Administracion() {
       {/* ── 2. Sección Hardware ───────────────────────────────────────────── */}
       {seccion === 'hardware' && (
         <section className="panel">
+          <p>Guarde la configuración y consulte su aplicación en Control manual.
+            Los cambios se aplican con las salidas detenidas y la cola vacía.</p>
+          {errorHw && <p role="alert" className="login-error">{errorHw}</p>}
+          <button type="button" className="ghost" onClick={cargarHardware}>Recargar configuración guardada</button>
+          {!blocked && <button type="button" className="ghost" onClick={() => {
+            hardwareApi.aplicar().catch((e: Error) => setErrorHw(e.message))
+          }}>Reintentar aplicación</button>}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
             <h2>Configuración de Componentes</h2>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
@@ -539,13 +564,15 @@ export function Administracion() {
                     className="btn-secundario ghost"
                     onClick={() => {
                       setFormComp(NUEVO_COMPONENTE_VACIO)
+                      setEditComp(null)
+                      setParametrosTexto('{}')
                       setModalOpen(true)
                     }}
                   >
                     + Agregar Componente
                   </button>
-                  <button type="button" className="btn-primario ghost" onClick={handleGuardarHardware} disabled={guardandoHw}>
-                    {guardandoHw ? 'Guardando...' : guardadoExito ? '¡Guardado!' : 'Guardar JSON'}
+                  <button type="button" className="btn-primario ghost" onClick={handleGuardarHardware} disabled={guardandoHw || !revisionHw}>
+                    {guardandoHw ? 'Guardando...' : guardadoExito ? 'Guardado; verificar aplicación' : 'Guardar JSON'}
                   </button>
                 </>
               )}
@@ -593,6 +620,14 @@ export function Administracion() {
                       </td>
                       {!blocked && (
                         <td>
+                          <button type="button" className="ghost" onClick={() => {
+                            setEditComp(nombre)
+                            setFormComp({ nombre, config: { tipo: item.tipo, estado: item.estado,
+                              pines: Object.fromEntries(Object.entries(item.pines).map(([k, v]) => [k, String(v)])),
+                              parametros: item.parametros ?? {} } })
+                            setParametrosTexto(JSON.stringify(item.parametros ?? {}, null, 2))
+                            setModalOpen(true)
+                          }}>Editar</button>
                           <button
                             type="button"
                             className={`btn-secundario ghost ${item.estado === 'Vigente' ? 'danger' : 'ok'}`}
@@ -810,7 +845,8 @@ export function Administracion() {
       {modalOpen && (
         <div className="modal-bg" onClick={() => setModalOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Agregar Componente</h3>
+            <h3>{editComp ? 'Editar componente' : 'Agregar componente'}</h3>
+            {errorHw && <p role="alert" className="login-error">{errorHw}</p>}
 
             <div className="field">
               <h4>Nombre del Componente:</h4>
@@ -818,6 +854,7 @@ export function Administracion() {
                 type="text"
                 placeholder="ej: Sensor de temperatura del láser"
                 value={formComp.nombre}
+                disabled={!!editComp}
                 onChange={(e) =>
                   setFormComp((prev) => ({
                     ...prev,
@@ -829,17 +866,23 @@ export function Administracion() {
 
             <div className="field">
               <h4>Tipo / Clase de Componente:</h4>
-              <input
-                type="text"
-                placeholder="ej: LM35, HC-SR04, STEPPER_EM-257"
+              <select
                 value={formComp.config.tipo}
-                onChange={(e) =>
-                  setFormComp((prev) => ({
-                    ...prev,
-                    config: { ...prev.config, tipo: e.target.value },
-                  }))
-                }
-              />
+                onChange={(e) => {
+                  const tipo = e.target.value
+                  const info = catalogo[tipo]
+                  setFormComp(prev => ({ ...prev, config: { ...prev.config, tipo,
+                    pines: Object.fromEntries((info?.pines ?? []).map(pin => [pin, ''])) } }))
+                  setParametrosTexto(JSON.stringify(info?.parametros ?? {}, null, 2))
+                }}
+              ><option value="">Seleccione un driver</option>
+                {Object.keys(catalogo).map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+              </select>
+              {catalogo[formComp.config.tipo]?.ayuda && <p>{catalogo[formComp.config.tipo].ayuda}</p>}
+            </div>
+            <div className="field">
+              <label>Parámetros del componente (JSON)</label>
+              <textarea rows={6} value={parametrosTexto} onChange={e => setParametrosTexto(e.target.value)} />
             </div>
 
             {/* Carga dinámica de N pines con nombre y asignación (ej: Trig -> GPIO17) */}

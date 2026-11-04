@@ -657,13 +657,18 @@ export const api = {
     return `${header}\n${body}`
   },
 
-  async obtenerHardwareConfig(): Promise<HardwareConfig> {
-    return pedir<HardwareConfig>('/hardware/config/')
+  async obtenerHardwareConfig(): Promise<{ config: HardwareConfig; revision: string }> {
+    let revision = ''
+    const config = await pedir<HardwareConfig>('/hardware/config/', {}, true, r => {
+      revision = r.headers.get('ETag') ?? ''
+    })
+    return { config, revision }
   },
 
-  async guardarHardwareConfig(config: HardwareConfig): Promise<void> {
-    return pedir<void>('/hardware/config/', {
+  async guardarHardwareConfig(config: HardwareConfig, revision: string): Promise<{ revision: string; detail: string }> {
+    return pedir('/hardware/config/', {
       method: 'POST',
+      headers: { 'If-Match': revision },
       body: JSON.stringify(config),
     })
   },

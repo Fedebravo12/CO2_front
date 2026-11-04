@@ -100,7 +100,7 @@ async function mensajeDeError(r: Response): Promise<string> {
  *
  * @throws ErrorApi si la respuesta no es 2xx.
  */
-export async function pedir<T>(ruta: string, init: RequestInit = {}, reintento = true): Promise<T> {
+export async function pedir<T>(ruta: string, init: RequestInit = {}, reintento = true, alResponder?: (r: Response) => void): Promise<T> {
   const tokens = leerTokens()
   const headers = new Headers(init.headers)
   if (init.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
@@ -109,11 +109,12 @@ export async function pedir<T>(ruta: string, init: RequestInit = {}, reintento =
   const r = await fetch(`/api${ruta}`, { ...init, headers })
 
   if (r.status === 401 && tokens && reintento) {
-    if (await renovarAcceso()) return pedir<T>(ruta, init, false)
+    if (await renovarAcceso()) return pedir<T>(ruta, init, false, alResponder)
     borrarTokens()
     alExpirar?.()
   }
   if (!r.ok) throw new ErrorApi(r.status, await mensajeDeError(r))
+  alResponder?.(r)
   if (r.status === 204) return undefined as T
   return (await r.json()) as T
 }

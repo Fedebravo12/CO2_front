@@ -181,6 +181,13 @@ export function NuevoEnsayo() {
     lista.scrollTo({ left: desde - (lista.clientWidth - activa.offsetWidth) / 2, behavior: 'smooth' })
   }, [ordenActual])
 
+  if (controlador?.modo_hal === 'gpio') return <section className="panel">
+    <h1>Puesta en marcha de componentes</h1>
+    <p>El equipo está en modo GPIO manual. Primero se verifica cada componente;
+      la ejecución automática se habilitará al integrar los enlaces e interlocks del programa.</p>
+    <Link to="/control-manual">Ir al control manual</Link>
+  </section>
+
   return (
     <>
       <div className="lab-entry"><span>Observá el equipo y las marcas en tiempo real.</span><Link to="/simulador">Ver simulador visual →</Link></div>
