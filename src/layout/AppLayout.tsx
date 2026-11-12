@@ -5,6 +5,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   Bell,
   Check,
+  ExternalLink,
   Hourglass,
   OctagonAlert,
   Pause,
@@ -84,7 +85,9 @@ function StatusIcon({ estado }: { estado: EstadoSistema }) {
 
 export function AppLayout() {
   const { pathname } = useLocation()
-  const dashboard = pathname === '/'
+  // /monitor es el dashboard sin menú lateral, pensado para una ventana aparte en un monitor fijo.
+  const monitor = pathname === '/monitor'
+  const dashboard = pathname === '/' || monitor
   const { rol, estado, emergencia, now, controlador, errorComando, errorTelemetria } = useSystem()
   const { usuario, cerrarSesion } = useAuth()
   const [confirmSalir, setConfirmSalir] = useState(false)
@@ -127,6 +130,19 @@ export function AppLayout() {
     }
   }, [mobileOpen])
 
+  useEffect(() => {
+    if (!monitor) return
+    const anterior = document.title
+    document.title = 'Monitor · Sistema de Grabado Láser'
+    return () => { document.title = anterior }
+  }, [monitor])
+
+  // Misma ventana si ya está abierta; sin `noopener`, así la nueva hereda la sesión.
+  const abrirMonitor = () => {
+    const ventana = window.open('/monitor', 'co2-monitor', 'popup,width=1280,height=720')
+    ventana?.focus()
+  }
+
   const fecha = `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`
   const hora = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
   const statusCls = claseDeEstado(estado)
@@ -137,9 +153,9 @@ export function AppLayout() {
   const hayAvisos = emergenciaActiva || sinConexion || errorComando || errorTelemetria || avisoControlador
 
   return (
-    <div ref={app} className={`app ${dashboard ? 'app-dashboard' : ''} ${pathname === '/nuevo-ensayo' ? 'app-ensayo' : ''}`}>
-      {narrow && mobileOpen && <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} aria-hidden="true" />}
-      <aside id="app-sidebar" ref={sidebar} aria-label="Menú principal" className={`sidebar ${!narrow && sidebarCompact ? 'compact' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
+    <div ref={app} className={`app ${dashboard ? 'app-dashboard' : ''} ${monitor ? 'app-monitor' : ''} ${pathname === '/nuevo-ensayo' ? 'app-ensayo' : ''}`}>
+      {!monitor && narrow && mobileOpen && <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} aria-hidden="true" />}
+      {!monitor && <aside id="app-sidebar" ref={sidebar} aria-label="Menú principal" className={`sidebar ${!narrow && sidebarCompact ? 'compact' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">
           <div className="brand">
             <button
@@ -179,6 +195,12 @@ export function AppLayout() {
           <div className="sidebar-prefs">
             <ThemeToggle />
             <div id="telemetria-vista" />
+            {dashboard && (
+              <button type="button" className="ghost vista-btn" onClick={abrirMonitor}
+                aria-label="Abrir el dashboard en una ventana nueva" title="Abrir en ventana nueva (para un monitor externo)">
+                <ExternalLink size={18} aria-hidden="true" />
+              </button>
+            )}
           </div>
           <div className="user-card">
             <div className="user-meta">
@@ -199,11 +221,11 @@ export function AppLayout() {
             <span>Versión {VERSION}</span>
           </div>
         </div>
-      </aside>
+      </aside>}
 
       <div className="main">
         <header ref={topbar} className="topbar">
-          {narrow && (
+          {narrow && !monitor && (
             // Pantallas angostas: el ícono de la app abre el menú y al lado va la sección actual.
             <div className="mobile-bar">
               <button ref={menuButton} type="button" className="brand-mark mobile-bar-menu"

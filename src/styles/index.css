@@ -1744,3 +1744,6 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .paso-lista-head { flex-direction: column; align-items: flex-start; gap: 4px; }
   .ensayo-canales { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Ventana de monitor: el dashboard solo, sin menú lateral. */
+.app-monitor { grid-template-columns: 1fr; }
