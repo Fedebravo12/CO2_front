@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { Accion, Falla } from '../api/control'
 import { fmt } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
@@ -38,7 +38,7 @@ export function ControlManual() {
     },
     {
       nombre: 'Shutter mecánico',
-      detalle: a?.shutter_armado ? 'Armado (cerrado hasta el primer pulso)' : 'Desarmado',
+      detalle: a?.shutter_armado ? 'Armado: se puede abrir y cerrar' : 'Desarmado: bloqueado',
       encendido: Boolean(a?.shutter_armado),
       encender: 'armar_shutter',
       apagar: 'desarmar_shutter',
@@ -81,20 +81,50 @@ export function ControlManual() {
         <section className="panel">
           <h3>ACTUADORES</h3>
           {filas.map((f) => (
-            <div key={f.nombre} className="control-row">
-              <div>
-                <b>{f.nombre}</b>
-                <div style={{ color: 'var(--muted)' }}>{f.detalle}</div>
+            <Fragment key={f.nombre}>
+              <div className="control-row">
+                <div>
+                  <b>{f.nombre}</b>
+                  <div style={{ color: 'var(--muted)' }}>{f.detalle}</div>
+                </div>
+                <button
+                  className={`toggle ${f.encendido ? 'on' : ''}`}
+                  disabled={bloqueado}
+                  onClick={() => enviar(f.encendido ? f.apagar : f.encender)}
+                  aria-label={`${f.encendido ? 'Apagar' : 'Encender'} ${f.nombre}`}
+                >
+                  <i />
+                </button>
               </div>
-              <button
-                className={`toggle ${f.encendido ? 'on' : ''}`}
-                disabled={bloqueado}
-                onClick={() => enviar(f.encendido ? f.apagar : f.encender)}
-                aria-label={`${f.encendido ? 'Apagar' : 'Encender'} ${f.nombre}`}
-              >
-                <i />
-              </button>
-            </div>
+              {f.nombre === 'Shutter mecánico' && (
+                <div className="control-row" style={{ paddingLeft: 16 }}>
+                  <div>
+                    <span>Haz del láser</span>
+                    <div style={{ color: 'var(--muted)' }}>
+                      {a?.shutter_armado ? 'Abrir y cerrar a mano' : 'Arme el shutter para operarlo'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className={!a?.shutter_abierto ? 'primary' : 'ghost'}
+                      type="button"
+                      disabled={bloqueado || !a?.shutter_armado}
+                      onClick={() => enviar('cerrar_shutter')}
+                    >
+                      Cerrado
+                    </button>
+                    <button
+                      className={a?.shutter_abierto ? 'primary' : 'ghost'}
+                      type="button"
+                      disabled={bloqueado || !a?.shutter_armado}
+                      onClick={() => enviar('abrir_shutter')}
+                    >
+                      Abierto
+                    </button>
+                  </div>
+                </div>
+              )}
+            </Fragment>
           ))}
           <div className="control-row">
             <div>

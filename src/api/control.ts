@@ -21,6 +21,8 @@ export type Accion =
   | 'alinear_fibra'
   | 'armar_shutter'
   | 'desarmar_shutter'
+  | 'abrir_shutter'
+  | 'cerrar_shutter'
   | 'encender_laser'
   | 'apagar_laser'
   | 'mover_motor'
