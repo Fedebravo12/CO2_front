@@ -1,7 +1,6 @@
 import { AvisoEmergencia } from '../components/AvisoEmergencia'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { useEffect, useRef, useState } from 'react'
-import logoApp from '../assets/logo-app.webp'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   Bell,
@@ -11,6 +10,7 @@ import {
   Pause,
   Unplug,
   Zap,
+  ScanLine,
   ClipboardList,
   FolderKanban,
   Home,
@@ -149,7 +149,7 @@ export function AppLayout() {
               aria-label={narrow ? 'Cerrar menú' : sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
               title={narrow ? 'Cerrar menú' : sidebarCompact ? 'Expandir menú' : 'Compactar menú'}
             >
-              {narrow ? <X size={18} /> : <img className="brand-logo" src={logoApp} alt="" />}
+              {narrow ? <X size={18} /> : <ScanLine size={18} />}
             </button>
             <div className="brand-title">Sistema de Grabado Láser</div>
           </div>
@@ -210,7 +210,7 @@ export function AppLayout() {
                 aria-label={mobileOpen ? 'Cerrar menú principal' : 'Abrir menú principal'}
                 aria-expanded={mobileOpen} aria-controls="app-sidebar"
                 onClick={() => setMobileOpen(open => !open)}>
-                {mobileOpen ? <X size={18} /> : <img className="brand-logo" src={logoApp} alt="" />}
+                {mobileOpen ? <X size={18} /> : <ScanLine size={18} />}
               </button>
               <h1 className="mobile-bar-title">{seccionActual(pathname)}</h1>
             </div>

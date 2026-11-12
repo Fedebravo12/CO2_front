@@ -6,7 +6,7 @@
 // - /assets/: llevan hash en el nombre, se guardan la primera vez que se piden.
 
 // Subir la versión cuando cambian los íconos: así se descartan los guardados.
-const CACHE = 'co2-app-v2'
+const CACHE = 'co2-app-v3'
 
 self.addEventListener('install', () => self.skipWaiting())
 

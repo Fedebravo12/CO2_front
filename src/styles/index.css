@@ -255,19 +255,15 @@ a { color: inherit; text-decoration: none; }
   border-radius: 50%;
   display: grid;
   place-items: center;
-  overflow: hidden;
-  /* Fondo del logo de la app: también se ve detrás de la X del menú. */
-  background: #001e4b;
-  box-shadow: 0 0 14px rgba(74, 163, 255, 0.35);
-  color: #e8eef4;
+  background: radial-gradient(circle at 35% 30%, #6affc0, #149a5a 62%, #0b3d28);
+  box-shadow: 0 0 16px rgba(62, 224, 137, 0.35);
+  color: #062016;
 }
-.brand-logo { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-.login-card .brand-mark { width: 88px; height: 88px; }
 .sidebar .brand-mark {
   cursor: pointer;
 }
 .sidebar .brand-mark:hover {
-  box-shadow: 0 0 20px rgba(74, 163, 255, 0.55);
+  box-shadow: 0 0 20px rgba(62, 224, 137, 0.55);
 }
 .brand-title {
   font-weight: 700;
