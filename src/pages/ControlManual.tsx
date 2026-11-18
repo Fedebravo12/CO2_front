@@ -15,6 +15,9 @@ import { HardwareManual } from '../components/HardwareManual'
 export function ControlManual() {
   const { rol, estado, controlador: c, controladorVivo, enviar } = useSystem()
   const [pos, setPos] = useState(0)
+  // Con GPIO las variables del arreglo llegan en null: no se calculan las filas fijas.
+  if (c?.modo_hal === 'gpio') return <HardwareManual />
+
   const bloqueado = !controladorVivo || estado === 'EMERGENCIA' || estado === 'GRABANDO'
   const a = controladorVivo ? c?.actuadores : undefined
 
@@ -63,8 +66,6 @@ export function ControlManual() {
       descripcion: 'La bomba pierde caudal. Con alta tensión, dispara la parada de emergencia.',
     },
   ]
-
-  if (c?.modo_hal === 'gpio') return <HardwareManual />
 
   return (
     <>

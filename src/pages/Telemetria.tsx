@@ -5,6 +5,7 @@ import type { TelemetriaControlador as Sample } from '../api/control'
 import { api } from '../api/client'
 import type { Umbral } from '../mock/types'
 import { fmt } from '../components/Meters'
+import { numeroONulo, progresoEjecucion } from '../components/ProgresoEjecucion'
 import { useSystem } from '../context/SystemContext'
 import './Telemetria.css'
 import { HardwareManual } from '../components/HardwareManual'
@@ -15,15 +16,15 @@ const shutter = (s: Sample) => s.actuadores.shutter_abierto ? 'Abierto' : s.actu
 const shutterColors = { Abierto: 'var(--blue)', Armado: 'var(--green)', Desarmado: 'var(--dim)' }
 const channels: Channel[] = [
   { id: 'pot', title: 'POTENCIA LÁSER', unit: 'W', color: 'blue', digits: 2, icon: Sun, parameter: 'POTENCIA_LASER', value: s => s.variables.POTENCIA_LASER, badge: s => s.actuadores.laser ? ['Encendido', 'ok'] : ['Apagado', 'neutral'] },
-  // Sin grabado en curso no hay tiempo de pulso: NaN se muestra como «—».
-  { id: 'pulso', title: 'TIEMPO DE PULSO', unit: 'ms', color: 'blue', digits: 0, icon: Timer, value: s => s.ejecucion?.duracion_pulso_ms ?? NaN },
+  // Sin un pulso medido no hay tiempo de pulso: NaN se muestra como «—».
+  { id: 'pulso', title: 'TIEMPO DE PULSO', unit: 'ms', color: 'blue', digits: 0, icon: Timer, value: s => numeroONulo(s.ejecucion?.ultimo_pulso_ms) ?? NaN },
   { id: 'shutter', title: 'SHUTTER', unit: '', color: 'blue', digits: 0, icon: Aperture, value: () => 0, badge: s => [shutter(s), s.actuadores.shutter_abierto ? 'info' : s.actuadores.shutter_armado ? 'ok' : 'neutral'] },
   { id: 'hv', title: 'ALTA TENSIÓN', unit: 'kV', color: 'orange', digits: 1, icon: Zap, parameter: 'TENSION_AT', value: s => s.variables.TENSION_AT, badge: s => s.condiciones.AT_ENCENDIDA ? ['Activa', 'ok'] : ['Apagada', 'neutral'] },
   { id: 'sombra', title: 'SENSOR DE SOMBRA', unit: 'mW', color: 'yellow', digits: 2, icon: Target, value: s => s.extra.sensor_sombra_mw, badge: s => s.condiciones.FIBRA_ALINEADA ? ['Alineada', 'ok'] : ['No alineada', 'warn'] },
   { id: 'temp', title: 'TEMP. REFRIGERACIÓN', unit: '°C', color: 'teal', digits: 1, icon: Thermometer, parameter: 'TEMPERATURA_AGUA', value: s => s.variables.TEMPERATURA_AGUA, badge: s => s.condiciones.REFRIGERACION_OK ? ['Estable', 'ok'] : s.actuadores.refrigeracion ? ['Estabilizando', 'warn'] : ['Apagada', 'neutral'] },
   { id: 'caudal', title: 'CAUDAL REFRIGERANTE', unit: 'L/min', color: 'green', digits: 2, icon: Droplets, parameter: 'CAUDAL_REFRIGERANTE', value: s => s.variables.CAUDAL_REFRIGERANTE },
   { id: 'pos', title: 'POSICIÓN DESPLAZADOR', unit: 'µm', color: 'green', digits: 0, icon: MoveHorizontal, parameter: 'POSICION_MOTOR', factor: 1000, value: s => s.variables.POSICION_MOTOR * 1000, badge: s => s.ejecucion ? ['En curso', 'info'] : ['Detenido', 'ok'] },
-  { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', color: 'teal', digits: 0, icon: Gauge, value: s => (s.ejecucion?.progreso ?? 0) * 100 },
+  { id: 'prog', title: 'PROGRESO DEL PROCESO', unit: '%', color: 'teal', digits: 0, icon: Gauge, value: s => (progresoEjecucion(s.ejecucion) ?? 0) * 100 },
 ]
 
 // Teléfono en vertical (angosto) o en horizontal (poca altura).

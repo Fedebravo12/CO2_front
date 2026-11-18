@@ -4,6 +4,7 @@ import { ArrowRight, Play, Power, RotateCcw, Snowflake, Zap } from 'lucide-react
 import type { Accion, TelemetriaControlador } from '../api/control'
 import { api } from '../api/client'
 import { fmt } from '../components/Meters'
+import { numeroONulo, progresoEjecucion } from '../components/ProgresoEjecucion'
 import { useSystem } from '../context/SystemContext'
 import type { Ensayo } from '../mock/types'
 
@@ -48,12 +49,16 @@ export function Simulador() {
   const grabando = vivo && t?.estado === 'GRABANDO'
   const emergencia = vivo && t?.estado === 'EMERGENCIA'
   const ejecucion = t?.ejecucion ?? ultima
-  const pulso = Number(resultado?.cantidadMarcas ?? ejecucion?.pulso ?? 0)
-  const total = ejecucion?.pulsos ?? programa?.pulsosEstimados ?? 0
-  const progreso = resultado?.estado === 'Completado' ? 100 : total > 0 ? Math.min(100, pulso / total * 100) : 0
+  // Pulsos hechos sobre los del programa; la barra, acciones sobre el total que publica el back.
+  const pulso = Number(resultado?.cantidadMarcas ?? numeroONulo(ejecucion?.pulsos) ?? 0) || 0
+  const total = programa?.resumen?.pulsos ?? 0
+  const fraccion = progresoEjecucion(ejecucion)
+  const progreso = resultado?.estado === 'Completado' ? 100
+    : fraccion !== null ? fraccion * 100
+    : total > 0 ? Math.min(100, pulso / total * 100) : 0
   const emitiendo = Boolean(a?.laser && a.shutter_abierto && t?.ejecucion?.modo !== 'PRUEBA')
   const posicion = v?.POSICION_MOTOR ?? 0
-  const carrera = Math.max(programa?.distanciaMm ?? 10, ejecucion?.distancia_mm ?? 0, 1)
+  const carrera = Math.max(programa?.resumen?.recorrido.motor_x ?? 10, 1)
   const carro = 680 + Math.min(1, posicion / carrera) * 160
   const bloqueado = !vivo || ocupado || grabando || emergencia
   const fase = !vivo ? 'Sin conexión' : emergencia ? 'Parada de emergencia' : grabando
@@ -148,7 +153,7 @@ export function Simulador() {
         <aside className="lab-console">
           <span className="lab-eyebrow">02 / CONTROL DEL ENSAYO</span><h2>Tu programa</h2>
           <label htmlFor="lab-programa">Programa de grabado</label><select id="lab-programa" value={programa?.id ?? ''} disabled={grabando || ocupado} onChange={e => setProgramaId(e.target.value)}>{!programa && <option value="">Sin programas</option>}{programas.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</select>
-          <div className="lab-recipe"><div><span>Período</span><b>{programa ? fmt(programa.desplazamientoUm, 0) : '—'} <small>µm</small></b></div><div><span>Pulso</span><b>{programa?.duracionPulsoMs ?? '—'} <small>ms</small></b></div><div><span>Potencia objetivo</span><b>{programa ? fmt(programa.potenciaObjetivoMw, 1) : '—'} <small>mW</small></b></div><div><span>Pulsos estimados</span><b>{programa?.pulsosEstimados ?? '—'}</b></div></div>
+          <div className="lab-recipe"><div><span>Pulsos</span><b>{programa?.resumen?.pulsos ?? '—'}</b></div><div><span>Acciones</span><b>{programa?.resumen?.acciones ?? '—'}</b></div><div><span>Duración mínima</span><b>{programa?.resumen ? fmt(programa.resumen.duracionMinimaMs / 1000, 1) : '—'} <small>s</small></b></div></div>
           <button className="ghost lab-action" disabled={bloqueado || t?.falla !== 'ninguna' || a?.laser} onClick={preparar}><Zap size={16} />{ocupado ? 'Preparando…' : 'Preparar simulador'}<ArrowRight size={16} /></button>
           <p className="lab-help">Enciende refrigeración, alta tensión, alinea la fibra y arma el láser en orden.</p>
           <button className="primary lab-action" disabled={bloqueado || !programa || t?.estado !== 'LISTO' || !a?.laser} onClick={() => iniciar('REAL')}><Play size={16} />Ejecutar programa</button>
@@ -166,7 +171,7 @@ export function Simulador() {
           <div className={`lab-grating ${ejecucion?.modo === 'PRUEBA' ? 'trial' : ''}`} aria-label={ejecucion?.modo === 'PRUEBA' ? 'Pasos de pre-grabado, sin marcas físicas' : `${pulso} marcas registradas`}>
             <div className="lab-grating-fiber" />{Array.from({ length: Math.min(total || 18, 120) }, (_, i) => { const numero = Math.ceil((i + 1) * (total || 18) / Math.min(total || 18, 120)); return <i key={i} className={numero <= pulso ? 'done' : ''} title={`${ejecucion?.modo === 'PRUEBA' ? 'Paso' : 'Marca'} ${numero}`} /> })}
           </div>
-          <div className="lab-run-meta"><span>{ejecucion?.registro ?? 'Sin ensayo activo'}{ejecucion?.modo === 'PRUEBA' ? ' · PRE-GRABADO: no graba marcas' : ''}</span><span>{vivo ? `${fmt(ejecucion?.distancia_mm ?? 0, 2)} mm de avance` : 'Datos detenidos'} · {Math.round(progreso)} %</span></div>
+          <div className="lab-run-meta"><span>{ejecucion?.registro ?? 'Sin ensayo activo'}{ejecucion?.modo === 'PRUEBA' ? ' · PRE-GRABADO: no graba marcas' : ''}</span><span>{vivo ? (ejecucion?.ubicacion || '—') : 'Datos detenidos'} · {Math.round(progreso)} %</span></div>
           {resultado && <div className="lab-result"><b>{resultado.estado}</b><span>{resultado.codigoLpg}{resultado.lambda ? ` · Resonancia ${resultado.lambda}` : ''}</span><Link to={`/registro/${resultado.id}`}>Ver ensayo y espectro <ArrowRight size={14} /></Link></div>}
           {t?.mensaje && <p className={`aviso-ctrl ${t.mensaje.nivel}`}>{t.mensaje.texto}</p>}
         </section>

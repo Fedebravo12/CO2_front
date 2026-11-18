@@ -63,16 +63,21 @@ export interface TelemetriaControlador {
     temperatura_laser: number
     frecuencia_hz: number
   }
+  /** Progreso del programa en curso, como lo publica `Maquina._ejecucion_publicada`. */
   ejecucion: {
     registro: string
     programa: string
     modo: 'REAL' | 'PRUEBA'
-    pulso: number
+    /** Acciones terminadas. */
+    acciones: number
+    /** Acciones del programa, con los bucles expandidos. */
+    total: number
+    /** Pulsos ejecutados hasta ahora (no el total del programa). */
     pulsos: number
-    /** Tiempo que el shutter queda abierto en cada marca (tiempo de pulso). */
-    duracion_pulso_ms: number
-    progreso: number
-    distancia_mm: number
+    /** Paso en curso, p. ej. «Paso 2.1 · iteración 3 de 100». */
+    ubicacion: string
+    /** Duración real del último pulso; null antes del primero. */
+    ultimo_pulso_ms: number | null
   } | null
   falla: Falla
   bloqueado: boolean

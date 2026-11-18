@@ -1,4 +1,4 @@
-﻿const { build } = require('esbuild')
+const { build } = require('esbuild')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
 const os = require('node:os')
@@ -13,7 +13,7 @@ const output = path.join(temporary, 'bundle.cjs')
     b.onResolve({ filter: /api\/hardware$/ }, () => ({ path: 'hardware', namespace: 'fixture' }))
     b.onResolve({ filter: /api\/control$/ }, () => ({ path: 'control', namespace: 'fixture' }))
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, a => ({ contents: {
-      hooks: 'export const useState = (...a) => globalThis.hooks.useState(...a); export const useRef = () => ({current:Date.now()}); export const useEffect = () => {}',
+      hooks: 'export const useState = (...a) => globalThis.hooks.useState(...a); export const useRef = () => ({current:Date.now()}); export const useEffect = () => {}; export const useId = () => ":r0:"',
       router: 'export const Link = "a"',
       hardware: 'export const hardwareApi = { comando: (...a) => globalThis.command(...a) }',
       control: 'export const control = { comando: (...a) => globalThis.systemCommand(...a) }',
@@ -26,7 +26,13 @@ const output = path.join(temporary, 'bundle.cjs')
   global.command = async (...args) => { commands.push(args); return { id: 'cmd-1', estado: 'RECIBIDO' } }
   global.systemCommand = async (...args) => { commands.push(args) }
   const nodes = t => !t || typeof t !== 'object' ? [] : Array.isArray(t) ? t.flatMap(nodes) : [t, ...nodes(t.props?.children)]
-  const button = (tree, text) => nodes(tree).find(n => n.type === 'button' && n.props.children === text)
+  const button = (tree, text) => {
+    const directo = nodes(tree).find(n => n.type === 'button' && n.props.children === text)
+    if (directo) return directo
+    const f = nodes(tree).find(n => n.props?.etiqueta === text && n.props.onEnviar)
+    return f && { props: { disabled: f.props.deshabilitado, onClick: () => f.props.onEnviar(Object.fromEntries(Object.entries(f.props.argumentos).map(([k, t]) => [k, t === 'booleano' ? false : 1]))) } }
+  }
+  const comando = (tree, text) => nodes(tree).find(n => n.props?.etiqueta === text && n.props.onEnviar)
   const render = (props = {}) => { index = 0; return HardwareManual(props) }
   render()
   states[0] = { revision_aplicada: 'rev1', revision_deseada: 'rev1', cola: 0, capacidad_cola: 32,
@@ -37,7 +43,7 @@ const output = path.join(temporary, 'bundle.cjs')
     } }
   let tree = render()
   assert.equal(button(tree, 'Armar').props.disabled, false)
-  assert.equal(nodes(tree).filter(n => n.type === 'button' && n.props.children === 'Abrir').length, 1)
+  assert.equal(nodes(tree).filter(n => (n.type === 'button' && n.props.children === 'Abrir') || n.props?.etiqueta === 'Abrir').length, 1)
   await button(tree, 'Armar').props.onClick()
   assert.deepEqual(commands[0], ['Shutter izquierdo', 'armar', {}, 'rev1'])
   tree = render()
@@ -57,5 +63,73 @@ const output = path.join(temporary, 'bundle.cjs')
   assert.equal(button(tree, 'Rearmar después del apagado').props.disabled, true)
   assert.ok(nodes(tree).some(n => n.props?.role === 'alert'))
   assert.ok(nodes(tree).some(n => n.type === 'dd' && n.props.children === '—'))
+  // Fichas: el formulario envía los argumentos tipados
+  const fb = await build({ entryPoints: ['src/components/FormularioComando.tsx'], bundle: true, platform: 'node', format: 'cjs', write: false, plugins: [{ name: 'f2', setup(b) {
+    b.onResolve({ filter: /^react$/ }, () => ({ path: 'hooks', namespace: 'f2' }))
+    b.onResolve({ filter: /api\/hardware$/ }, () => ({ path: 'h', namespace: 'f2' }))
+    b.onResolve({ filter: /^react\// }, a => ({ path: require.resolve(a.path), external: true }))
+    b.onLoad({ filter: /.*/, namespace: 'f2' }, a => ({ contents: a.path === 'h' ? '' : 'export const useState = (...a) => globalThis.hooks.useState(...a); export const useId = () => ":r0:"' }))
+  } }] })
+  const mod = { exports: {} }
+  new Function('module', 'exports', 'require', fb.outputFiles[0].text)(mod, mod.exports, require)
+  const { FormularioComando } = mod.exports
+  const campo = (t, id) => nodes(t).find(n => n.type === 'input' && n.props.id?.endsWith('-' + id))
+  states = []
+  let enviado
+  const form = args => { index = 0; return FormularioComando({ argumentos: args, onEnviar: v => { enviado = v }, deshabilitado: false, etiqueta: 'Ir' }) }
+  const args = { posicion: 'numero', velocidad: 'numero' }
+  let f = form(args)
+  campo(f, 'posicion').props.onChange({ target: { value: '1.5' } })
+  f = form(args)
+  campo(f, 'velocidad').props.onChange({ target: { value: '0.5' } })
+  f = form(args)
+  nodes(f).find(n => n.type === 'button').props.onClick()
+  assert.deepEqual(enviado, { posicion: 1.5, velocidad: 0.5 })
+  states = []; enviado = undefined
+  f = form({})
+  nodes(f).find(n => n.type === 'button').props.onClick()
+  assert.deepEqual(enviado, {}, 'sin argumentos envía {}')
+  states = []; enviado = undefined
+  f = form({ n: 'entero', b: 'booleano' })
+  nodes(f).find(n => n.type === 'button').props.onClick()
+  assert.equal(enviado, undefined, 'argumento numérico vacío no se envía')
+  f = form({ n: 'entero', b: 'booleano' })
+  campo(f, 'n').props.onChange({ target: { value: '1.5' } })
+  f = form({ n: 'entero', b: 'booleano' })
+  nodes(f).find(n => n.type === 'button').props.onClick()
+  assert.equal(enviado, undefined, 'entero no entero bloqueado')
+  f = form({ n: 'entero', b: 'booleano' })
+  campo(f, 'n').props.onChange({ target: { value: '3' } })
+  f = form({ n: 'entero', b: 'booleano' })
+  nodes(f).find(n => n.type === 'button').props.onClick()
+  assert.deepEqual(enviado, { n: 3, b: false }, 'booleano sin marcar envía false')
+  states = []
+  f = form({ n: 'entero', b: 'booleano' })
+  assert.equal(campo(f, 'n').props.step, 1)
+  assert.equal(campo(f, 'b').props.type, 'checkbox')
+  // HardwareManual cablea el formulario al comando
+  states = [] ; render()
+  states[0] = { revision_aplicada: 'rev1', revision_deseada: 'rev1', cola: 0, capacidad_cola: 32, emergencia: false, aplicando: false, resultados: [],
+    componentes: { Eje: { tipo: 'STEPPER_DRV8825', estado: 'Vigente', calidad: 'OK', operaciones: { mover_a: args, detener: {} }, valores: {} } } }
+  tree = render()
+  assert.deepEqual(comando(tree, 'Mover a posición').props.argumentos, args)
+  await comando(tree, 'Mover a posición').props.onEnviar({ posicion: 1.5, velocidad: 0.5 })
+  assert.deepEqual(commands.at(-1), ['Eje', 'mover_a', { posicion: 1.5, velocidad: 0.5 }, 'rev1'])
+  // Administración: componente con rol
+  const hb = await build({ entryPoints: ['src/api/hardware.ts'], bundle: true, platform: 'node', format: 'cjs', write: false, plugins: [{ name: 'f3', setup(b) {
+    b.onResolve({ filter: /\/http$/ }, () => ({ path: 'x', namespace: 'f3' }))
+    b.onLoad({ filter: /.*/, namespace: 'f3' }, () => ({ contents: 'export const pedir = () => {}' }))
+  } }] })
+  const hm = { exports: {} }
+  new Function('module', 'exports', 'require', hb.outputFiles[0].text)(hm, hm.exports, require)
+  const { armarComponente, rolesPosibles } = hm.exports
+  const comp = armarComponente({ tipo: 'DS18B20', pines: {}, estado: 'Vigente', parametros: {}, rol: 'TEMPERATURA_AGUA', ganancia: '2', offset: '0.5', inhibir_en_prueba: true })
+  assert.equal(comp.rol, 'TEMPERATURA_AGUA'); assert.equal(comp.ganancia, 2); assert.equal(comp.offset, 0.5); assert.equal(comp.inhibir_en_prueba, true)
+  assert.ok(!('ganancia' in armarComponente({ tipo: 'X', pines: {}, estado: 'Vigente', parametros: {}, rol: 'LASER', ganancia: 3 })))
+  const vacio = armarComponente({ tipo: 'DS18B20', pines: {}, estado: 'Vigente', parametros: {}, rol: 'TEMPERATURA_AGUA', ganancia: '', offset: '  ' })
+  assert.ok(!('ganancia' in vacio) && !('offset' in vacio), 'en blanco se omite, nunca 0')
+  assert.throws(() => armarComponente({ tipo: 'X', pines: {}, estado: 'Vigente', parametros: {}, rol: 'TEMPERATURA_AGUA', ganancia: 'abc' }))
+  assert.deepEqual(rolesPosibles({ armado: 'booleano' }), [])
+  assert.deepEqual(rolesPosibles({ temperatura_c: 'numero' }), ['TEMPERATURA_AGUA', 'TEMPERATURA_LASER'])
   console.log('PASS: named instances, disabled components, correlated pending command, stop priority, read-only telemetry and disconnected state')
 })().finally(() => fs.rmSync(temporary, { recursive: true, force: true }))

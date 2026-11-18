@@ -14,13 +14,14 @@ import type {
   Alerta,
   Auditoria,
   CatalogoProcedimientos,
+  ComponenteConfig,
   Condicion,
   Ensayo,
   FiltrosEnsayo,
   HardwareConfig,
   PasoGuiado,
-  PerfilPeriodo,
   ProcedimientoGuiado,
+  NodoPaso,
   Programa,
   Rol,
   Umbral,
@@ -92,16 +93,16 @@ interface EnsayoApi {
 interface ProgramaApi {
   codigo: string
   nombre: string
+  descripcion: string
   version: number
-  potencia_objetivo_mw: number
-  duracion_pulso_ms: number
-  perfil_periodo: PerfilPeriodo
-  desplazamiento_um: number
-  incremento_um: number | null
-  factor: number | null
-  criterio_fin: CriterioFin
-  distancia_mm: number
-  pulsos: number
+  pasos: NodoPaso[]
+  resumen: {
+    acciones: number
+    pulsos: number
+    recorrido: Record<string, number>
+    duracion_minima_ms: number
+  } | null
+  validado: boolean
   procedimiento: string | null
   procedimiento_nombre: string
   creado_por: string
@@ -160,32 +161,6 @@ const ESTADO_API = Object.fromEntries(
 
 const RESULTADO_DE_RED = { VIABLE: 'OK', INVIABLE: 'Inviable', ROTA: 'Rota' } as const
 
-/** Criterios de fin que ofrece el formulario de programas. */
-export const CRITERIOS_FIN: { valor: CriterioFin; etiqueta: string }[] = [
-  { valor: 'LONGITUD', etiqueta: 'Distancia total' },
-  { valor: 'CANT_MARCAS', etiqueta: 'Cantidad de pulsos' },
-  { valor: 'MANUAL', etiqueta: 'Manual' },
-]
-
-/** Perfiles de período que ofrece el formulario de programas. */
-export const PERFILES_PERIODO: { valor: PerfilPeriodo; etiqueta: string }[] = [
-  { valor: 'CONSTANTE', etiqueta: 'Constante' },
-  { valor: 'LINEAL', etiqueta: 'Lineal (chirp)' },
-  { valor: 'EXPONENCIAL', etiqueta: 'Exponencial' },
-]
-
-const ETIQUETA_CRITERIO: Record<CriterioFin, string> = {
-  LONGITUD: 'Distancia total',
-  CANT_MARCAS: 'Cantidad de pulsos',
-  MANUAL: 'Manual',
-  TIEMPO: 'Tiempo',
-  ATENUACION_OBJETIVO: 'Atenuación objetivo',
-}
-
-export function criterioDeEtiqueta(etiqueta: string): CriterioFin {
-  return CRITERIOS_FIN.find((c) => c.etiqueta === etiqueta)?.valor ?? 'MANUAL'
-}
-
 function dos(n: number) {
   return String(n).padStart(2, '0')
 }
@@ -242,16 +217,18 @@ function aPrograma(p: ProgramaApi): Programa {
   return {
     id: p.codigo,
     nombre: p.nombre,
+    descripcion: p.descripcion ?? '',
     version: p.version,
-    potenciaObjetivoMw: p.potencia_objetivo_mw,
-    duracionPulsoMs: p.duracion_pulso_ms,
-    perfilPeriodo: p.perfil_periodo,
-    desplazamientoUm: p.desplazamiento_um,
-    incrementoUm: p.incremento_um,
-    factor: p.factor,
-    criterioFin: ETIQUETA_CRITERIO[p.criterio_fin] ?? p.criterio_fin,
-    distanciaMm: p.distancia_mm,
-    pulsosEstimados: p.pulsos,
+    pasos: p.pasos ?? [],
+    resumen: p.resumen
+      ? {
+          acciones: p.resumen.acciones,
+          pulsos: p.resumen.pulsos,
+          recorrido: p.resumen.recorrido,
+          duracionMinimaMs: p.resumen.duracion_minima_ms,
+        }
+      : null,
+    validado: p.validado,
     creadoPor: p.creado_por || '—',
     actualizado: fmtFecha(p.actualizado_en, false),
     procedimiento: p.procedimiento,
@@ -259,10 +236,8 @@ function aPrograma(p: ProgramaApi): Programa {
   }
 }
 
-type DatosPrograma = Omit<
-  Programa,
-  'id' | 'version' | 'actualizado' | 'creadoPor' | 'procedimientoNombre'
->
+/** Datos editables de un programa. */
+export type DatosPrograma = Pick<Programa, 'nombre' | 'descripcion' | 'procedimiento' | 'pasos'>
 
 function aProcedimiento(p: ProcedimientoApi): ProcedimientoGuiado {
   return {
@@ -314,22 +289,13 @@ function deProcedimientoAApi(d: DatosProcedimiento) {
   }
 }
 
-function deProgramaAApi(d: DatosPrograma) {
-  const criterio = criterioDeEtiqueta(d.criterioFin)
+/** Cuerpo que se envía al guardar: el árbol de pasos va tal cual lo valida el back. */
+export function deProgramaAApi(d: DatosPrograma) {
   return {
     nombre: d.nombre,
-    potencia_objetivo_mw: d.potenciaObjetivoMw,
-    duracion_pulso_ms: d.duracionPulsoMs,
-    perfil_periodo: d.perfilPeriodo,
-    desplazamiento_um: d.desplazamientoUm,
-    // El backend rechaza los parámetros que el perfil elegido no usa.
-    incremento_um: d.perfilPeriodo === 'LINEAL' ? d.incrementoUm : null,
-    factor: d.perfilPeriodo === 'EXPONENCIAL' ? d.factor : null,
-    criterio_fin: criterio,
-    // Según el criterio, el backend usa uno y deriva el otro.
-    distancia_mm: criterio === 'CANT_MARCAS' ? null : d.distanciaMm || null,
-    pulsos: criterio === 'LONGITUD' ? null : d.pulsosEstimados || null,
+    descripcion: d.descripcion,
     procedimiento: d.procedimiento,
+    pasos: d.pasos,
   }
 }
 
@@ -450,6 +416,9 @@ export const api = {
       throw e
     }
   },
+
+  /** Inventario contra el que el back valida los programas (componentes con su ficha). */
+  inventarioProgramas: () => pedir<{ componentes: Record<string, ComponenteConfig> }>('/programas/inventario/'),
 
   listarProgramas: async (): Promise<Programa[]> =>
     (await pedir<ProgramaApi[]>('/programas/')).map(aPrograma),

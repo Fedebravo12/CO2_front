@@ -16,7 +16,7 @@ import type {
 } from '../mock/types'
 import { useAuth } from '../context/AuthContext'
 import { useSystem } from '../context/SystemContext'
-import { hardwareApi, type DriverInfo } from '../api/hardware'
+import { armarComponente, esRolNumerico, hardwareApi, rolesPosibles, type DriverInfo } from '../api/hardware'
 
 const ROLES: Rol[] = ['Operador', 'Investigador', 'Administrador']
 
@@ -50,7 +50,11 @@ const NUEVO_COMPONENTE_VACIO = {
     pines: {} as Record<string, string>,
     estado: 'Vigente' as EstadoComponente,
     parametros: {},
-  },
+    rol: '',
+    ganancia: 1,
+    offset: 0,
+    inhibir_en_prueba: false,
+  } as ComponenteConfig,
 }
 
 export function Administracion() {
@@ -299,12 +303,19 @@ export function Administracion() {
       if (!parametros || typeof parametros !== 'object' || Array.isArray(parametros)) throw new Error()
     } catch { setErrorHw('Los parámetros deben ser un objeto JSON válido.'); return }
     if (!catalogo[formComp.config.tipo]) { setErrorHw('Seleccione un driver del catálogo.'); return }
-    const nuevoComponente: ComponenteConfig = {
-      tipo: formComp.config.tipo.trim(),
-      pines: formComp.config.pines,
-      estado: editComp ? hardware.componentes[editComp].estado : 'Vigente',
-      parametros,
-    }
+    let nuevoComponente: ComponenteConfig
+    try {
+      nuevoComponente = armarComponente({
+        tipo: formComp.config.tipo,
+        pines: formComp.config.pines,
+        estado: editComp ? hardware.componentes[editComp].estado : 'Vigente',
+        parametros,
+        rol: formComp.config.rol,
+        ganancia: formComp.config.ganancia,
+        offset: formComp.config.offset,
+        inhibir_en_prueba: formComp.config.inhibir_en_prueba,
+      })
+    } catch (e) { setErrorHw((e as Error).message); return }
 
     setHardware((prev) => ({
       ...prev,
@@ -622,9 +633,11 @@ export function Administracion() {
                         <td>
                           <button type="button" className="ghost" onClick={() => {
                             setEditComp(nombre)
+                            const rolValido = item.rol && rolesPosibles(catalogo[item.tipo]?.campos).includes(item.rol)
                             setFormComp({ nombre, config: { tipo: item.tipo, estado: item.estado,
                               pines: Object.fromEntries(Object.entries(item.pines).map(([k, v]) => [k, String(v)])),
-                              parametros: item.parametros ?? {} } })
+                              parametros: item.parametros ?? {}, rol: rolValido ? item.rol : '', ganancia: item.ganancia ?? 1,
+                              offset: item.offset ?? 0, inhibir_en_prueba: item.inhibir_en_prueba ?? false } })
                             setParametrosTexto(JSON.stringify(item.parametros ?? {}, null, 2))
                             setModalOpen(true)
                           }}>Editar</button>
@@ -871,7 +884,7 @@ export function Administracion() {
                 onChange={(e) => {
                   const tipo = e.target.value
                   const info = catalogo[tipo]
-                  setFormComp(prev => ({ ...prev, config: { ...prev.config, tipo,
+                  setFormComp(prev => ({ ...prev, config: { ...prev.config, tipo, rol: '',
                     pines: Object.fromEntries((info?.pines ?? []).map(pin => [pin, ''])) } }))
                   setParametrosTexto(JSON.stringify(info?.parametros ?? {}, null, 2))
                 }}
@@ -883,6 +896,31 @@ export function Administracion() {
             <div className="field">
               <label>Parámetros del componente (JSON)</label>
               <textarea rows={6} value={parametrosTexto} onChange={e => setParametrosTexto(e.target.value)} />
+            </div>
+
+            <div className="field">
+              <label htmlFor="comp-rol">Rol</label>
+              <select id="comp-rol" value={formComp.config.rol ?? ''}
+                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, rol: e.target.value } }))}>
+                <option value="">Sin rol</option>
+                {rolesPosibles(catalogo[formComp.config.tipo]?.campos).map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            {esRolNumerico(formComp.config.rol) && <>
+              <div className="field">
+                <label htmlFor="comp-ganancia">Ganancia</label>
+                <input id="comp-ganancia" type="number" step="any" value={formComp.config.ganancia ?? 1}
+                  onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, ganancia: e.target.value as unknown as number } }))} />
+              </div>
+              <div className="field">
+                <label htmlFor="comp-offset">Offset</label>
+                <input id="comp-offset" type="number" step="any" value={formComp.config.offset ?? 0}
+                  onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, offset: e.target.value as unknown as number } }))} />
+              </div>
+            </>}
+            <div className="field">
+              <label><input type="checkbox" checked={!!formComp.config.inhibir_en_prueba}
+                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, inhibir_en_prueba: e.target.checked } }))} /> Inhibir en modo prueba</label>
             </div>
 
             {/* Carga dinámica de N pines con nombre y asignación (ej: Trig -> GPIO17) */}

@@ -1,15 +1,16 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { control } from '../api/control'
-import { hardwareApi, type HardwareEstado } from '../api/hardware'
+import { hardwareApi, type HardwareEstado, type ValorArgumento } from '../api/hardware'
+import { FormularioComando } from './FormularioComando'
 
 const ETIQUETAS: Record<string, string> = {
   armar: 'Armar', desarmar: 'Desarmar', abrir: 'Abrir', cerrar: 'Cerrar',
-  encender: 'Encender', apagar: 'Apagar', mover: 'Mover', referenciar: 'Declarar posición de referencia',
+  encender: 'Encender', apagar: 'Apagar', mover: 'Mover (relativo)', mover_a: 'Mover a posición', detener: 'Detener', pulso: 'Pulso', referenciar: 'Declarar posición de referencia',
   deshabilitar: 'Deshabilitar', salida_activa: 'Salida eléctrica activa',
   salida_apertura: 'Salida de apertura activa', armado: 'Armado', activo: 'Entrada activa',
   temperatura_c: 'Temperatura (°C)', tension_v: 'Tensión medida (V)',
-  posicion_estimada_mm: 'Posición estimada (mm)', referenciado: 'Referencia declarada',
+  posicion: 'Posición', posicion_estimada_mm: 'Posición estimada (mm)', referenciado: 'Referencia declarada',
   habilitado: 'Motor habilitado',
 }
 
@@ -18,7 +19,6 @@ export function HardwareManual({ soloLectura = false }: { soloLectura?: boolean 
   const [errorConexion, setErrorConexion] = useState('')
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState<string | null>(null)
-  const [posiciones, setPosiciones] = useState<Record<string, string>>({})
   const [pendientes, setPendientes] = useState<Record<string, { id: string; desde: number }>>({})
   const ultima = useRef(0)
 
@@ -52,17 +52,12 @@ export function HardwareManual({ soloLectura = false }: { soloLectura?: boolean 
 
   const conectado = !!estado && !errorConexion && Date.now() - ultima.current < 3500
   const bloqueado = !conectado || !estado?.revision_aplicada || estado.emergencia || estado.aplicando
-  const ejecutar = async (nombre: string, operacion: string, necesitaPosicion: boolean) => {
+  const ejecutar = async (nombre: string, operacion: string, argumentos: Record<string, ValorArgumento>) => {
     if (!estado?.revision_aplicada || bloqueado || enviando || pendientes[nombre]) return
     setEnviando(nombre)
     setError('')
     try {
-      const texto = posiciones[nombre] ?? ''
-      if (necesitaPosicion && (!texto.trim() || !Number.isFinite(Number(texto)))) {
-        throw new Error('Ingrese una posición válida en milímetros.')
-      }
-      const r = await hardwareApi.comando(nombre, operacion,
-        necesitaPosicion ? { posicion_mm: Number(texto) } : {}, estado.revision_aplicada)
+      const r = await hardwareApi.comando(nombre, operacion, argumentos, estado.revision_aplicada)
       setPendientes(prev => ({ ...prev, [nombre]: { id: r.id, desde: Date.now() } }))
     } catch (e) { setError((e as Error).message) }
     finally { setEnviando(null) }
@@ -102,16 +97,10 @@ export function HardwareManual({ soloLectura = false }: { soloLectura?: boolean 
           </div>)}</dl>
           {c.ts && <small>Última lectura: {new Date(c.ts).toLocaleTimeString()}</small>}
           {!soloLectura && !inactivo && <>
-            {c.tipo === 'STEPPER_DRV8825' && <div className="field">
-              <label htmlFor={`pos-${nombre}`}>Posición (mm)</label>
-              <input id={`pos-${nombre}`} type="number" min={0} max={Number(c.parametros?.carrera_max_mm ?? 300)} step="any"
-                value={posiciones[nombre] ?? ''} onChange={e => setPosiciones(p => ({ ...p, [nombre]: e.target.value }))} />
-              <small>Para referenciar, sitúe primero el eje físicamente en la posición indicada. Esta acción no mueve el motor.</small>
-            </div>}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-              {Object.entries(c.operaciones).map(([op, args]) => <button type="button" className="ghost" key={op}
-                disabled={bloqueado || !!pendiente || !!enviando}
-                onClick={() => ejecutar(nombre, op, 'posicion_mm' in args)}>{ETIQUETAS[op] ?? op}</button>)}
+              {Object.entries(c.operaciones).map(([op, args]) => <FormularioComando key={op}
+                etiqueta={ETIQUETAS[op] ?? op} argumentos={args} deshabilitado={bloqueado || !!pendiente || !!enviando}
+                onEnviar={valores => ejecutar(nombre, op, valores)} />)}
             </div>
             {pendiente && <p role="status">{resultado?.estado ?? 'Esperando recepción del controlador…'}
               {!resultado && Date.now() - pendiente.desde > 15000 && ' No se recibió confirmación; no repita la orden sin revisar el equipo.'}</p>}

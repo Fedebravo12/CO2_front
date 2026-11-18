@@ -41,21 +41,32 @@ export interface Subsistema {
   tono: 'neutral' | 'ok' | 'info' | 'warn' | 'danger'
 }
 
-export type PerfilPeriodo = 'CONSTANTE' | 'LINEAL' | 'EXPONENCIAL'
+/** Nodo del árbol de pasos de un programa; replica la forma que valida `controller.programa`. */
+export type NodoPaso =
+  | { tipo: 'ACCION'; componente: string; comando: string; argumentos: Record<string, number | boolean> }
+  | { tipo: 'ESPERA'; duracion_ms: number }
+  | { tipo: 'BUCLE'; repeticiones: number; pasos: NodoPaso[] }
+  | { tipo: 'PARALELO'; pasos: NodoPaso[] }
+
+/** Lo que hará un programa, contado sin ejecutarlo. */
+export interface ResumenPasos {
+  acciones: number
+  pulsos: number
+  /** Recorrido total por componente (en la unidad de su eje). */
+  recorrido: Record<string, number>
+  duracionMinimaMs: number
+}
 
 export interface Programa {
   id: string
   nombre: string
+  descripcion: string
   version: number
-  potenciaObjetivoMw: number
-  duracionPulsoMs: number
-  perfilPeriodo: PerfilPeriodo
-  desplazamientoUm: number
-  incrementoUm: number | null
-  factor: number | null
-  criterioFin: string
-  distanciaMm: number
-  pulsosEstimados: number
+  pasos: NodoPaso[]
+  /** `null` si el árbol ya no valida contra el hardware actual. */
+  resumen: ResumenPasos | null
+  /** `false`: programa viejo que hay que rearmar con pasos. */
+  validado: boolean
   creadoPor: string
   actualizado: string
   /** Código del procedimiento guiado que se sigue con este programa. */
@@ -246,6 +257,10 @@ export interface ComponenteConfig {
   pines: Record<string, number | string> // Mapea "Trig" -> "GPIO17"
   parametros?: Record<string, any>
   estado: EstadoComponente
+  rol?: string
+  ganancia?: number
+  offset?: number
+  inhibir_en_prueba?: boolean
 }
 
 export interface HardwareConfig {

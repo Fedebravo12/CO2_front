@@ -287,10 +287,10 @@ export function SystemProvider({ children }: { children: ReactNode }) {
       controlador && vivo
         ? aTelemetria(controlador, {
             ...TELEMETRIA_BASE,
-            tiempoPulsoMs: programa?.duracionPulsoMs ?? TELEMETRIA_BASE.tiempoPulsoMs,
+            tiempoPulsoMs: TELEMETRIA_BASE.tiempoPulsoMs,
           })
         : TELEMETRIA_SIN_DATOS,
-    [controlador, vivo, programa?.duracionPulsoMs],
+    [controlador, vivo],
   )
 
   const conexion: Conexion = {

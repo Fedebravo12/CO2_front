@@ -18,7 +18,7 @@ const output = path.join(temporary, 'bundle.cjs')
   global.document = { getElementById: () => null }
   global.localStorage = { getItem: () => 'C' }
   const now = new Date()
-  const sample = { ts: now.toISOString(), hz: 1, variables: { POTENCIA_LASER: 14, TENSION_AT: 18, TEMPERATURA_AGUA: 20, CAUDAL_REFRIGERANTE: 2.6, POSICION_MOTOR: 10 }, extra: { frecuencia_hz: 2, sensor_sombra_mw: .12 }, condiciones: { AT_ENCENDIDA: true, FIBRA_ALINEADA: true, REFRIGERACION_OK: true }, actuadores: { laser: true, shutter_abierto: true, shutter_armado: true, refrigeracion: true }, ejecucion: { progreso: .4, duracion_pulso_ms: 400 } }
+  const sample = { ts: now.toISOString(), hz: 1, variables: { POTENCIA_LASER: 14, TENSION_AT: 18, TEMPERATURA_AGUA: 20, CAUDAL_REFRIGERANTE: 2.6, POSICION_MOTOR: 10 }, extra: { frecuencia_hz: 2, sensor_sombra_mw: .12 }, condiciones: { AT_ENCENDIDA: true, FIBRA_ALINEADA: true, REFRIGERACION_OK: true }, actuadores: { laser: true, shutter_abierto: true, shutter_armado: true, refrigeracion: true }, ejecucion: { registro: 'ENS-1', programa: 'P', modo: 'REAL', acciones: 4, total: 10, pulsos: 2, ubicacion: 'Paso 2 · iteración 2 de 5', ultimo_pulso_ms: 400 } }
   global.fixture = { now, controlador: sample, controladorVivo: true, historialTelemetria: [{ ...sample, ts: new Date(+now - 5000).toISOString() }, sample] }
   let html = renderToStaticMarkup(React.createElement(Telemetria))
   assert.equal((html.match(/aria-label="Ampliar/g) || []).length, 9)

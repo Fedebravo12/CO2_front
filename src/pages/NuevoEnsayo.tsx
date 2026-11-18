@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { Check, ChevronDown, Lock } from 'lucide-react'
 import type { Accion } from '../api/control'
 import { fmt, LinearBar } from '../components/Meters'
+import { ProgresoEjecucion } from '../components/ProgresoEjecucion'
 import { useSystem } from '../context/SystemContext'
 import type { PasoGuiado, ValidacionPaso } from '../mock/types'
 import { comandosDe, estadoDe, evaluar, fuentesDe, type Fuentes } from '../procedimientos/interprete'
@@ -430,28 +431,31 @@ export function NuevoEnsayo() {
                   </div>
                 )}
                 <div className="kv">
-                  <div>
-                    <span>Potencia objetivo</span>
-                    <b>{fmt(programa.potenciaObjetivoMw)} mW</b>
-                  </div>
-                  <div>
-                    <span>Duración de pulso</span>
-                    <b>{programa.duracionPulsoMs} ms</b>
-                  </div>
-                  <div>
-                    <span>Desplazamiento</span>
-                    <b>{programa.desplazamientoUm} µm</b>
-                  </div>
-                  <div>
-                    <span>Criterio de fin</span>
-                    <b>
-                      {programa.criterioFin} · {fmt(programa.distanciaMm)} mm
-                    </b>
-                  </div>
-                  <div>
-                    <span>Pulsos estimados</span>
-                    <b>{programa.pulsosEstimados} pulsos</b>
-                  </div>
+                  {programa.resumen ? (
+                    <>
+                      <div>
+                        <span>Pulsos</span>
+                        <b>{programa.resumen.pulsos} pulsos</b>
+                      </div>
+                      <div>
+                        <span>Recorrido</span>
+                        <b>
+                          {Object.entries(programa.resumen.recorrido)
+                            .map(([motor, v]) => `${motor} ${fmt(v)}`)
+                            .join(' · ') || '—'}
+                        </b>
+                      </div>
+                      <div>
+                        <span>Duración mínima</span>
+                        <b>{fmt(programa.resumen.duracionMinimaMs / 1000, 1)} s</b>
+                      </div>
+                    </>
+                  ) : (
+                    <div>
+                      <span>Resumen</span>
+                      <b>{programa.validado ? 'No disponible con el hardware actual' : 'Rearmar con pasos'}</b>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -467,10 +471,10 @@ export function NuevoEnsayo() {
             </div>
             <div className="mini-grid">
               {[
-                ['Potencia', `${fmt(tel.potenciaMw)} mW`, tel.potenciaMw, Math.max(20, (programa?.potenciaObjetivoMw ?? 10) * 1.5)],
+                ['Potencia', `${fmt(tel.potenciaMw)} mW`, tel.potenciaMw, 20],
                 ['Temp. láser', `${fmt(tel.tempLaser, 1)} °C`, tel.tempLaser, 80],
                 ['Temp. refr.', `${fmt(tel.tempRefrigeracion, 1)} °C`, tel.tempRefrigeracion, 40],
-                ['Pos. despl.', `${fmt(tel.posicionUm, 0)} µm`, tel.posicionUm, Math.max(10000, (programa?.distanciaMm ?? 10) * 1000)],
+                ['Pos. despl.', `${fmt(tel.posicionUm, 0)} µm`, tel.posicionUm, 10000],
                 ['Alta tensión', `${fmt(tel.voltajeHv / 1000, 1)} kV`, tel.voltajeHv / 1000, 30],
                 ['Sensor som.', `${fmt(tel.sensorSombraMw)} mW`, tel.sensorSombraMw, 3],
               ].map(([label, val, raw, max]) => (
@@ -481,15 +485,7 @@ export function NuevoEnsayo() {
                 </div>
               ))}
             </div>
-            {controlador?.ejecucion && (
-              <div style={{ marginTop: 12 }}>
-                <label style={{ color: 'var(--muted)', fontSize: 12 }}>
-                  {controlador.ejecucion.programa} · {controlador.ejecucion.pulso}/{controlador.ejecucion.pulsos} pulsos ·{' '}
-                  {fmt(controlador.ejecucion.distancia_mm)} mm
-                </label>
-                <LinearBar value={controlador.ejecucion.progreso * 100} min={0} max={100} color="var(--green)" />
-              </div>
-            )}
+            {controlador?.ejecucion && <ProgresoEjecucion ejecucion={controlador.ejecucion} />}
           </div>
         </aside>
       </div>

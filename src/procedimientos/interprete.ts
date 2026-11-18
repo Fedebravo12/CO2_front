@@ -12,6 +12,7 @@
 
 import type { TelemetriaControlador } from '../api/control'
 import { fmt } from '../components/Meters'
+import { numeroONulo, progresoEjecucion } from '../components/ProgresoEjecucion'
 import type { EnsayoActual } from '../context/SystemContext'
 import type { AccionPaso, Condicion, Indicador, Programa, Tono } from '../mock/types'
 
@@ -40,18 +41,23 @@ export function fuentesDe({ t, programa, ensayo }: ContextoPaso): Fuentes {
   const ej = t.ejecucion
   f['ejecucion.activa'] = Boolean(ej)
   if (ej) {
+    // El progreso que publica el controlador; lo que no llega queda ausente, nunca NaN.
     f['ejecucion.modo'] = ej.modo
-    f['ejecucion.pulso'] = ej.pulso
-    f['ejecucion.pulsos'] = ej.pulsos
-    f['ejecucion.progreso'] = ej.progreso
-    f['ejecucion.distancia_mm'] = ej.distancia_mm
+    f['ejecucion.acciones'] = numeroONulo(ej.acciones) ?? undefined
+    f['ejecucion.total'] = numeroONulo(ej.total) ?? undefined
+    f['ejecucion.pulsos'] = numeroONulo(ej.pulsos) ?? undefined
+    f['ejecucion.progreso'] = progresoEjecucion(ej) ?? undefined
+    f['ejecucion.ubicacion'] = ej.ubicacion || undefined
+    f['ejecucion.ultimo_pulso_ms'] = numeroONulo(ej.ultimo_pulso_ms) ?? undefined
   }
   f['programa.seleccionado'] = Boolean(programa)
-  f['programa.tiene_criterio_fin'] = Boolean(programa?.criterioFin)
   if (programa) {
     f['programa.nombre'] = programa.nombre
-    f['programa.distancia_mm'] = programa.distanciaMm
-    f['programa.pulsos'] = programa.pulsosEstimados
+    // Sin resumen (programa sin validar) no se inventa ningún valor: el hecho queda ausente.
+    if (programa.resumen) {
+      f['programa.pulsos'] = programa.resumen.pulsos
+      f['programa.duracion_min_s'] = programa.resumen.duracionMinimaMs / 1000
+    }
   }
   f['ensayo.lanzado'] = Boolean(ensayo)
   f['ensayo.terminado'] = Boolean(ensayo?.resultado)
