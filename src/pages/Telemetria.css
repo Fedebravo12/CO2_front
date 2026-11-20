@@ -39,8 +39,23 @@
 .tc-detalle-panel .tc-plot.expanded { flex: 1; height: auto; min-height: 160px; }
 .tc-detail { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
 .tc-detail-head, .tc-detail-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.tc-detail-head .tc-heading { flex: 1; }
-.tc-detail-head button { display: inline-flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; }
+/* Volver solo en su fila, arriba a la izquierda; debajo, el canal y su estado. */
+.tc-detail-head .tc-heading { flex: 1; min-width: 0; }
+.tc-detail-head h3 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: clamp(17px, 1.8vw, 24px); font-weight: 700; letter-spacing: .04em; color: var(--text); }
+.tc-detail-head .tc-heading { gap: 12px; }
+.tc-detail-head .tc-icon { width: 40px; height: 40px; }
+.tc-detail-head .tc-badge { font-size: 13px; padding: 5px 10px; }
+.tc-detail-head .tc-badge { flex: none; white-space: nowrap; }
+/* Teléfono: sin ícono y con el título algo menor, así nombre y estado entran en una línea. */
+@media (max-width: 600px) {
+  .tc-detail-head .tc-icon { display: none; }
+  .tc-detail-head h3 { font-size: 15px; letter-spacing: .02em; }
+  .tc-detail-head .tc-badge { font-size: 12px; padding: 4px 8px; }
+}
+.tc-detail-volver { display: flex; }
+.tc-detail-volver button { display: inline-flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; }
+.tc-detail-volver button { gap: 4px; padding: 4px 10px 4px 8px; font-size: 13px; color: var(--muted); }
+.tc-detail-volver button:hover { color: var(--text); }
 .tc-axis { position: absolute; inset: 3px auto 3px 6px; display: flex; flex-direction: column; justify-content: space-between; font: 10px var(--mono); color: var(--muted); }
 @media (max-width: 680px) { .tc-detail { padding: 14px; } .tc-detail-summary { flex-wrap: wrap; } }
 

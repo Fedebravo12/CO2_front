@@ -365,7 +365,8 @@ export function Telemetria() {
       </button>)}
     </section>}
     {selected && <section className="tc-detail tc-detalle-panel" aria-label={`Tendencia de ${selected.title}`}>
-      <div className="tc-detail-head">{heading(selected)}<button type="button" autoFocus onClick={() => setSelected(null)}><ArrowLeft size={18} /> Volver</button></div>
+      <div className="tc-detail-volver"><button type="button" autoFocus onClick={() => setSelected(null)}><ArrowLeft size={15} aria-hidden="true" /> Volver</button></div>
+      <div className="tc-detail-head">{heading(selected)}</div>
       <div className="tc-detail-summary"><div className="tc-value" style={{ color: color(selected) }}>{value(selected)} <small>{selected.unit}</small></div>{picker}</div>
       <p className="tc-foot">{stats(selected)}</p>{chart(selected, true)}
       <div className="tc-foot"><span>−{windowLabel}</span>{selected.id === 'shutter' && <span><span style={{ color: 'var(--trend)' }}>▬ Arriba abierto · abajo cerrado</span></span>}<span>ahora</span></div>
