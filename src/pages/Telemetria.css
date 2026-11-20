@@ -1,7 +1,7 @@
 .tc-warning { color: var(--red); }
 .tc-window { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .tc-window select { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; font: inherit; }
-.tc-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--scada-gap); min-height: 0; flex: 1; grid-template-rows: repeat(3, minmax(0, 1fr)); }
+.tc-grid { display: grid; grid-template-columns: repeat(var(--tc-cols, 3), minmax(0, 1fr)); gap: var(--scada-gap); min-height: 0; flex: 1; grid-template-rows: repeat(var(--tc-rows, 3), minmax(0, 1fr)); }
 .tc-card { text-align: left; color: var(--text); background: var(--surface); border: 3px solid var(--border); border-radius: 14px; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; cursor: pointer; }
 .tc-card:hover { background: var(--surface-2); }
 .tc-card:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
@@ -91,7 +91,7 @@
   .app-dashboard .page { flex: 1 0 auto; padding: 8px 8px calc(12px + env(safe-area-inset-bottom)); }
   .tc-grid { flex: 1 0 auto; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: auto; align-content: stretch; gap: 8px; }
   /* Nueve tarjetas en dos columnas: el progreso ocupa la última fila entera. */
-  .tc-grid > .tc-card:last-child { grid-column: 1 / -1; }
+  .tc-grid > .tc-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .tc-grid > .tc-card { padding: 10px 12px; gap: 6px; justify-content: space-between; border-width: 2px; }
   .tc-card .tc-heading { flex-wrap: wrap; align-items: flex-start; gap: 5px 8px; }
   .tc-card .tc-icon { display: none; }
@@ -101,12 +101,16 @@
   .tc-simple .tc-card .tc-value { font-size: 26px; }
   .tc-card .tc-value small { font-size: .45em; }
   .tc-card .tc-foot { display: none; }
+  /* La marca de «oculta» sigue a la vista aunque el pie se esconda. */
+  .tc-card.tc-forzada .tc-foot { display: flex; justify-content: flex-end; }
+  .tc-card.tc-forzada .tc-foot > span:first-child { display: none; }
+  .tc-card.tc-forzada .tc-foot > span:last-child { display: flex; }
   .tc-simple .tc-progress { margin: 2px 0 0; height: 6px; }
 }
 /* Teléfono en horizontal: tres columnas y el estado al lado del nombre. */
 @media (max-height: 500px) and (min-width: 601px) {
   .tc-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .tc-grid > .tc-card:last-child { grid-column: auto; }
+  .tc-grid > .tc-card:last-child:nth-child(odd) { grid-column: auto; }
   .tc-card .tc-heading { flex-wrap: nowrap; align-items: center; }
   .tc-card .tc-heading h3 { flex: 1 1 auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tc-card .tc-heading { gap: 6px; }
@@ -137,3 +141,25 @@
 .vista-switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .2s; }
 .vista-switch input:checked { background: var(--green-line); border-color: var(--green-line); }
 .vista-switch input:checked::after { transform: translateX(18px); }
+
+.vista-campo > span small { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+.vista-editar { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.vista-editar:hover { background: var(--surface-3); }
+.vista-editar:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* ── Edición del dashboard: se elige en la misma grilla qué tarjetas se ven ── */
+.tc-edicion { flex: none; display: flex; align-items: center; gap: 10px; margin: 0 0 var(--scada-gap); padding: 8px 12px; background: var(--surface); border: 2px solid var(--blue); border-radius: 12px; }
+.tc-edicion p { margin: 0; flex: 1; min-width: 0; color: var(--muted); }
+.tc-edicion strong { color: var(--text); margin-right: 6px; }
+.tc-edicion button { padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; cursor: pointer; }
+.tc-edicion button:disabled { opacity: .5; cursor: default; }
+.tc-edicion .tc-edicion-listo { background: var(--blue); border-color: var(--blue); color: var(--surface); font-weight: 600; }
+.tc-edicion button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.tc-editando .tc-card { border-style: dashed; }
+.tc-editando .tc-card[aria-pressed="true"] { border-style: solid; border-color: var(--blue); }
+.tc-editando .tc-card.tc-oculta > :not(.tc-foot) { opacity: .35; }
+.tc-editando .tc-card[aria-disabled="true"] { cursor: not-allowed; }
+.tc-edit-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 30px; border: 1px solid var(--border); font-weight: 600; }
+.tc-card[aria-pressed="true"] .tc-edit-chip { color: var(--blue); border-color: var(--blue); }
+.tc-forzada-marca { color: var(--muted); border: 1px dashed var(--border); border-radius: 30px; padding: 1px 8px; }
+@media (max-width: 680px) { .tc-edicion { flex-wrap: wrap; } .tc-edicion p { flex-basis: 100%; } }

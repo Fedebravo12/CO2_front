@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Maximize2, OctagonAlert, Settings2 } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, LayoutGrid, Maximize2, OctagonAlert, Settings2 } from 'lucide-react'
 import type { TelemetriaControlador as Sample } from '../api/control'
 import { fmt } from '../components/Meters'
 import { channels, EncabezadoCanal, lecturaCanal, shutter, useUmbrales, type Channel } from '../components/canalesTelemetria'
@@ -11,10 +11,26 @@ import './Telemetria.css'
 const VENTANAS = [30, 60, 120]
 const etiquetaVentana = (s: number) => s === 120 ? '2 min' : `${s} s`
 
+/* Tarjetas ocultas por el usuario. Se guardan en este navegador; si lo guardado no
+ * deja al menos MINIMO_VISIBLES tarjetas, se vuelve a mostrar todo. */
+const OCULTAS_KEY = 'co2.telemetria.ocultas'
+const MINIMO_VISIBLES = 2
+function leerOcultas(): string[] {
+  try {
+    const ids: unknown = JSON.parse(localStorage.getItem(OCULTAS_KEY) ?? '[]')
+    if (!Array.isArray(ids)) return []
+    const validas = channels.filter(c => ids.includes(c.id)).map(c => c.id)
+    return channels.length - validas.length >= MINIMO_VISIBLES ? validas : []
+  } catch { return [] }
+}
+// Con seis o menos tarjetas la grilla queda en 3 × 2: es el tamaño estándar de
+// tarjeta y no se agrandan al ocultar otras; las celdas que sobran quedan vacías.
+const grilla = (n: number) => ({ '--tc-cols': 3, '--tc-rows': n <= 6 ? 2 : 3 }) as CSSProperties
+
 /** Engranaje de la barra lateral: ventana de tendencia y gráficos en las tarjetas.
  *  Usa el popover nativo para salir del recorte de la barra; se cierra al tocar
  *  afuera o con Esc, y deja ver el dashboard mientras se cambia la vista. */
-function VistaTelemetria({ seconds, onSeconds, tendencias, onTendencias }: { seconds: number; onSeconds: (s: number) => void; tendencias: boolean; onTendencias: (on: boolean) => void }) {
+function VistaTelemetria({ seconds, onSeconds, tendencias, onTendencias, visibles, onEditar }: { seconds: number; onSeconds: (s: number) => void; tendencias: boolean; onTendencias: (on: boolean) => void; visibles: number; onEditar: () => void }) {
   const panel = useRef<HTMLDivElement>(null)
   const ubicar = (boton: HTMLElement) => {
     const r = boton.getBoundingClientRect(), p = panel.current
@@ -40,6 +56,12 @@ function VistaTelemetria({ seconds, onSeconds, tendencias, onTendencias }: { sec
         <span>Tendencias en las tarjetas<small>Gráfico chico en cada tarjeta</small></span>
         <input type="checkbox" role="switch" checked={tendencias} onChange={e => onTendencias(e.target.checked)} />
       </label>
+      <div className="vista-campo">
+        <span>Tarjetas<small>{visibles} de {channels.length} visibles</small></span>
+        <button type="button" className="vista-editar" onClick={() => { panel.current?.hidePopover(); onEditar() }}>
+          <LayoutGrid size={16} aria-hidden="true" /> Edición
+        </button>
+      </div>
     </div>
   </>
 }
@@ -71,6 +93,27 @@ export function Telemetria() {
   }, [])
   const cardView = mobile ? 'B' : view
   const [selected, setSelected] = useState<Channel | null>(null)
+  const [ocultas, setOcultas] = useState<string[]>(leerOcultas)
+  const [editando, setEditando] = useState(false)
+  const guardarOcultas = (cambio: (ids: string[]) => string[]) => setOcultas(previas => {
+    const ids = cambio(previas)
+    try { localStorage.setItem(OCULTAS_KEY, JSON.stringify(ids)) }
+    catch { /* La selección vale para esta sesión aunque no se pueda guardar. */ }
+    return ids
+  })
+  const cantidadVisibles = channels.length - ocultas.length
+  // Ocultar no puede dejar menos del mínimo; mostrar siempre se puede.
+  const bloqueada = (c: Channel) => !ocultas.includes(c.id) && cantidadVisibles <= MINIMO_VISIBLES
+  const alternar = (c: Channel) => guardarOcultas(ids => ids.includes(c.id)
+    ? ids.filter(id => id !== c.id)
+    : channels.length - ids.length > MINIMO_VISIBLES ? [...ids, c.id] : ids)
+  const editar = () => { setSelected(null); setEditando(true) }
+  useEffect(() => {
+    if (!editando) return
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setEditando(false) }
+    document.addEventListener('keydown', tecla)
+    return () => document.removeEventListener('keydown', tecla)
+  }, [editando])
   const thresholds = useUmbrales(setErrorTelemetria)
   // El detalle ocupa el lugar de la grilla, sin modal (ADR-0011). Escape vuelve y el
   // foco regresa a la tarjeta del canal que se estaba mirando.
@@ -103,6 +146,11 @@ export function Telemetria() {
   const fuera = (c: Channel) => leer(c).fuera
   const tono = (c: Channel) => leer(c).tono
   const color = (c: Channel) => leer(c).color
+  // Una tarjeta oculta vuelve a aparecer mientras su canal esté en advertencia o
+  // fuera de límite (ISA-101): ocultarla nunca puede esconder una condición anormal.
+  const anormal = (c: Channel) => tono(c) === 'warn' || tono(c) === 'alarm'
+  const forzada = (c: Channel) => ocultas.includes(c.id) && anormal(c)
+  const enGrilla = editando ? channels : channels.filter(c => !ocultas.includes(c.id) || anormal(c))
   const heading = (c: Channel) => <EncabezadoCanal c={c} badge={leer(c).badge} />
   const chart = (c: Channel, expanded = false) => {
     const width = 1000, height = expanded ? 320 : 100, padding = 15
@@ -154,17 +202,31 @@ export function Telemetria() {
     </div>
   }
   const picker = <label className="tc-window">Ventana <select aria-label="Ventana de tendencia" value={seconds} onChange={e => setSeconds(Number(e.target.value))}>{VENTANAS.map(s => <option key={s} value={s}>{etiquetaVentana(s)}</option>)}</select></label>
-  const vista = <VistaTelemetria seconds={seconds} onSeconds={setSeconds} tendencias={view === 'C'} onTendencias={on => changeView(on ? 'C' : 'B')} />
+  const vista = <VistaTelemetria seconds={seconds} onSeconds={setSeconds} tendencias={view === 'C'} onTendencias={on => changeView(on ? 'C' : 'B')} visibles={cantidadVisibles} onEditar={editar} />
   const vistaHost = document.getElementById('telemetria-vista')
   // Con GPIO las variables del arreglo llegan en null: se muestran los componentes.
   if (controlador?.modo_hal === 'gpio') return <HardwareManual soloLectura />
   return <>
     {!mobile && vistaHost && createPortal(vista, vistaHost)}
-    {!selected && <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
-      {channels.map(c => <button type="button" key={c.id} data-canal={c.id} className={`tc-card ${tono(c)}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
+    {editando && !selected && <div className="tc-edicion" role="region" aria-label="Edición del dashboard">
+      <p><strong>Edición</strong> <span aria-live="polite">Tocá una tarjeta para mostrarla u ocultarla · {cantidadVisibles} de {channels.length} visibles, mínimo {MINIMO_VISIBLES}</span></p>
+      <button type="button" onClick={() => guardarOcultas(() => [])} disabled={!ocultas.length}>Mostrar todas</button>
+      <button type="button" className="tc-edicion-listo" autoFocus onClick={() => setEditando(false)}>Listo</button>
+    </div>}
+    {!selected && <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'} ${editando ? 'tc-editando' : ''}`} style={grilla(enGrilla.length)} aria-label="Telemetría en vivo">
+      {enGrilla.map(c => editando ? <button type="button" key={c.id} data-canal={c.id}
+        className={`tc-card ${tono(c)} ${ocultas.includes(c.id) ? 'tc-oculta' : ''}`} onClick={() => alternar(c)}
+        aria-pressed={!ocultas.includes(c.id)} aria-disabled={bloqueada(c) || undefined} aria-label={`Mostrar ${c.title} en el dashboard`}
+        title={bloqueada(c) ? `Tiene que haber al menos ${MINIMO_VISIBLES} tarjetas visibles` : undefined}>
+        {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>
+        <div className="tc-foot"><span>{bloqueada(c) ? `Mínimo ${MINIMO_VISIBLES} visibles` : ''}</span>
+          <span className="tc-edit-chip">{ocultas.includes(c.id) ? <><EyeOff size={14} aria-hidden="true" /> Oculta</> : <><Eye size={14} aria-hidden="true" /> Visible</>}</span></div>
+      </button> : <button type="button" key={c.id} data-canal={c.id} className={`tc-card ${tono(c)} ${forzada(c) ? 'tc-forzada' : ''}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}${forzada(c) ? ' (tarjeta oculta, visible por la condición anormal)' : ''}`}>
         {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{fuera(c) && <OctagonAlert className="tc-value-alarma" aria-label="Fuera de límite" />}{value(c)} <small>{c.unit}</small></div>
         {c.id === 'prog' ? <div className="tc-progress" role="progressbar" aria-label="Progreso del proceso" aria-valuenow={live ? Math.min(100, Math.max(0, c.value(last))) : undefined}><i style={{ width: `${live ? Math.min(100, Math.max(0, c.value(last))) : 0}%` }} /></div> : cardView === 'C' ? chart(c) : null}
-        <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> {cardView === 'B' ? 'Tendencia' : 'Ampliar'}</span></div>
+        <div className="tc-foot"><span>{stats(c)}</span>{forzada(c)
+          ? <span className="tc-forzada-marca" title="Tarjeta oculta: se muestra mientras dure la condición anormal"><EyeOff size={13} aria-hidden="true" /> Oculta</span>
+          : <span><Maximize2 size={13} /> {cardView === 'B' ? 'Tendencia' : 'Ampliar'}</span>}</div>
       </button>)}
     </section>}
     {selected && <section className="tc-detail tc-detalle-panel" aria-label={`Tendencia de ${selected.title}`}>

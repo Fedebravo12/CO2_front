@@ -12,7 +12,8 @@
     "test:hardware": "node tests/hardware.cjs",
     "test:pasos": "node tests/pasos.cjs",
     "test:progreso": "node tests/progreso.cjs",
-    "test:confirmacion": "node tests/confirmacion.cjs"
+    "test:confirmacion": "node tests/confirmacion.cjs",
+    "test:tarjetas": "node tests/tarjetas.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.544.0",
