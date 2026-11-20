@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Maximize2, OctagonAlert, Settings2, X } from 'lucide-react'
+import { ArrowLeft, Maximize2, OctagonAlert, Settings2 } from 'lucide-react'
 import type { TelemetriaControlador as Sample } from '../api/control'
 import { fmt } from '../components/Meters'
 import { channels, EncabezadoCanal, lecturaCanal, shutter, useUmbrales, type Channel } from '../components/canalesTelemetria'
@@ -72,13 +72,18 @@ export function Telemetria() {
   const cardView = mobile ? 'B' : view
   const [selected, setSelected] = useState<Channel | null>(null)
   const thresholds = useUmbrales(setErrorTelemetria)
-  const dialog = useRef<HTMLDialogElement>(null)
+  // El detalle ocupa el lugar de la grilla, sin modal (ADR-0011). Escape vuelve y el
+  // foco regresa a la tarjeta del canal que se estaba mirando.
+  const ultimoCanal = useRef<string | null>(null)
   useEffect(() => {
-    if (!selected) return
-    const previous = document.activeElement as HTMLElement | null
-    // show() y no showModal(): la cabecera con la parada de emergencia sigue operable (ADR-0011).
-    dialog.current?.show()
-    return () => { dialog.current?.close(); previous?.focus() }
+    if (!selected) {
+      if (ultimoCanal.current) document.querySelector<HTMLElement>(`[data-canal="${ultimoCanal.current}"]`)?.focus()
+      return
+    }
+    ultimoCanal.current = selected.id
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') setSelected(null) }
+    document.addEventListener('keydown', tecla)
+    return () => document.removeEventListener('keydown', tecla)
   }, [selected])
   const end = now.getTime(), start = end - seconds * 1000
   const samples = historialTelemetria.filter(s => Date.parse(s.ts) >= start && Date.parse(s.ts) <= end)
@@ -155,22 +160,19 @@ export function Telemetria() {
   if (controlador?.modo_hal === 'gpio') return <HardwareManual soloLectura />
   return <>
     {!mobile && vistaHost && createPortal(vista, vistaHost)}
-    <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
-      {channels.map(c => <button type="button" key={c.id} className={`tc-card ${tono(c)}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
+    {!selected && <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'}`} aria-label="Telemetría en vivo">
+      {channels.map(c => <button type="button" key={c.id} data-canal={c.id} className={`tc-card ${tono(c)}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}`}>
         {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{fuera(c) && <OctagonAlert className="tc-value-alarma" aria-label="Fuera de límite" />}{value(c)} <small>{c.unit}</small></div>
         {c.id === 'prog' ? <div className="tc-progress" role="progressbar" aria-label="Progreso del proceso" aria-valuenow={live ? Math.min(100, Math.max(0, c.value(last))) : undefined}><i style={{ width: `${live ? Math.min(100, Math.max(0, c.value(last))) : 0}%` }} /></div> : cardView === 'C' ? chart(c) : null}
         <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> {cardView === 'B' ? 'Tendencia' : 'Ampliar'}</span></div>
       </button>)}
-    </section>
-    {selected && <div className="capa-bajo-cabecera" onClick={() => setSelected(null)} aria-hidden="true" />}
-    {selected && <dialog ref={dialog} className="tc-dialog dialogo-bajo-cabecera" onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); setSelected(null) } }} aria-label={selected.title}>
-      <div className="tc-detail">
-        <div className="tc-detail-head">{heading(selected)}<button type="button" autoFocus onClick={() => setSelected(null)} aria-label="Cerrar detalle"><X size={20} /></button></div>
-        <div className="tc-detail-summary"><div className="tc-value" style={{ color: color(selected) }}>{value(selected)} <small>{selected.unit}</small></div>{picker}</div>
-        <p className="tc-foot">{stats(selected)}</p>{chart(selected, true)}
-        <div className="tc-foot"><span>−{windowLabel}</span>{selected.id === 'shutter' && <span><span style={{ color: 'var(--trend)' }}>▬ Arriba abierto · abajo cerrado</span></span>}<span>ahora</span></div>
-        <p className="tc-foot">Muestras recibidas en esta sesión. Las interrupciones se muestran como cortes.</p>
-      </div>
-    </dialog>}
+    </section>}
+    {selected && <section className="tc-detail tc-detalle-panel" aria-label={`Tendencia de ${selected.title}`}>
+      <div className="tc-detail-head">{heading(selected)}<button type="button" autoFocus onClick={() => setSelected(null)}><ArrowLeft size={18} /> Volver</button></div>
+      <div className="tc-detail-summary"><div className="tc-value" style={{ color: color(selected) }}>{value(selected)} <small>{selected.unit}</small></div>{picker}</div>
+      <p className="tc-foot">{stats(selected)}</p>{chart(selected, true)}
+      <div className="tc-foot"><span>−{windowLabel}</span>{selected.id === 'shutter' && <span><span style={{ color: 'var(--trend)' }}>▬ Arriba abierto · abajo cerrado</span></span>}<span>ahora</span></div>
+      <p className="tc-foot">Muestras recibidas en esta sesión. Las interrupciones se muestran como cortes.</p>
+    </section>}
   </>
 }

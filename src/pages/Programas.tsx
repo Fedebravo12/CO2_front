@@ -30,7 +30,7 @@ export function Programas() {
   const [selId, setSelId] = useState<string | null>(null)
   const sel = rows.find((p) => p.id === selId) ?? rows[0] ?? null
   const canEdit = rol === 'Administrador' || rol === 'Investigador'
-  const [showModal, setShowModal] = useState(false)
+  const [formAbierto, setFormAbierto] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(FORM_INICIAL)
   const [pasos, setPasos] = useState<NodoPaso[]>([])
@@ -61,8 +61,8 @@ export function Programas() {
 
   const resumenEnEdicion = useMemo(() => resumenPasos(pasos), [pasos])
 
-  const cerrarModal = () => {
-    setShowModal(false)
+  const cerrarForm = () => {
+    setFormAbierto(false)
     setEditId(null)
     setForm(FORM_INICIAL)
     setPasos([])
@@ -74,7 +74,7 @@ export function Programas() {
     setForm(FORM_INICIAL)
     setPasos([])
     setError(null)
-    setShowModal(true)
+    setFormAbierto(true)
   }
 
   const abrirEdicion = (p: Programa) => {
@@ -83,7 +83,7 @@ export function Programas() {
     setForm({ nombre: p.nombre, descripcion: p.descripcion, procedimiento: p.procedimiento ?? '' })
     // Un programa viejo (sin validar) no tiene pasos que mostrar: se rearma desde cero.
     setPasos(p.validado ? p.pasos : [])
-    setShowModal(true)
+    setFormAbierto(true)
   }
 
   const guardarPrograma = async () => {
@@ -101,7 +101,7 @@ export function Programas() {
         : await api.crearPrograma(datos)
       await recargarProgramas()
       setSelId(guardado.id)
-      cerrarModal()
+      cerrarForm()
     } catch (e) {
       // El back dice dónde está el problema («pasos: Paso 3.1: ...»): se muestra tal cual.
       setError((e as Error).message)
@@ -125,8 +125,9 @@ export function Programas() {
   return (
     <>
       <h1 className="page-title">Programas de grabado</h1>
-      {error && !showModal && <p className="login-error" style={{ marginBottom: 12 }}>{error}</p>}
-      <div className="cards-2">
+      {error && !formAbierto && <p className="login-error" style={{ marginBottom: 12 }}>{error}</p>}
+      {/* El alta y la edición ocupan el cuerpo de la página, sin modal (ADR-0011). */}
+      {!formAbierto && <div className="cards-2">
         <section className="panel">
           <div className="panel-head">
             <h3>BIBLIOTECA</h3>
@@ -228,63 +229,58 @@ export function Programas() {
             </div>
           </section>
         )}
-      </div>
+      </div>}
 
-      {showModal && (
-        <div className="modal-bg" onClick={cerrarModal}>
-          <div className="modal" style={{ width: 'min(760px, calc(100% - 32px))', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 style={{ color: 'var(--text)' }}>{editId ? 'Editar programa' : 'Nuevo programa'}</h3>
-              <button className="modal-close" type="button" onClick={cerrarModal}>
-                ×
-              </button>
+      {formAbierto && (
+        <section className="panel form-panel">
+          <div className="panel-head">
+            <h3>{editId ? `EDITAR · ${rows.find((p) => p.id === editId)?.nombre ?? ''}` : 'NUEVO PROGRAMA'}</h3>
+          </div>
+          <div className="form-grid">
+            <div className="field full">
+              <label>Nombre</label>
+              <input
+                type="text"
+                value={form.nombre}
+                onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
+                placeholder="Ej: Red helicoidal"
+              />
             </div>
-            <div className="modal-body cols-2">
-              <div className="field full">
-                <label>Nombre</label>
-                <input
-                  type="text"
-                  value={form.nombre}
-                  onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))}
-                  placeholder="Ej: Red helicoidal"
-                />
-              </div>
-              <div className="field full">
-                <label>Procedimiento guiado (lo que sigue el operador en «Nuevo ensayo»)</label>
-                <select value={form.procedimiento} onChange={(e) => setForm((f) => ({ ...f, procedimiento: e.target.value }))}>
-                  <option value="">Sin asignar</option>
-                  {procedimientos.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.id} · {p.nombre} (v{p.version})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field full">
-                <label>Pasos</label>
-                {Object.keys(componentes).length === 0 && (
-                  <small role="alert" style={{ color: 'var(--red)' }}>
-                    No hay inventario de hardware disponible: no se pueden armar acciones.
-                  </small>
-                )}
-                <EditorPasos pasos={pasos} componentes={componentes} catalogo={catalogo} onChange={setPasos} />
-              </div>
-              <div className="field full">
-                <label>Resumen</label>
-                <b>{pasos.length ? textoResumen(resumenEnEdicion, componentes) : 'Agregue pasos para ver el resumen.'}</b>
-              </div>
+            <div className="field full">
+              <label>Procedimiento guiado (lo que sigue el operador en «Nuevo ensayo»)</label>
+              <select value={form.procedimiento} onChange={(e) => setForm((f) => ({ ...f, procedimiento: e.target.value }))}>
+                <option value="">Sin asignar</option>
+                {procedimientos.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.id} · {p.nombre} (v{p.version})
+                  </option>
+                ))}
+              </select>
             </div>
-            {error && <p className="login-error" style={{ margin: '0 0 12px' }}>{error}</p>}
-            <div className="modal-actions">
-              <button className="ghost" type="button" onClick={cerrarModal}>
-                Cancelar
-              </button>
-              <button className="primary" type="button" disabled={!form.nombre.trim() || guardando} onClick={guardarPrograma}>
-                {guardando ? 'Guardando…' : editId ? 'Guardar cambios' : 'Guardar programa'}
-              </button>
+            <div className="field full">
+              <label>Pasos</label>
+              {Object.keys(componentes).length === 0 && (
+                <small role="alert" style={{ color: 'var(--red)' }}>
+                  No hay inventario de hardware disponible: no se pueden armar acciones.
+                </small>
+              )}
+              <EditorPasos pasos={pasos} componentes={componentes} catalogo={catalogo} onChange={setPasos} />
+            </div>
+            <div className="field full">
+              <label>Resumen</label>
+              <b>{pasos.length ? textoResumen(resumenEnEdicion, componentes) : 'Agregue pasos para ver el resumen.'}</b>
             </div>
           </div>
-        </div>
+          {error && <p className="login-error" style={{ margin: '12px 0 0' }}>{error}</p>}
+          <div className="form-actions">
+            <button className="ghost" type="button" onClick={cerrarForm}>
+              Cancelar
+            </button>
+            <button className="primary" type="button" disabled={!form.nombre.trim() || guardando} onClick={guardarPrograma}>
+              {guardando ? 'Guardando…' : editId ? 'Guardar cambios' : 'Guardar programa'}
+            </button>
+          </div>
+        </section>
       )}
 
       {confirmDelete && (

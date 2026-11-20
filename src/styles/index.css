@@ -1,4 +1,8 @@
 :root {
+  /* El navegador dibuja barras de desplazamiento, campos y menús en oscuro. */
+  color-scheme: dark;
+  /* Barras con los colores del tema; scrollbar-color se hereda. */
+  scrollbar-color: var(--dim) transparent;
   --bg: #070b10;
   --bg-2: #0b1118;
   --sidebar: #090e14;
@@ -176,7 +180,7 @@
 }
 
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: thin; }
 html, body, #root { height: 100%; }
 body {
   margin: 0;
@@ -1049,53 +1053,16 @@ tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--green); }
 .modal.neutral h3 { color: var(--text); }
 .modal p.aviso-ctrl.warn { color: var(--orange); }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  border-bottom: 1px solid var(--border-soft);
-  padding-bottom: 12px;
-}
-.modal-header h3 {
-  margin: 0;
-  color: var(--text);
-}
-.modal-close {
-  background: transparent;
-  border: 0;
-  color: var(--muted);
-  font-size: 20px;
-  cursor: pointer;
-  padding: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-.modal-close:hover {
-  background: var(--tone-1d2c38);
-  color: var(--text);
-}
-.modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-height: calc(100vh - 220px);
-  overflow-y: auto;
-  padding-right: 4px;
-}
-.modal-body.cols-2 {
+/* Formularios dentro de la página (alta y edición): reemplazan a los modales (ADR-0011). */
+.form-panel { max-width: 860px; }
+.form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px 16px;
 }
-.modal-body.cols-2 .field.full {
-  grid-column: 1 / -1;
-}
+.form-grid .field.full { grid-column: 1 / -1; }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+@media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
 .detail-row {
   display: flex;
   justify-content: space-between;
@@ -1542,10 +1509,10 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 }
 .paso-editor-titulo small { display: block; color: var(--dim); font-size: 11px; }
 .paso-editor-body { padding: 4px 12px 14px; border-top: 1px solid var(--border-soft); }
-.valid-editor { display: grid; gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
+.valid-editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 8px 0; border-bottom: 1px solid var(--border-soft); }
 .valid-editor-fila { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
 .valid-editor-texto { flex: 1 1 220px; }
-.cond-editor { display: grid; gap: 4px; }
+.cond-editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
 .cond-fila { display: flex; gap: 6px; flex-wrap: wrap; }
 .cond-fila select:first-child { flex: 1 1 260px; }
 .cond-fila input { width: 110px; }
@@ -1786,3 +1753,47 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 
 /* Ventana de monitor: el dashboard solo, sin menú lateral. */
 .app-monitor { grid-template-columns: 1fr; }
+
+/* ── Páginas de alto fijo (AppLayout: PAGINA_FIJA) ────────────────────────────
+   La página no se desplaza: lo hace el panel que se muestra. El título, las
+   pestañas y los encabezados quedan fijos; las tablas desplazan sus filas con la
+   cabecera a la vista y los botones de los formularios quedan siempre abajo.
+   En pantallas angostas o bajas se mantiene el desplazamiento de la página. */
+@media (min-width: 901px) and (min-height: 501px) {
+  .app-fija { height: 100dvh; min-height: 0; grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+  .app-fija .main { min-height: 0; }
+  .app-fija .sidebar { height: 100%; min-height: 0; }
+  .app-fija .page { flex: 1; min-height: 0; display: flex; flex-direction: column; padding-bottom: 12px; }
+  .app-fija .page > * { flex: none; }
+  .app-fija .page > .panel,
+  .app-fija .page > .cards-2,
+  .app-fija .page > .detail-page { flex: 0 1 auto; min-height: 0; }
+  .app-fija .cards-2 { grid-template-rows: minmax(0, 1fr); }
+
+  /* El panel se desplaza si su contenido no entra; su encabezado queda arriba. */
+  .app-fija .page > .panel,
+  .app-fija .cards-2 > .panel { display: flex; flex-direction: column; overflow-y: auto; }
+  .app-fija .panel > * { flex: none; }
+  /* El relleno superior pasa del panel al encabezado: el desplazamiento fijo se mide
+     desde el borde del contenido, y si no las filas se verían pasar por encima. */
+  .app-fija .panel:has(> .panel-head) { padding-top: 0; }
+  .app-fija .panel > .panel-head {
+    position: sticky; top: 0; z-index: 10;
+    margin: 0; padding: 16px 0 14px;
+    background: var(--surface);
+  }
+  /* Botones de un formulario: siempre a la vista, al pie del panel. */
+  .app-fija .panel:has(> .form-actions) { padding-bottom: 0; }
+  .app-fija .panel > .form-actions {
+    position: sticky; bottom: 0; z-index: 10;
+    margin-top: 4px; padding: 12px 0 18px;
+    background: var(--surface); border-top: 1px solid var(--border-soft);
+  }
+  /* Tablas: se desplazan las filas y la cabecera queda fija. */
+  .app-fija .panel > .table-wrap { flex: 0 1 auto; min-height: 120px; }
+  .app-fija .table-wrap thead th { position: sticky; top: 0; z-index: 1; }
+
+  /* Detalle de un ensayo: la barra con Volver y Exportar queda arriba. */
+  .app-fija .detail-page { overflow-y: auto; }
+  .app-fija .detail-header { position: sticky; top: 0; z-index: 10; padding: 0 0 10px; background: var(--bg-2); }
+}

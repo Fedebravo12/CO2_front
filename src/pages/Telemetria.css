@@ -34,11 +34,13 @@
 .tc-foot > span { display: flex; align-items: center; gap: 5px; }
 .tc-progress { height: 8px; background: var(--surface-3); border-radius: 20px; margin: auto 0; overflow: hidden; }
 .tc-progress i { display: block; height: 100%; background: var(--trend-strong); transition: width .3s; }
-.tc-dialog { padding: 0; width: min(1100px, calc(100% - 32px)); color: var(--text); background: var(--surface); border: 3px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); }
+/* Detalle de un canal: ocupa el lugar de la grilla y la curva se estira al alto disponible. */
+.tc-detalle-panel { flex: 1; min-height: 0; color: var(--text); background: var(--surface); border: 3px solid var(--border); border-radius: 16px; }
+.tc-detalle-panel .tc-plot.expanded { flex: 1; height: auto; min-height: 160px; }
 .tc-detail { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
 .tc-detail-head, .tc-detail-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .tc-detail-head .tc-heading { flex: 1; }
-.tc-detail-head button { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px; cursor: pointer; }
+.tc-detail-head button { display: inline-flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; }
 .tc-axis { position: absolute; inset: 3px auto 3px 6px; display: flex; flex-direction: column; justify-content: space-between; font: 10px var(--mono); color: var(--muted); }
 @media (max-width: 680px) { .tc-detail { padding: 14px; } .tc-detail-summary { flex-wrap: wrap; } }
 
@@ -112,9 +114,8 @@
   .tc-card .tc-badge { font-size: 11px; padding: 2px 6px; }
   .app-dashboard .page { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
   /* El detalle con la tendencia entra entero en la pantalla, sin scroll interno. */
-  .tc-dialog { max-height: calc(100dvh - var(--header-outer-height, 145px) - 16px); }
   .tc-detail { padding: 10px 14px; gap: 6px; }
-  .tc-plot.expanded { height: max(110px, calc(100dvh - var(--header-outer-height, 145px) - 190px)); }
+  .tc-detalle-panel .tc-plot.expanded { min-height: 110px; }
   .tc-detail > p.tc-foot:last-child { display: none; }
 }
 

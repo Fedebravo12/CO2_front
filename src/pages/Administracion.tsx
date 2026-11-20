@@ -43,7 +43,7 @@ const FORM_USUARIO: DatosUsuario = {
   password: '',
 }
 
-// Estructura vacía para reiniciar el formulario modal sin ID técnico
+// Estructura vacía para reiniciar el formulario de componente sin ID técnico
 const NUEVO_COMPONENTE_VACIO = {
   nombre: '',
   config: {
@@ -214,12 +214,12 @@ export function Administracion() {
     setErrorHw('')
   }).catch((e: Error) => { setRevisionHw(''); setErrorHw(e.message) })
   const [mostrarInhabilitados, setMostrarInhabilitados] = useState(false)
-  const [modalOpen, setModalOpen] = useState(false)
+  const [formCompAbierto, setFormCompAbierto] = useState(false)
   const [errorComp, setErrorComp] = useState<string | null>(null)
   const [guardandoHw, setGuardandoHw] = useState(false)
   const [guardadoExito, setGuardadoExito] = useState(false)
 
-  // Estados dinámicos para el formulario modal
+  // Estados dinámicos para el formulario de alta de componente
   const [formComp, setFormComp] = useState(NUEVO_COMPONENTE_VACIO)
   const [tempPinNombre, setTempPinNombre] = useState('')
   const [tempPinVal, setTempPinVal] = useState('')
@@ -294,7 +294,8 @@ export function Administracion() {
     const nombreLimpio = formComp.nombre.trim()
     if (!nombreLimpio) return
 
-    if (hardware.componentes[nombreLimpio] && editComp !== nombreLimpio) {
+    // El backend puede devolver la configuración sin `componentes` todavía.
+    if (hardware.componentes?.[nombreLimpio] && editComp !== nombreLimpio) {
       // En el formulario y no con alert(), que bloquea toda la página, cabecera incluida.
       setErrorComp('Ya existe un componente registrado con este nombre.')
       return
@@ -323,12 +324,12 @@ export function Administracion() {
     setHardware((prev) => ({
       ...prev,
       componentes: {
-        ...prev.componentes,
+        ...(prev.componentes ?? {}),
         [nombreLimpio]: nuevoComponente,
       },
     }))
 
-    setModalOpen(false)
+    setFormCompAbierto(false)
     setEditComp(null)
     setErrorHw('')
     setFormComp(NUEVO_COMPONENTE_VACIO)
@@ -357,6 +358,13 @@ export function Administracion() {
     ([_, item]) => mostrarInhabilitados || item.estado === 'Vigente'
   )
 
+  // Al cambiar de pestaña se descarta el formulario abierto: cada uno pertenece a su sección.
+  useEffect(() => {
+    setShowUsuario(false)
+    setUmbralEdit(null)
+    setFormCompAbierto(false)
+  }, [seccion])
+
   return (
     <>
       <h1 className="page-title">Administración</h1>
@@ -382,7 +390,8 @@ export function Administracion() {
       )}
 
       {/* ── 1. Sección Usuarios ───────────────────────────────────────────── */}
-      {seccion === 'usuarios' && (
+      {/* Los formularios ocupan el lugar de la tabla de su sección, sin modal (ADR-0011). */}
+      {seccion === 'usuarios' && !showUsuario && (
         <section className="panel">
           {!blocked && (
             <div className="panel-head">
@@ -447,82 +456,71 @@ export function Administracion() {
         </section>
       )}
 
-      {showUsuario && (
-        <div className="modal-bg" onClick={cerrarUsuario}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            style={{ width: 'min(620px, calc(100% - 32px))' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3>{editId ? 'Editar usuario' : 'Nuevo usuario'}</h3>
-              <button className="modal-close" type="button" onClick={cerrarUsuario} aria-label="Cerrar">
-                ×
-              </button>
+      {seccion === 'usuarios' && showUsuario && (
+        <section className="panel form-panel">
+          <div className="panel-head">
+            <h3>{editId ? `EDITAR USUARIO · ${users.find((u) => u.id === editId)?.usuario ?? ''}` : 'NUEVO USUARIO'}</h3>
+          </div>
+          <div className="form-grid">
+            <div className="field">
+              <label>Nombre</label>
+              <input type="text" value={form.nombreDePila} onChange={(e) => setCampo('nombreDePila', e.target.value)} />
             </div>
-            <div className="modal-body cols-2">
-              <div className="field">
-                <label>Nombre</label>
-                <input type="text" value={form.nombreDePila} onChange={(e) => setCampo('nombreDePila', e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Apellido</label>
-                <input type="text" value={form.apellido} onChange={(e) => setCampo('apellido', e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Usuario</label>
-                <input
-                  type="text"
-                  value={form.usuario}
-                  autoComplete="off"
-                  onChange={(e) => setCampo('usuario', e.target.value)}
-                  placeholder="Ej: lperez"
-                />
-              </div>
-              <div className="field">
-                <label>Legajo</label>
-                <input type="text" value={form.legajo} onChange={(e) => setCampo('legajo', e.target.value)} />
-              </div>
-              <div className="field full">
-                <label>Email</label>
-                <input type="email" value={form.email} onChange={(e) => setCampo('email', e.target.value)} />
-              </div>
-              <div className="field">
-                <label>Rol</label>
-                <select
-                  value={form.rol}
-                  disabled={editId !== null && users.some((u) => u.id === editId && esYo(u))}
-                  onChange={(e) => setCampo('rol', e.target.value)}
-                >
-                  {ROLES.map((r) => (
-                    <option key={r}>{r}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label>{editId ? 'Nueva contraseña (opcional)' : 'Contraseña'}</label>
-                <input
-                  type="password"
-                  value={form.password ?? ''}
-                  autoComplete="new-password"
-                  onChange={(e) => setCampo('password', e.target.value)}
-                  placeholder={editId ? 'Dejar vacío para no cambiarla' : ''}
-                />
-              </div>
+            <div className="field">
+              <label>Apellido</label>
+              <input type="text" value={form.apellido} onChange={(e) => setCampo('apellido', e.target.value)} />
             </div>
-            {errorForm && <p className="login-error" style={{ margin: '12px 0' }}>{errorForm}</p>}
-            <div className="modal-actions">
-              <button className="ghost" type="button" onClick={cerrarUsuario}>
-                Cancelar
-              </button>
-              <button className="primary" type="button" disabled={!formValido} onClick={guardarUsuario}>
-                {guardando ? 'Guardando…' : editId ? 'Guardar cambios' : 'Crear usuario'}
-              </button>
+            <div className="field">
+              <label>Usuario</label>
+              <input
+                type="text"
+                value={form.usuario}
+                autoComplete="off"
+                onChange={(e) => setCampo('usuario', e.target.value)}
+                placeholder="Ej: lperez"
+              />
+            </div>
+            <div className="field">
+              <label>Legajo</label>
+              <input type="text" value={form.legajo} onChange={(e) => setCampo('legajo', e.target.value)} />
+            </div>
+            <div className="field full">
+              <label>Email</label>
+              <input type="email" value={form.email} onChange={(e) => setCampo('email', e.target.value)} />
+            </div>
+            <div className="field">
+              <label>Rol</label>
+              <select
+                value={form.rol}
+                disabled={editId !== null && users.some((u) => u.id === editId && esYo(u))}
+                onChange={(e) => setCampo('rol', e.target.value)}
+              >
+                {ROLES.map((r) => (
+                  <option key={r}>{r}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>{editId ? 'Nueva contraseña (opcional)' : 'Contraseña'}</label>
+              <input
+                type="password"
+                value={form.password ?? ''}
+                autoComplete="new-password"
+                onChange={(e) => setCampo('password', e.target.value)}
+                placeholder={editId ? 'Dejar vacío para no cambiarla' : ''}
+              />
             </div>
           </div>
-        </div>
+          {errorForm && <p className="login-error" style={{ margin: '12px 0 0' }}>{errorForm}</p>}
+          <div className="form-actions">
+            <button className="ghost" type="button" onClick={cerrarUsuario}>
+              Cancelar
+            </button>
+            <button className="primary" type="button" disabled={!formValido} onClick={guardarUsuario}>
+              {guardando ? 'Guardando…' : editId ? 'Guardar cambios' : 'Crear usuario'}
+            </button>
+          </div>
+        </section>
       )}
 
       {confirmBaja && (
@@ -536,7 +534,7 @@ export function Administracion() {
       )}
 
       {/* ── 2. Sección Hardware ───────────────────────────────────────────── */}
-      {seccion === 'hardware' && (
+      {seccion === 'hardware' && !formCompAbierto && (
         <section className="panel">
           <p>Guarde la configuración y consulte su aplicación en Control manual.
             Los cambios se aplican con las salidas detenidas y la cola vacía.</p>
@@ -566,7 +564,7 @@ export function Administracion() {
                       setEditComp(null)
                       setParametrosTexto('{}')
                       setErrorComp(null)
-                      setModalOpen(true)
+                      setFormCompAbierto(true)
                     }}
                   >
                     + Agregar Componente
@@ -629,7 +627,7 @@ export function Administracion() {
                               offset: item.offset ?? 0, inhibir_en_prueba: item.inhibir_en_prueba ?? false } })
                             setParametrosTexto(JSON.stringify(item.parametros ?? {}, null, 2))
                             setErrorComp(null)
-                            setModalOpen(true)
+                            setFormCompAbierto(true)
                           }}>Editar</button>
                           <button
                             type="button"
@@ -656,7 +654,7 @@ export function Administracion() {
       )}
 
       {/* ── 3. Sección Umbrales ───────────────────────────────────────────── */}
-      {seccion === 'umbrales' && (
+      {seccion === 'umbrales' && !umbralEdit && (
         <section className="panel">
           {!blocked && (
             <p style={{ color: 'var(--muted)', margin: '0 0 12px', fontSize: 13 }}>
@@ -707,103 +705,92 @@ export function Administracion() {
         </section>
       )}
 
-      {umbralEdit && (
-        <div className="modal-bg" onClick={() => setUmbralEdit(null)}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            style={{ width: 'min(560px, calc(100% - 32px))' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3>Editar umbral · {umbralEdit.parametro}</h3>
-              <button className="modal-close" type="button" onClick={() => setUmbralEdit(null)} aria-label="Cerrar">
-                ×
-              </button>
-            </div>
-            <div className="modal-body cols-2">
-              <div className="field">
-                <label>Mínimo ({umbralEdit.unidad})</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={formUmbral.min}
-                  onChange={(e) => setFormUmbral((f) => ({ ...f, min: e.target.value }))}
-                />
-              </div>
-              <div className="field">
-                <label>Máximo ({umbralEdit.unidad})</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={formUmbral.max}
-                  onChange={(e) => setFormUmbral((f) => ({ ...f, max: e.target.value }))}
-                />
-              </div>
-              <div className="field">
-                <label>Severidad</label>
-                <select
-                  value={formUmbral.severidad}
-                  onChange={(e) => setFormUmbral((f) => ({ ...f, severidad: e.target.value as SeveridadUmbral }))}
-                >
-                  {Object.entries(SEVERIDADES_UMBRAL).map(([valor, etiqueta]) => (
-                    <option key={valor} value={valor}>
-                      {etiqueta}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label>Al excederse</label>
-                <select
-                  value={formUmbral.accion}
-                  onChange={(e) => setFormUmbral((f) => ({ ...f, accion: e.target.value as AccionUmbral }))}
-                >
-                  {Object.entries(ACCIONES_UMBRAL).map(([valor, etiqueta]) => (
-                    <option key={valor} value={valor}>
-                      {etiqueta}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <label className="field full" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={formUmbral.activo}
-                  onChange={(e) => setFormUmbral((f) => ({ ...f, activo: e.target.checked }))}
-                  style={{ width: 'auto' }}
-                />
-                Umbral activo (si se desactiva, el controlador deja de vigilar esta variable)
-              </label>
-            </div>
-            {rangoInvalido && (
-              <p className="login-error" style={{ margin: '12px 0' }}>
-                El máximo tiene que ser mayor que el mínimo. Revisá los dos valores.
-              </p>
-            )}
-            {debilitaProteccion && (
-              <p className="aviso-ctrl warn" style={{ margin: '12px 0' }}>
-                Este umbral hoy dispara la parada de emergencia. Con este cambio deja de hacerlo: confirmá que es lo
-                que querés.
-              </p>
-            )}
-            {errorFormUmbral && <p className="login-error" style={{ margin: '12px 0' }}>{errorFormUmbral}</p>}
-            <div className="modal-actions">
-              <button className="ghost" type="button" onClick={() => setUmbralEdit(null)}>
-                Cancelar
-              </button>
-              <button
-                className="primary"
-                type="button"
-                disabled={rangoInvalido || guardandoUmbral}
-                onClick={guardarUmbral}
-              >
-                {guardandoUmbral ? 'Guardando…' : 'Guardar cambios'}
-              </button>
-            </div>
+      {seccion === 'umbrales' && umbralEdit && (
+        <section className="panel form-panel">
+          <div className="panel-head">
+            <h3>EDITAR UMBRAL · {umbralEdit.parametro}</h3>
           </div>
-        </div>
+          <div className="form-grid">
+            <div className="field">
+              <label>Mínimo ({umbralEdit.unidad})</label>
+              <input
+                type="number"
+                step="any"
+                value={formUmbral.min}
+                onChange={(e) => setFormUmbral((f) => ({ ...f, min: e.target.value }))}
+              />
+            </div>
+            <div className="field">
+              <label>Máximo ({umbralEdit.unidad})</label>
+              <input
+                type="number"
+                step="any"
+                value={formUmbral.max}
+                onChange={(e) => setFormUmbral((f) => ({ ...f, max: e.target.value }))}
+              />
+            </div>
+            <div className="field">
+              <label>Severidad</label>
+              <select
+                value={formUmbral.severidad}
+                onChange={(e) => setFormUmbral((f) => ({ ...f, severidad: e.target.value as SeveridadUmbral }))}
+              >
+                {Object.entries(SEVERIDADES_UMBRAL).map(([valor, etiqueta]) => (
+                  <option key={valor} value={valor}>
+                    {etiqueta}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label>Al excederse</label>
+              <select
+                value={formUmbral.accion}
+                onChange={(e) => setFormUmbral((f) => ({ ...f, accion: e.target.value as AccionUmbral }))}
+              >
+                {Object.entries(ACCIONES_UMBRAL).map(([valor, etiqueta]) => (
+                  <option key={valor} value={valor}>
+                    {etiqueta}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="field full" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={formUmbral.activo}
+                onChange={(e) => setFormUmbral((f) => ({ ...f, activo: e.target.checked }))}
+                style={{ width: 'auto' }}
+              />
+              Umbral activo (si se desactiva, el controlador deja de vigilar esta variable)
+            </label>
+          </div>
+          {rangoInvalido && (
+            <p className="login-error" style={{ margin: '12px 0' }}>
+              El máximo tiene que ser mayor que el mínimo. Revisá los dos valores.
+            </p>
+          )}
+          {debilitaProteccion && (
+            <p className="aviso-ctrl warn" style={{ margin: '12px 0' }}>
+              Este umbral hoy dispara la parada de emergencia. Con este cambio deja de hacerlo: confirmá que es lo
+              que querés.
+            </p>
+          )}
+          {errorFormUmbral && <p className="login-error" style={{ margin: '12px 0' }}>{errorFormUmbral}</p>}
+          <div className="form-actions">
+            <button className="ghost" type="button" onClick={() => setUmbralEdit(null)}>
+              Cancelar
+            </button>
+            <button
+              className="primary"
+              type="button"
+              disabled={rangoInvalido || guardandoUmbral}
+              onClick={guardarUmbral}
+            >
+              {guardandoUmbral ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          </div>
+        </section>
       )}
 
       {/* ── 4. Sección Auditoría ─────────────────────────────────────────── */}
@@ -844,127 +831,127 @@ export function Administracion() {
         </section>
       )}
 
-      {/* ── Modal Flotante de Alta de Componente ─────────────────────────── */}
-      {modalOpen && (
-        <div className="modal-bg" onClick={() => setModalOpen(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>{editComp ? 'Editar componente' : 'Agregar componente'}</h3>
-            {errorHw && <p role="alert" className="login-error">{errorHw}</p>}
+      {/* ── Alta y edición de componente, en el lugar de la tabla de hardware ── */}
+      {seccion === 'hardware' && formCompAbierto && (
+        <section className="panel form-panel">
+          <div className="panel-head">
+            <h3>{editComp ? `EDITAR COMPONENTE · ${editComp}` : 'AGREGAR COMPONENTE'}</h3>
+          </div>
+          {errorHw && <p role="alert" className="login-error">{errorHw}</p>}
 
+          <div className="field">
+            <h4>Nombre del Componente:</h4>
+            <input
+              type="text"
+              placeholder="ej: Sensor de temperatura del láser"
+              value={formComp.nombre}
+              disabled={!!editComp}
+              onChange={(e) => {
+                setErrorComp(null)
+                setFormComp((prev) => ({
+                  ...prev,
+                  nombre: e.target.value,
+                }))
+              }}
+            />
+          </div>
+
+          <div className="field">
+            <h4>Tipo / Clase de Componente:</h4>
+            <select
+              value={formComp.config.tipo}
+              onChange={(e) => {
+                const tipo = e.target.value
+                const info = catalogo[tipo]
+                setFormComp(prev => ({ ...prev, config: { ...prev.config, tipo, rol: '',
+                  pines: Object.fromEntries((info?.pines ?? []).map(pin => [pin, ''])) } }))
+                setParametrosTexto(JSON.stringify(info?.parametros ?? {}, null, 2))
+              }}
+            ><option value="">Seleccione un driver</option>
+              {Object.keys(catalogo).map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+            </select>
+            {catalogo[formComp.config.tipo]?.ayuda && <p>{catalogo[formComp.config.tipo].ayuda}</p>}
+          </div>
+          <div className="field">
+            <label>Parámetros del componente (JSON)</label>
+            <textarea rows={6} value={parametrosTexto} onChange={e => setParametrosTexto(e.target.value)} />
+          </div>
+
+          <div className="field">
+            <label htmlFor="comp-rol">Rol</label>
+            <select id="comp-rol" value={formComp.config.rol ?? ''}
+              onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, rol: e.target.value } }))}>
+              <option value="">Sin rol</option>
+              {rolesPosibles(catalogo[formComp.config.tipo]?.campos).map(r => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          {esRolNumerico(formComp.config.rol) && <>
             <div className="field">
-              <h4>Nombre del Componente:</h4>
+              <label htmlFor="comp-ganancia">Ganancia</label>
+              <input id="comp-ganancia" type="number" step="any" value={formComp.config.ganancia ?? 1}
+                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, ganancia: e.target.value as unknown as number } }))} />
+            </div>
+            <div className="field">
+              <label htmlFor="comp-offset">Offset</label>
+              <input id="comp-offset" type="number" step="any" value={formComp.config.offset ?? 0}
+                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, offset: e.target.value as unknown as number } }))} />
+            </div>
+          </>}
+          <div className="field">
+            <label><input type="checkbox" checked={!!formComp.config.inhibir_en_prueba}
+              onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, inhibir_en_prueba: e.target.checked } }))} /> Inhibir en modo prueba</label>
+          </div>
+
+          {/* Carga dinámica de N pines con nombre y asignación (ej: Trig -> GPIO17) */}
+          <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+            <label><strong>Asignación de Pines:</strong></label>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
               <input
                 type="text"
-                placeholder="ej: Sensor de temperatura del láser"
-                value={formComp.nombre}
-                disabled={!!editComp}
-                onChange={(e) => {
-                  setErrorComp(null)
-                  setFormComp((prev) => ({
-                    ...prev,
-                    nombre: e.target.value,
-                  }))
-                }}
+                placeholder="Nombre del pin (ej: Datos, Trig)"
+                value={tempPinNombre}
+                className="ghost"
+                onChange={(e) => setTempPinNombre(e.target.value)}
               />
-            </div>
-
-            <div className="field">
-              <h4>Tipo / Clase de Componente:</h4>
-              <select
-                value={formComp.config.tipo}
-                onChange={(e) => {
-                  const tipo = e.target.value
-                  const info = catalogo[tipo]
-                  setFormComp(prev => ({ ...prev, config: { ...prev.config, tipo, rol: '',
-                    pines: Object.fromEntries((info?.pines ?? []).map(pin => [pin, ''])) } }))
-                  setParametrosTexto(JSON.stringify(info?.parametros ?? {}, null, 2))
-                }}
-              ><option value="">Seleccione un driver</option>
-                {Object.keys(catalogo).map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
-              </select>
-              {catalogo[formComp.config.tipo]?.ayuda && <p>{catalogo[formComp.config.tipo].ayuda}</p>}
-            </div>
-            <div className="field">
-              <label>Parámetros del componente (JSON)</label>
-              <textarea rows={6} value={parametrosTexto} onChange={e => setParametrosTexto(e.target.value)} />
-            </div>
-
-            <div className="field">
-              <label htmlFor="comp-rol">Rol</label>
-              <select id="comp-rol" value={formComp.config.rol ?? ''}
-                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, rol: e.target.value } }))}>
-                <option value="">Sin rol</option>
-                {rolesPosibles(catalogo[formComp.config.tipo]?.campos).map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-            {esRolNumerico(formComp.config.rol) && <>
-              <div className="field">
-                <label htmlFor="comp-ganancia">Ganancia</label>
-                <input id="comp-ganancia" type="number" step="any" value={formComp.config.ganancia ?? 1}
-                  onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, ganancia: e.target.value as unknown as number } }))} />
-              </div>
-              <div className="field">
-                <label htmlFor="comp-offset">Offset</label>
-                <input id="comp-offset" type="number" step="any" value={formComp.config.offset ?? 0}
-                  onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, offset: e.target.value as unknown as number } }))} />
-              </div>
-            </>}
-            <div className="field">
-              <label><input type="checkbox" checked={!!formComp.config.inhibir_en_prueba}
-                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, inhibir_en_prueba: e.target.checked } }))} /> Inhibir en modo prueba</label>
-            </div>
-
-            {/* Carga dinámica de N pines con nombre y asignación (ej: Trig -> GPIO17) */}
-            <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
-              <label><strong>Asignación de Pines:</strong></label>
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                <input
-                  type="text"
-                  placeholder="Nombre del pin (ej: Datos, Trig)"
-                  value={tempPinNombre}
-                  className="ghost"
-                  onChange={(e) => setTempPinNombre(e.target.value)}
-                />
-                <input
-                  type="text"
-                  placeholder="Asignación (ej: GPIO27)"
-                  style={{ width: '140px' }}
-                  value={tempPinVal}
-                  className="ghost"
-                  onChange={(e) => setTempPinVal(e.target.value)}
-                />
-                <button type="button" className="btn-secundario ghost" onClick={handleAgregarPin}>
-                  +
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
-                {Object.entries(formComp.config.pines).map(([pNombre, pVal]) => (
-                  <span key={pNombre} className="st info" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    {pNombre}: <strong>{pVal}</strong>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoverPin(pNombre)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit' }}
-                    >
-                      ✕
-                    </button>
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {errorComp && <p className="login-error" role="alert" style={{ margin: '12px 0 0' }}>{errorComp}</p>}
-            <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
-              <button type="button" className="ghost" onClick={() => setModalOpen(false)}>
-                Cancelar
+              <input
+                type="text"
+                placeholder="Asignación (ej: GPIO27)"
+                style={{ width: '140px' }}
+                value={tempPinVal}
+                className="ghost"
+                onChange={(e) => setTempPinVal(e.target.value)}
+              />
+              <button type="button" className="btn-secundario ghost" onClick={handleAgregarPin}>
+                +
               </button>
-              <button type="button" className="primary" onClick={handleGuardarComponente}>
-                Guardar Componente
-              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+              {Object.entries(formComp.config.pines).map(([pNombre, pVal]) => (
+                <span key={pNombre} className="st info" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  {pNombre}: <strong>{pVal}</strong>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoverPin(pNombre)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit' }}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
             </div>
           </div>
-        </div>
+
+          {errorComp && <p className="login-error" role="alert" style={{ margin: '12px 0 0' }}>{errorComp}</p>}
+          <div className="form-actions">
+            <button type="button" className="ghost" onClick={() => { setFormCompAbierto(false); setEditComp(null) }}>
+              Cancelar
+            </button>
+            <button type="button" className="primary" onClick={handleGuardarComponente}>
+              Guardar Componente
+            </button>
+          </div>
+        </section>
       )}
     </>
   )

@@ -45,6 +45,11 @@ const NAV = [
   // Las secciones (usuarios, umbrales, auditoría) se eligen con las tabs de la página.
   { to: '/admin', label: 'Administración', icon: Settings },
 ]
+// Páginas que entran en la ventana: no se desplaza la página sino el panel que se
+// muestra, con títulos, cabeceras de tabla y botones siempre a la vista. Telemetría
+// y Nuevo ensayo tienen su propio diseño fijo; Simulador y Control manual se desplazan.
+const PAGINA_FIJA = /^\/(registro|programas|procedimientos|alertas|admin)(\/|$)/
+
 
 /** Nombre de la sección actual, para la barra superior en pantallas angostas. */
 function seccionActual(pathname: string) {
@@ -178,7 +183,7 @@ export function AppLayout() {
   const hayAvisos = emergenciaActiva || sinConexion || errorComando || errorTelemetria || avisoControlador
 
   return (
-    <div ref={app} className={`app ${dashboard ? 'app-dashboard' : ''} ${monitor ? 'app-monitor' : ''} ${pathname === '/nuevo-ensayo' ? 'app-ensayo' : ''}`}>
+    <div ref={app} className={`app ${dashboard ? 'app-dashboard' : ''} ${monitor ? 'app-monitor' : ''} ${pathname === '/nuevo-ensayo' ? 'app-ensayo' : ''} ${PAGINA_FIJA.test(pathname) ? 'app-fija' : ''}`}>
       {!monitor && narrow && mobileOpen && <div className="sidebar-backdrop" onClick={() => setMobileOpen(false)} aria-hidden="true" />}
       {!monitor && <aside id="app-sidebar" ref={sidebar} aria-label="Menú principal" className={`sidebar ${!narrow && sidebarCompact ? 'compact' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
         <div className="sidebar-header">

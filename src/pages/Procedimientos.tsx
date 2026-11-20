@@ -335,7 +335,7 @@ function EditorProcedimiento({
         <h3>{inicial.nombre ? `EDITAR · ${inicial.nombre}` : 'NUEVO PROCEDIMIENTO'}</h3>
       </div>
 
-      <div className="modal-body cols-2" style={{ padding: 0 }}>
+      <div className="form-grid">
         <div className="field full">
           <label>Nombre</label>
           <input
@@ -393,7 +393,7 @@ function EditorProcedimiento({
 
           {abierto === i && (
             <div className="paso-editor-body">
-              <div className="modal-body cols-2" style={{ padding: 0 }}>
+              <div className="form-grid">
                 <div className="field">
                   <label>Título</label>
                   <input value={paso.titulo} onChange={(e) => setPaso(i, { titulo: e.target.value })} placeholder="Ej: Colocación de la fibra" />
@@ -540,7 +540,7 @@ function EditorProcedimiento({
       </button>
 
       {error && <p className="login-error" style={{ margin: '12px 0 0' }}>{error}</p>}
-      <div className="modal-actions">
+      <div className="form-actions">
         <button className="ghost" type="button" onClick={onCancelar}>
           Cancelar
         </button>
