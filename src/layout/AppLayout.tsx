@@ -16,7 +16,7 @@ import {
   ScanLine,
   ClipboardList,
   FolderKanban,
-  Home,
+  Activity,
   ListChecks,
   LogOut,
   X,
@@ -34,7 +34,7 @@ import { useSystem } from '../context/SystemContext'
 import { Confirmacion } from '../components/Confirmacion'
 
 const NAV = [
-  { to: '/', label: 'Telemetría', icon: Home, end: true },
+  { to: '/', label: 'Telemetría', icon: Activity, end: true },
   { to: '/nuevo-ensayo', label: 'Nuevo ensayo', icon: Play },
   { to: '/simulador', label: 'Simulador visual', icon: MonitorPlay },
   { to: '/registro', label: 'Historial de registros', icon: ClipboardList },
@@ -211,7 +211,7 @@ export function AppLayout() {
                 end={item.end}
                 title={sidebarCompact ? item.label : undefined}
                 className={({ isActive }) =>
-                  `nav-link ${isActive ? 'active' : ''} ${isActive && item.to === '/nuevo-ensayo' ? 'teal' : ''}`
+                  `nav-link ${isActive ? 'active' : ''}`
                 }
               >
                 <item.icon size={18} />

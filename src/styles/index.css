@@ -318,11 +318,6 @@ a { color: inherit; text-decoration: none; }
   color: var(--green);
   box-shadow: inset 3px 0 0 var(--green);
 }
-.nav-link.active.teal {
-  background: var(--teal-dim);
-  color: var(--teal);
-  box-shadow: inset 3px 0 0 var(--teal);
-}
 .nav-sub {
   display: flex;
   flex-direction: column;
