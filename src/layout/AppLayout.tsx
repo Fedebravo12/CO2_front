@@ -5,6 +5,8 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   Bell,
   Check,
+  ChevronDown,
+  ChevronUp,
   ExternalLink,
   Hourglass,
   OctagonAlert,
@@ -98,13 +100,35 @@ export function AppLayout() {
   const sidebar = useRef<HTMLElement>(null)
   const app = useRef<HTMLDivElement>(null)
   const topbar = useRef<HTMLElement>(null)
+  const nav = useRef<HTMLElement>(null)
+  // Pantallas bajas o con zoom: el menú se desplaza sin barra; un degradado y una flecha avisan que sigue.
+  const [desborde, setDesborde] = useState({ arriba: false, abajo: false })
+  useEffect(() => {
+    const lista = nav.current
+    if (!lista) return
+    const medir = () => setDesborde({
+      arriba: lista.scrollTop > 1,
+      abajo: lista.scrollTop + lista.clientHeight < lista.scrollHeight - 1,
+    })
+    medir()
+    lista.addEventListener('scroll', medir, { passive: true })
+    const observer = new ResizeObserver(medir)
+    observer.observe(lista)
+    return () => { lista.removeEventListener('scroll', medir); observer.disconnect() }
+  }, [monitor])
 
-  // El menú desplegable empieza justo debajo de la cabecera, para que la parada
-  // de emergencia siga visible. Se mide la altura real: cambia con la pantalla.
+  // El menú desplegable, los modales y los avisos empiezan justo debajo de la cabecera,
+  // para que el estado y la parada de emergencia sigan visibles y operables (ADR-0011).
+  // Se mide la altura real: cambia con la pantalla. También va en :root porque
+  // el aviso de emergencia se monta en document.body, fuera de .app.
   useEffect(() => {
     const cabecera = topbar.current
     if (!cabecera) return
-    const medir = () => app.current?.style.setProperty('--header-outer-height', `${cabecera.offsetHeight}px`)
+    const medir = () => {
+      const alto = `${cabecera.offsetHeight}px`
+      app.current?.style.setProperty('--header-outer-height', alto)
+      document.documentElement.style.setProperty('--header-outer-height', alto)
+    }
     const observer = new ResizeObserver(medir)
     observer.observe(cabecera)
     return () => observer.disconnect()
@@ -171,24 +195,37 @@ export function AppLayout() {
           </div>
         </div>
 
-        <nav className="nav">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              onClick={() => setMobileOpen(false)}
-              end={item.end}
-              title={sidebarCompact ? item.label : undefined}
-              className={({ isActive }) =>
-                `nav-link ${isActive ? 'active' : ''} ${isActive && item.to === '/nuevo-ensayo' ? 'teal' : ''}`
-              }
-            >
-              <item.icon size={18} />
-              <span className="nav-label">{item.label}</span>
-            </NavLink>
-          ))}
-
-        </nav>
+        <div className="nav-zona">
+          <nav ref={nav} className={`nav ${desborde.arriba ? 'mas-arriba' : ''} ${desborde.abajo ? 'mas-abajo' : ''}`}>
+            {NAV.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={() => setMobileOpen(false)}
+                end={item.end}
+                title={sidebarCompact ? item.label : undefined}
+                className={({ isActive }) =>
+                  `nav-link ${isActive ? 'active' : ''} ${isActive && item.to === '/nuevo-ensayo' ? 'teal' : ''}`
+                }
+              >
+                <item.icon size={18} />
+                <span className="nav-label">{item.label}</span>
+              </NavLink>
+            ))}
+          </nav>
+          {desborde.arriba && (
+            <button type="button" className="nav-mas arriba" tabIndex={-1} aria-hidden="true"
+              onClick={() => nav.current?.scrollBy({ top: -nav.current.clientHeight * 0.6, behavior: 'smooth' })}>
+              <ChevronUp size={16} />
+            </button>
+          )}
+          {desborde.abajo && (
+            <button type="button" className="nav-mas" tabIndex={-1} aria-hidden="true"
+              onClick={() => nav.current?.scrollBy({ top: nav.current.clientHeight * 0.6, behavior: 'smooth' })}>
+              <ChevronDown size={16} />
+            </button>
+          )}
+        </div>
 
         <div className="sidebar-foot">
           {/* Preferencias de visualización; el dashboard agrega su engranaje en el hueco. */}

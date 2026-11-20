@@ -214,6 +214,7 @@ export function Administracion() {
   }).catch((e: Error) => { setRevisionHw(''); setErrorHw(e.message) })
   const [mostrarInhabilitados, setMostrarInhabilitados] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [errorComp, setErrorComp] = useState<string | null>(null)
   const [guardandoHw, setGuardandoHw] = useState(false)
   const [guardadoExito, setGuardadoExito] = useState(false)
 
@@ -293,7 +294,8 @@ export function Administracion() {
     if (!nombreLimpio) return
 
     if (hardware.componentes[nombreLimpio] && editComp !== nombreLimpio) {
-      alert('Ya existe un componente registrado con este nombre.')
+      // En el formulario y no con alert(), que bloquea toda la página, cabecera incluida.
+      setErrorComp('Ya existe un componente registrado con este nombre.')
       return
     }
 
@@ -577,6 +579,7 @@ export function Administracion() {
                       setFormComp(NUEVO_COMPONENTE_VACIO)
                       setEditComp(null)
                       setParametrosTexto('{}')
+                      setErrorComp(null)
                       setModalOpen(true)
                     }}
                   >
@@ -639,6 +642,7 @@ export function Administracion() {
                               parametros: item.parametros ?? {}, rol: rolValido ? item.rol : '', ganancia: item.ganancia ?? 1,
                               offset: item.offset ?? 0, inhibir_en_prueba: item.inhibir_en_prueba ?? false } })
                             setParametrosTexto(JSON.stringify(item.parametros ?? {}, null, 2))
+                            setErrorComp(null)
                             setModalOpen(true)
                           }}>Editar</button>
                           <button
@@ -868,12 +872,13 @@ export function Administracion() {
                 placeholder="ej: Sensor de temperatura del láser"
                 value={formComp.nombre}
                 disabled={!!editComp}
-                onChange={(e) =>
+                onChange={(e) => {
+                  setErrorComp(null)
                   setFormComp((prev) => ({
                     ...prev,
                     nombre: e.target.value,
                   }))
-                }
+                }}
               />
             </div>
 
@@ -963,6 +968,7 @@ export function Administracion() {
               </div>
             </div>
 
+            {errorComp && <p className="login-error" role="alert" style={{ margin: '12px 0 0' }}>{errorComp}</p>}
             <div className="modal-actions" style={{ marginTop: '1.5rem' }}>
               <button type="button" className="ghost" onClick={() => setModalOpen(false)}>
                 Cancelar

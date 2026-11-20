@@ -28,7 +28,8 @@ export function AvisoEmergencia() {
     if (!abierto) return
     const node = dialog.current
     const previous = document.activeElement as HTMLElement | null
-    node?.showModal()
+    // show() y no showModal(): el aviso no puede bloquear la parada de emergencia de la cabecera.
+    node?.show()
     return () => {
       node?.close()
       if (previous?.isConnected) previous.focus()
@@ -49,10 +50,11 @@ export function AvisoEmergencia() {
     <button ref={trigger} type="button" className="emergency-details" onClick={() => setAbierto(true)}>
       Ver emergencia
     </button>
-    {abierto && createPortal(
-      <dialog ref={dialog} className="modal emergency-dialog" role="alertdialog"
+    {abierto && createPortal(<>
+      <div className="capa-bajo-cabecera emergency-capa" aria-hidden="true" />
+      <dialog ref={dialog} className="modal emergency-dialog dialogo-bajo-cabecera" role="alertdialog"
         aria-labelledby="emergency-title" aria-describedby="emergency-description"
-        onCancel={() => setAbierto(false)}>
+        onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); setAbierto(false) } }}>
         <h3 id="emergency-title">{emergenciaActiva ? 'Parada de emergencia' : 'Avisos del sistema'}</h3>
         <div id="emergency-description">
           {avisoControlador && <p>{mensaje?.texto || 'El controlador informó una parada de emergencia.'}</p>}
@@ -71,7 +73,8 @@ export function AvisoEmergencia() {
             {enviando ? 'Solicitando rearme…' : 'Rearmar sistema'}
           </button>}
         </div>
-      </dialog>, document.body,
+      </dialog>
+    </>, document.body,
     )}
   </>
 }

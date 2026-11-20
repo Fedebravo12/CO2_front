@@ -36,7 +36,9 @@ const output = path.join(temporary, 'bundle.cjs')
   find(tree, 'button', 'Ver emergencia').props.onClick()
   tree = render()
   assert.ok(find(tree, 'dialog'))
-  find(tree, 'dialog').props.onCancel()
+  find(tree, 'dialog').props.onKeyDown({ key: 'Escape', preventDefault() {} })
+  tree = render()
+  assert.ok(!find(tree, 'dialog'), 'Escape closes the notice')
   assert.equal(commands.length, 0, 'Escape must not reset')
   states = []
   global.fixture.controladorVivo = false

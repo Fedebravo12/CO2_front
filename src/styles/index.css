@@ -202,7 +202,7 @@ a { color: inherit; text-decoration: none; }
   border-right: 2px solid var(--border-soft);
   display: flex;
   flex-direction: column;
-  padding: 18px 14px 12px;
+  padding: 0 14px 12px;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -238,13 +238,19 @@ a { color: inherit; text-decoration: none; }
 .sidebar-header {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  /* Misma altura y línea inferior que la cabecera: el fondo de los modales arranca
+     en esa línea y el menú queda separado del logo por la misma franja. */
+  height: var(--header-outer-height, 115px);
+  flex: none; /* nunca se achica: si falta alto, se desplaza el menú */
+  margin: 0 -14px 12px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--tone-374151);
 }
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 3px 20px;
+  padding: 0 3px;
 }
 .brand-mark {
   flex: none;
@@ -272,7 +278,22 @@ a { color: inherit; text-decoration: none; }
   white-space: normal;
   width: 150px;
 }
-.nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.nav-zona { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* Si el alto no alcanza, el menú se desplaza sin barras: el borde que sigue se desvanece
+   y una flecha indica que hay más opciones hacia ese lado. */
+.nav { display: flex; flex-direction: column; gap: 4px; flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; }
+.nav::-webkit-scrollbar { display: none; }
+.nav.mas-abajo { mask-image: linear-gradient(to bottom, #000 calc(100% - 40px), transparent); }
+.nav.mas-arriba { mask-image: linear-gradient(to bottom, transparent, #000 40px); }
+.nav.mas-arriba.mas-abajo { mask-image: linear-gradient(to bottom, transparent, #000 40px, #000 calc(100% - 40px), transparent); }
+.nav-mas {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  display: grid; place-items: center; width: 28px; height: 22px; padding: 0;
+  border: 1px solid var(--border-soft); border-radius: 999px;
+  background: var(--tone-15202a); color: var(--muted); cursor: pointer;
+}
+.nav-mas.arriba { top: 0; bottom: auto; }
+.nav-mas:hover { color: var(--text); }
 .nav-link svg, .nav-btn svg { flex: none; }
 .nav-link, .nav-btn {
   display: flex;
@@ -990,13 +1011,29 @@ tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--green); }
 }
 .toggle.on i { left: 23px; }
 
-.modal-bg {
-  position: fixed; inset: 0;
+/* Modales, avisos y su fondo empiezan debajo de la cabecera: la barra de estado y la
+   parada de emergencia siguen visibles y operables con cualquier diálogo abierto
+   (ADR-0011). Por eso los <dialog> se abren con show() y nunca con showModal(),
+   que vuelve inerte toda la página. */
+.modal-bg, .capa-bajo-cabecera {
+  position: fixed; inset: var(--header-outer-height, 115px) 0 0;
   background: rgba(0,0,0,.55);
-  display: grid; place-items: center;
   z-index: 1100;
 }
+.modal-bg {
+  display: grid; place-items: center;
+  overflow-y: auto;
+}
+.dialogo-bajo-cabecera {
+  position: fixed; inset: var(--header-outer-height, 115px) 0 0;
+  margin: auto;
+  z-index: 1101;
+  max-height: calc(100dvh - var(--header-outer-height, 115px) - 32px);
+  overflow-y: auto;
+}
 .modal {
+  max-height: calc(100dvh - var(--header-outer-height, 115px) - 32px);
+  overflow-y: auto;
   width: min(460px, calc(100% - 32px));
   background: var(--tone-151d26);
   border: 2px solid #4aa3ff;
@@ -1403,9 +1440,9 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
 
 :root[data-theme="light"] { --manual-text: var(--text); }
 
-/* Emergencia en la capa modal: no agrega filas ni desplaza la telemetría. */
-.emergency-dialog { color: var(--text); border-color: var(--red); max-height: calc(100dvh - 32px); overflow-y: auto; }
-.emergency-dialog::backdrop { background: rgba(0, 0, 0, .65); }
+/* Emergencia en una capa superpuesta: no agrega filas ni desplaza la telemetría. */
+.emergency-dialog { color: var(--text); border-color: var(--red); }
+.capa-bajo-cabecera.emergency-capa { background: rgba(0, 0, 0, .65); }
 .emergency-dialog .modal-actions { flex-wrap: wrap; }
 .emergency-dialog p.emergency-feedback { color: var(--red); }
 .emergency-details { flex-shrink: 0; border: 1px solid var(--red); background: var(--red-dim); color: var(--red); border-radius: 8px; padding: 8px 10px; cursor: pointer; }
@@ -1450,7 +1487,7 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   /* El cajón comienza debajo de la cabecera: la parada sigue accesible. */
   .sidebar-backdrop { position: fixed; inset: var(--header-outer-height) 0 0; z-index: 1001; background: rgb(0 0 0 / 45%); }
   .app .sidebar.mobile-open { display: flex; position: fixed; top: var(--header-outer-height); left: 0; z-index: 1002; width: min(300px, 85vw); height: calc(100dvh - var(--header-outer-height)); padding: 12px; overflow-y: auto; overscroll-behavior: contain; box-shadow: var(--shadow); }
-  .sidebar.mobile-open .nav { flex: 1 0 auto; }
+  .sidebar.mobile-open .nav, .sidebar.mobile-open .nav-zona { flex: 1 0 auto; }
   .sidebar.mobile-open .sidebar-foot { flex: none; }
   .status-heading > div { min-width: 0; }
 }
@@ -1576,7 +1613,7 @@ input[type='range'] { width: 160px; accent-color: var(--teal); }
   .sidebar { display: none; }
   .sidebar-backdrop { position: fixed; inset: var(--header-outer-height) 0 0; z-index: 1001; background: rgb(0 0 0 / 45%); }
   .app .sidebar.mobile-open { display: flex; position: fixed; top: var(--header-outer-height); left: 0; z-index: 1002; width: min(300px, 85vw); height: calc(100dvh - var(--header-outer-height)); padding: 12px; overflow-y: auto; overscroll-behavior: contain; box-shadow: var(--shadow); }
-  .sidebar.mobile-open .nav { flex: 1 0 auto; }
+  .sidebar.mobile-open .nav, .sidebar.mobile-open .nav-zona { flex: 1 0 auto; }
   .sidebar.mobile-open .sidebar-foot { flex: none; }
 }
 @media (max-height: 500px) and (min-width: 601px) {

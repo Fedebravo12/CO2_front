@@ -76,7 +76,8 @@ export function Telemetria() {
   useEffect(() => {
     if (!selected) return
     const previous = document.activeElement as HTMLElement | null
-    dialog.current?.showModal()
+    // show() y no showModal(): la cabecera con la parada de emergencia sigue operable (ADR-0011).
+    dialog.current?.show()
     return () => { dialog.current?.close(); previous?.focus() }
   }, [selected])
   const end = now.getTime(), start = end - seconds * 1000
@@ -161,7 +162,8 @@ export function Telemetria() {
         <div className="tc-foot"><span>{stats(c)}</span><span><Maximize2 size={13} /> {cardView === 'B' ? 'Tendencia' : 'Ampliar'}</span></div>
       </button>)}
     </section>
-    {selected && <dialog ref={dialog} className="tc-dialog" onCancel={() => setSelected(null)} onClick={e => { if (e.target === e.currentTarget) setSelected(null) }} aria-label={selected.title}>
+    {selected && <div className="capa-bajo-cabecera" onClick={() => setSelected(null)} aria-hidden="true" />}
+    {selected && <dialog ref={dialog} className="tc-dialog dialogo-bajo-cabecera" onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); setSelected(null) } }} aria-label={selected.title}>
       <div className="tc-detail">
         <div className="tc-detail-head">{heading(selected)}<button type="button" autoFocus onClick={() => setSelected(null)} aria-label="Cerrar detalle"><X size={20} /></button></div>
         <div className="tc-detail-summary"><div className="tc-value" style={{ color: color(selected) }}>{value(selected)} <small>{selected.unit}</small></div>{picker}</div>
