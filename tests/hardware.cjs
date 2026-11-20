@@ -7,62 +7,120 @@ const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'hardware-test-'))
 const output = path.join(temporary, 'bundle.cjs')
 
 ;(async () => {
-  await build({ entryPoints: ['src/components/HardwareManual.tsx'], bundle: true, platform: 'node', format: 'cjs', outfile: output, plugins: [{ name: 'fixture', setup(b) {
+  // ── useHardwareGpio: una orden por componente y bloqueos ──────────────────
+  await build({ entryPoints: ['src/hooks/useHardwareGpio.ts'], bundle: true, platform: 'node', format: 'cjs', outfile: output, plugins: [{ name: 'fixture', setup(b) {
     b.onResolve({ filter: /^react$/ }, () => ({ path: 'hooks', namespace: 'fixture' }))
-    b.onResolve({ filter: /^react-router-dom$/ }, () => ({ path: 'router', namespace: 'fixture' }))
     b.onResolve({ filter: /api\/hardware$/ }, () => ({ path: 'hardware', namespace: 'fixture' }))
-    b.onResolve({ filter: /api\/control$/ }, () => ({ path: 'control', namespace: 'fixture' }))
     b.onLoad({ filter: /.*/, namespace: 'fixture' }, a => ({ contents: {
       hooks: 'export const useState = (...a) => globalThis.hooks.useState(...a); export const useRef = () => ({current:Date.now()}); export const useEffect = () => {}; export const useId = () => ":r0:"',
-      router: 'export const Link = "a"',
       hardware: 'export const hardwareApi = { comando: (...a) => globalThis.command(...a) }',
-      control: 'export const control = { comando: (...a) => globalThis.systemCommand(...a) }',
     }[a.path] }))
-    b.onResolve({ filter: /^react\// }, a => ({ path: require.resolve(a.path), external: true }))
   } }] })
-  const { HardwareManual } = require(output)
+  const { useHardwareGpio } = require(output)
   let states = [], index = 0, commands = []
   global.hooks = { useState(initial) { const i = index++; if (!(i in states)) states[i] = initial; return [states[i], v => { states[i] = typeof v === 'function' ? v(states[i]) : v }] } }
   global.command = async (...args) => { commands.push(args); return { id: 'cmd-1', estado: 'RECIBIDO' } }
-  global.systemCommand = async (...args) => { commands.push(args) }
-  const nodes = t => !t || typeof t !== 'object' ? [] : Array.isArray(t) ? t.flatMap(nodes) : [t, ...nodes(t.props?.children)]
-  const button = (tree, text) => {
-    const directo = nodes(tree).find(n => n.type === 'button' && n.props.children === text)
-    if (directo) return directo
-    const f = nodes(tree).find(n => n.props?.etiqueta === text && n.props.onEnviar)
-    return f && { props: { disabled: f.props.deshabilitado, onClick: () => f.props.onEnviar(Object.fromEntries(Object.entries(f.props.argumentos).map(([k, t]) => [k, t === 'booleano' ? false : 1]))) } }
-  }
-  const comando = (tree, text) => nodes(tree).find(n => n.props?.etiqueta === text && n.props.onEnviar)
-  const render = (props = {}) => { index = 0; return HardwareManual(props) }
-  render()
-  states[0] = { revision_aplicada: 'rev1', revision_deseada: 'rev1', cola: 0, capacidad_cola: 32,
-    emergencia: false, aplicando: false, resultados: [], componentes: {
-      'Shutter izquierdo': { tipo: 'SHUTTER_GPIO', estado: 'Vigente', calidad: 'OK',
-        operaciones: { armar: {}, abrir: {}, cerrar: {} }, valores: { salida_apertura: false, realimentacion: false } },
-      'Shutter derecho': { tipo: 'SHUTTER_GPIO', estado: 'Eliminado', operaciones: { abrir: {} } },
-    } }
-  let tree = render()
-  assert.equal(button(tree, 'Armar').props.disabled, false)
-  assert.equal(nodes(tree).filter(n => (n.type === 'button' && n.props.children === 'Abrir') || n.props?.etiqueta === 'Abrir').length, 1)
-  await button(tree, 'Armar').props.onClick()
+  const hook = () => { index = 0; return useHardwareGpio() }
+  const estadoBase = () => ({ revision_aplicada: 'rev1', revision_deseada: 'rev1', cola: 0, capacidad_cola: 32,
+    emergencia: false, aplicando: false, resultados: [], componentes: {} })
+  hook()
+  states[0] = estadoBase()
+  let hw = hook()
+  assert.equal(hw.conectado, true)
+  assert.equal(hw.bloqueado, false)
+  await hw.ejecutar('Shutter izquierdo', 'armar')
   assert.deepEqual(commands[0], ['Shutter izquierdo', 'armar', {}, 'rev1'])
-  tree = render()
-  assert.equal(button(tree, 'Abrir').props.disabled, true, 'HTTP acceptance must not permit another order')
-  assert.ok(nodes(tree).some(n => n.props?.role === 'status'))
-  await button(tree, 'Detener todos los componentes').props.onClick()
-  assert.deepEqual(commands[1], ['emergencia'], 'stop remains available while command is pending')
-  tree = render({ soloLectura: true })
-  assert.ok(!button(tree, 'Abrir'))
-  assert.ok(!button(tree, 'Detener todos los componentes'))
+  hw = hook()
+  assert.ok(hw.pendientes['Shutter izquierdo'])
+  await hw.ejecutar('Shutter izquierdo', 'abrir')
+  assert.equal(commands.length, 1, 'HTTP acceptance must not permit another order')
+  await hw.ejecutar('Láser', 'encender')
+  assert.equal(commands.length, 2, 'otro componente sí puede recibir órdenes')
   states[0].emergencia = true
-  tree = render()
-  assert.equal(button(tree, 'Abrir').props.disabled, true)
-  assert.equal(button(tree, 'Rearmar después del apagado').props.disabled, false)
+  hw = hook()
+  assert.equal(hw.bloqueado, true)
+  await hw.ejecutar('Motor', 'detener')
+  assert.equal(commands.length, 2, 'en emergencia no se mandan órdenes')
+  states[0].emergencia = false
   states[1] = 'Sin conexión'
-  tree = render()
-  assert.equal(button(tree, 'Rearmar después del apagado').props.disabled, true)
-  assert.ok(nodes(tree).some(n => n.props?.role === 'alert'))
-  assert.ok(nodes(tree).some(n => n.type === 'dd' && n.props.children === '—'))
+  hw = hook()
+  assert.equal(hw.conectado, false)
+  assert.equal(hw.bloqueado, true)
+  assert.equal(hw.error, 'Sin conexión')
+
+  // ── Control manual GPIO: el diseño de la pantalla, armado desde los componentes ──
+  const vista = path.join(temporary, 'vista.cjs')
+  await build({ entryPoints: ['src/pages/ControlManualGpio.tsx'], bundle: true, platform: 'node', format: 'cjs', outfile: vista, plugins: [{ name: 'vista', setup(b) {
+    b.onResolve({ filter: /hooks\/useHardwareGpio$/ }, () => ({ path: 'h', namespace: 'vista' }))
+    b.onLoad({ filter: /.*/, namespace: 'vista' }, () => ({ contents: 'export const useHardwareGpio = () => { throw new Error("la vista no consulta la red") }' }))
+    b.onResolve({ filter: /^react($|\/)|^react-dom($|\/)/ }, a => ({ path: require.resolve(a.path, { paths: [process.cwd()] }), external: true }))
+  } }] })
+  const React = require(process.cwd() + '/node_modules/react')
+  const { renderToStaticMarkup } = require(process.cwd() + '/node_modules/react-dom/server')
+  const { ControlManualGpioVista, agruparComponentes } = require(vista)
+  const OK = { calidad: 'OK', estado: 'Vigente' }
+  const componentes = () => ({
+    laser: { ...OK, tipo: 'SALIDA_GPIO', rol: 'LASER', operaciones: { encender: {}, apagar: {} }, valores: { salida_activa: false } },
+    shutter: { ...OK, tipo: 'SHUTTER_GPIO', rol: 'SHUTTER', operaciones: { armar: {}, desarmar: {}, abrir: {}, cerrar: {}, pulso: { duracion_ms: 'numero' } }, valores: { armado: false, salida_apertura: false } },
+    viejo: { tipo: 'SHUTTER_GPIO', estado: 'Eliminado', operaciones: { abrir: {} } },
+    motor_x: { ...OK, tipo: 'STEPPER_DRV8825', rol: 'POSICION_MOTOR', parametros: { unidad: 'mm', minimo: 0, maximo: 300, velocidad_maxima: 5 },
+      operaciones: { mover: { delta: 'numero', velocidad: 'numero' }, mover_a: { posicion: 'numero', velocidad: 'numero' }, referenciar: { posicion: 'numero' }, detener: {} },
+      valores: { posicion: 0, en_movimiento: false, referenciado: false } },
+    termo: { calidad: 'ERROR', estado: 'Vigente', tipo: 'LM35', operaciones: {}, valores: { temperatura_c: 21 } },
+  })
+  const hwDe = (cambios = {}) => ({ estado: { ...estadoBase(), componentes: componentes() }, conectado: true, bloqueado: false, enviando: null, pendientes: {}, error: '', ejecutar: async () => {}, ...cambios })
+  const render = hw => renderToStaticMarkup(React.createElement(ControlManualGpioVista, { hw }))
+  // La etiqueta <button ...> de un botón, por aria-label o por su texto.
+  const boton = (html, texto) => {
+    const i = html.includes(`aria-label="${texto}"`) ? html.indexOf(`aria-label="${texto}"`) : html.indexOf(`>${texto}<`)
+    assert.ok(i >= 0, `falta el botón ${texto}`)
+    return html.slice(html.lastIndexOf('<button', i), html.indexOf('>', i) + 1)
+  }
+  const deshabilitado = (html, texto) => /\sdisabled=""/.test(boton(html, texto))
+
+  const grupos = agruparComponentes(componentes())
+  assert.deepEqual(grupos.actuadores.map(([n]) => n), ['laser', 'shutter'])
+  assert.deepEqual(grupos.motores.map(([n]) => n), ['motor_x'])
+  assert.deepEqual(grupos.sensores.map(([n]) => n), ['termo'])
+
+  let html = render(hwDe())
+  assert.ok(html.includes('Control manual') && html.includes('ACTUADORES') && html.includes('DESPLAZADOR LINEAL'), 'mismo diseño que con el simulador')
+  assert.ok(html.includes('Láser CO₂') && html.includes('Shutter mecánico'), 'nombres por rol')
+  assert.ok(!html.includes('viejo'), 'un componente eliminado no se opera')
+  assert.equal(deshabilitado(html, 'Activar Láser CO₂'), false)
+  assert.equal(deshabilitado(html, 'Abierto'), true, 'no se abre un shutter desarmado')
+  assert.equal(deshabilitado(html, 'Disparar'), true)
+  assert.equal(deshabilitado(html, '+ Avanzar'), true, 'sin origen declarado no se mueve el eje')
+  assert.ok(html.includes('Declare el origen'))
+  assert.equal(deshabilitado(html, 'Declarar origen'), false)
+  assert.ok(html.includes('Error de lectura'), 'la calidad dudosa se informa')
+  assert.ok(!html.includes('21'), 'una lectura con error no se muestra como válida')
+
+  const armado = hwDe()
+  armado.estado.componentes.shutter.valores.armado = true
+  armado.estado.componentes.motor_x.valores.referenciado = true
+  html = render(armado)
+  assert.equal(deshabilitado(html, 'Abierto'), false)
+  assert.equal(deshabilitado(html, '+ Avanzar'), false)
+
+  html = render({ ...armado, pendientes: { shutter: { id: 'x', desde: Date.now() } } })
+  assert.equal(deshabilitado(html, 'Desactivar Shutter mecánico'), true, 'una orden pendiente bloquea ese componente')
+  assert.equal(deshabilitado(html, 'Activar Láser CO₂'), false, 'pero no a los demás')
+  assert.ok(html.includes('Esperando confirmación'))
+
+  const rechazo = hwDe()
+  rechazo.estado.resultados = [{ id: 'r1', componente: 'motor_x', operacion: 'mover', estado: 'RECHAZADO', detalle: 'Declare su posición antes de mover.', ts: new Date().toISOString() }]
+  html = render(rechazo)
+  assert.ok(html.includes('RECHAZADO: Declare su posición antes de mover.'), 'el motivo del rechazo va en la fila')
+
+  html = render(hwDe({ bloqueado: true, estado: { ...estadoBase(), emergencia: true, componentes: componentes() } }))
+  assert.equal(deshabilitado(html, 'Activar Láser CO₂'), true)
+  assert.ok(html.includes('Parada enclavada'))
+  html = render(hwDe({ conectado: false, bloqueado: true }))
+  assert.ok(html.includes('Sin datos vigentes') && html.includes('—'))
+  assert.ok(!html.includes('NaN'))
+
+  const nodes = t => !t || typeof t !== 'object' ? [] : Array.isArray(t) ? t.flatMap(nodes) : [t, ...nodes(t.props?.children)]
   // Fichas: el formulario envía los argumentos tipados
   const fb = await build({ entryPoints: ['src/components/FormularioComando.tsx'], bundle: true, platform: 'node', format: 'cjs', write: false, plugins: [{ name: 'f2', setup(b) {
     b.onResolve({ filter: /^react$/ }, () => ({ path: 'hooks', namespace: 'f2' }))
@@ -107,14 +165,6 @@ const output = path.join(temporary, 'bundle.cjs')
   f = form({ n: 'entero', b: 'booleano' })
   assert.equal(campo(f, 'n').props.step, 1)
   assert.equal(campo(f, 'b').props.type, 'checkbox')
-  // HardwareManual cablea el formulario al comando
-  states = [] ; render()
-  states[0] = { revision_aplicada: 'rev1', revision_deseada: 'rev1', cola: 0, capacidad_cola: 32, emergencia: false, aplicando: false, resultados: [],
-    componentes: { Eje: { tipo: 'STEPPER_DRV8825', estado: 'Vigente', calidad: 'OK', operaciones: { mover_a: args, detener: {} }, valores: {} } } }
-  tree = render()
-  assert.deepEqual(comando(tree, 'Mover a posición').props.argumentos, args)
-  await comando(tree, 'Mover a posición').props.onEnviar({ posicion: 1.5, velocidad: 0.5 })
-  assert.deepEqual(commands.at(-1), ['Eje', 'mover_a', { posicion: 1.5, velocidad: 0.5 }, 'rev1'])
   // Administración: componente con rol
   const hb = await build({ entryPoints: ['src/api/hardware.ts'], bundle: true, platform: 'node', format: 'cjs', write: false, plugins: [{ name: 'f3', setup(b) {
     b.onResolve({ filter: /\/http$/ }, () => ({ path: 'x', namespace: 'f3' }))
@@ -131,5 +181,5 @@ const output = path.join(temporary, 'bundle.cjs')
   assert.throws(() => armarComponente({ tipo: 'X', pines: {}, estado: 'Vigente', parametros: {}, rol: 'TEMPERATURA_AGUA', ganancia: 'abc' }))
   assert.deepEqual(rolesPosibles({ armado: 'booleano' }), [])
   assert.deepEqual(rolesPosibles({ temperatura_c: 'numero' }), ['TEMPERATURA_AGUA', 'TEMPERATURA_LASER'])
-  console.log('PASS: named instances, disabled components, correlated pending command, stop priority, read-only telemetry and disconnected state')
+  console.log('PASS: una orden por componente, bloqueos, diseño de Control manual desde los componentes, fichas y roles')
 })().finally(() => fs.rmSync(temporary, { recursive: true, force: true }))

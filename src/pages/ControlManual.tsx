@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react'
 import type { Accion, Falla } from '../api/control'
 import { fmt } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
-import { HardwareManual } from '../components/HardwareManual'
+import { ControlManualGpio } from './ControlManualGpio'
 
 /**
  * Operación manual de los actuadores.
@@ -16,8 +16,8 @@ export function ControlManual() {
   const { rol, estado, controlador: c, controladorVivo, enviar } = useSystem()
   const [modo, setModo] = useState<'relativo' | 'absoluto'>('relativo')
   const [valor, setValor] = useState(100)
-  // Con GPIO las variables del arreglo llegan en null: no se calculan las filas fijas.
-  if (c?.modo_hal === 'gpio') return <HardwareManual />
+  // Con hardware GPIO las filas salen de los componentes configurados, con el mismo diseño.
+  if (c?.modo_hal === 'gpio') return <ControlManualGpio rol={rol} grabando={estado === 'GRABANDO'} />
 
   const bloqueado = !controladorVivo || estado === 'EMERGENCIA' || estado === 'GRABANDO'
   const a = controladorVivo ? c?.actuadores : undefined
@@ -182,17 +182,10 @@ export function ControlManual() {
               step={50}
               value={valor}
               disabled={bloqueado}
+              className="control-input"
               onChange={(e) => {
                 const v = Number(e.target.value)
                 if (!Number.isNaN(v)) setValor(Math.min(MAX_UM, Math.max(0, v)))
-              }}
-              style={{
-                width: 110,
-                background: 'var(--panel-dark, #1a1a1a)',
-                color: 'var(--manual-text, #fff)',
-                border: '1px solid var(--muted)',
-                borderRadius: 6,
-                padding: '4px 8px',
               }}
             />
           </div>

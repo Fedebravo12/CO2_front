@@ -66,5 +66,27 @@ const output = path.join(temporary, 'bundle.cjs')
   assert.deepEqual(tarjetas(render(true)).slice(0, 3), ['prog', 'pot', 'pulso'])
   global.localStorage = { getItem: k => k === 'co2.telemetria.orden' ? 'roto' : null, setItem() {} }
   assert.deepEqual(tarjetas(render(true)), ['pot', 'pulso', 'shutter', 'hv', 'sombra', 'temp', 'caudal', 'pos', 'prog'])
+  // Hardware GPIO: el back publica el mismo mensaje con null en lo que ningún componente
+  // alimenta (roles). El dashboard es el mismo; esas tarjetas dicen «Sin asignar».
+  global.localStorage = { getItem: () => null, setItem() {} }
+  const gpio = { ts: now.toISOString(), hz: 1, modo_hal: 'gpio', estado: 'REPOSO',
+    variables: { TEMPERATURA_AGUA: null, CAUDAL_REFRIGERANTE: null, POTENCIA_LASER: null, TENSION_AT: null, POSICION_MOTOR: 0 },
+    extra: { sensor_sombra_mw: null, frecuencia_hz: null },
+    condiciones: { AT_ENCENDIDA: false, FIBRA_ALINEADA: false, REFRIGERACION_OK: false },
+    actuadores: { laser: false, shutter_armado: true, shutter_abierto: false }, ejecucion: null }
+  global.fixture = { now, controlador: gpio, controladorVivo: true, historialTelemetria: [gpio] }
+  html = renderToStaticMarkup(React.createElement(Telemetria))
+  assert.equal(tarjetas(html).length, 9, 'es el dashboard, no la pantalla de componentes')
+  const tarjeta = id => html.slice(html.indexOf(`data-canal="${id}"`), html.indexOf('</button>', html.indexOf(`data-canal="${id}"`)))
+  for (const id of ['temp', 'caudal', 'hv', 'sombra']) {
+    assert.ok(tarjeta(id).includes('Sin asignar'), `${id} sin componente`)
+    assert.ok(!tarjeta(id).includes('tc-badge warn'), `${id} no inventa una advertencia`)
+  }
+  assert.ok(!tarjeta('sombra').includes('No alineada'))
+  assert.ok(tarjeta('pot').includes('Apagado') && !tarjeta('pot').includes('NaN'))
+  assert.ok(tarjeta('shutter').includes('Armado') && tarjeta('shutter').includes('Cerrado'))
+  assert.ok(tarjeta('pos').includes('>0 <') || tarjeta('pos').includes('>0<'), 'la posición del motor llega')
+  assert.ok(!html.includes('NaN'))
+
   console.log('tarjetas: ok')
 })().catch(error => { console.error(error); process.exit(1) })

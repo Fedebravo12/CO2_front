@@ -991,6 +991,8 @@ tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--green); }
 .page-title { margin: 0 0 14px; font-size: 22px; }
 .cards-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .cards-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* Campo numérico dentro de una fila de control (Control manual). */
+.control-input { width: 110px; background: var(--panel-dark, #1a1a1a); color: var(--manual-text, #fff); border: 1px solid var(--muted); border-radius: 6px; padding: 4px 8px; font: inherit; }
 .control-row {
   display: flex;
   justify-content: space-between;

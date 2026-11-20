@@ -5,7 +5,6 @@ import type { TelemetriaControlador as Sample } from '../api/control'
 import { fmt } from '../components/Meters'
 import { channels, EncabezadoCanal, lecturaCanal, shutter, useUmbrales, type Channel } from '../components/canalesTelemetria'
 import { useSystem } from '../context/SystemContext'
-import { HardwareManual } from '../components/HardwareManual'
 import './Telemetria.css'
 
 const VENTANAS = [30, 60, 120]
@@ -337,8 +336,6 @@ export function Telemetria() {
   const picker = <label className="tc-window">Ventana <select aria-label="Ventana de tendencia" value={seconds} onChange={e => setSeconds(Number(e.target.value))}>{VENTANAS.map(s => <option key={s} value={s}>{etiquetaVentana(s)}</option>)}</select></label>
   const vista = <VistaTelemetria seconds={seconds} onSeconds={setSeconds} tendencias={view === 'C'} onTendencias={on => changeView(on ? 'C' : 'B')} visibles={cantidadVisibles} onEditar={editar} />
   const vistaHost = document.getElementById('telemetria-vista')
-  // Con GPIO las variables del arreglo llegan en null: se muestran los componentes.
-  if (controlador?.modo_hal === 'gpio') return <HardwareManual soloLectura />
   return <>
     {!mobile && vistaHost && createPortal(vista, vistaHost)}
     {editando && !selected && <div className="tc-edicion" role="region" aria-label="Edición del dashboard">
