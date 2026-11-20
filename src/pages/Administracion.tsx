@@ -60,7 +60,9 @@ const NUEVO_COMPONENTE_VACIO = {
 
 export function Administracion() {
   const { seccion = 'usuarios' } = useParams()
-  const { rol } = useSystem()
+  const { rol, controlador } = useSystem()
+  // La configuración de componentes solo la aplica el controlador en modo GPIO.
+  const modoSimulado = controlador?.modo_hal === 'simulado'
   const [users, setUsers] = useState<Usuario[]>([])
   const [audit, setAudit] = useState<Auditoria[]>([])
   const [umbrales, setUmbrales] = useState<Umbral[]>([])
@@ -538,9 +540,11 @@ export function Administracion() {
         <section className="panel">
           <p>Guarde la configuración y consulte su aplicación en Control manual.
             Los cambios se aplican con las salidas detenidas y la cola vacía.</p>
+          {modoSimulado && <p className="aviso-ctrl">El controlador está en modo simulado: los componentes
+            de esta configuración se aplican solo con el hardware GPIO (la Raspberry o su simulador).</p>}
           {errorHw && <p role="alert" className="login-error">{errorHw}</p>}
           <button type="button" className="ghost" onClick={cargarHardware}>Recargar configuración guardada</button>
-          {!blocked && <button type="button" className="ghost" onClick={() => {
+          {!blocked && !modoSimulado && <button type="button" className="ghost" onClick={() => {
             hardwareApi.aplicar().catch((e: Error) => setErrorHw(e.message))
           }}>Reintentar aplicación</button>}
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
