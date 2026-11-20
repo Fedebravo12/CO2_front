@@ -55,5 +55,16 @@ const output = path.join(temporary, 'bundle.cjs')
   assert.ok(html.includes('--tc-cols:3;--tc-rows:2'))
   global.localStorage = { getItem: () => '{roto', setItem() {} }
   assert.equal(tarjetas(render(true)).length, 9)
+
+  // Orden guardado: se respeta, se ignoran ids desconocidos y los canales que
+  // faltan se agregan al final en su orden original.
+  const conOrden = (orden, ocultas = []) => ({ getItem: k => k === 'co2.telemetria.orden' ? JSON.stringify(orden) : k === 'co2.telemetria.ocultas' ? JSON.stringify(ocultas) : null, setItem() {} })
+  global.localStorage = conOrden(['prog', 'no-existe', 'temp', 'pot'])
+  assert.deepEqual(tarjetas(render(true)), ['prog', 'temp', 'pot', 'pulso', 'shutter', 'hv', 'sombra', 'caudal', 'pos'])
+  // Orden y ocultas se combinan.
+  global.localStorage = conOrden(['prog', 'temp', 'pot'], ['temp'])
+  assert.deepEqual(tarjetas(render(true)).slice(0, 3), ['prog', 'pot', 'pulso'])
+  global.localStorage = { getItem: k => k === 'co2.telemetria.orden' ? 'roto' : null, setItem() {} }
+  assert.deepEqual(tarjetas(render(true)), ['pot', 'pulso', 'shutter', 'hv', 'sombra', 'temp', 'caudal', 'pos', 'prog'])
   console.log('tarjetas: ok')
 })().catch(error => { console.error(error); process.exit(1) })

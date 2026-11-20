@@ -155,11 +155,47 @@
 .tc-edicion button:disabled { opacity: .5; cursor: default; }
 .tc-edicion .tc-edicion-listo { background: var(--blue); border-color: var(--blue); color: var(--surface); font-weight: 600; }
 .tc-edicion button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
-.tc-editando .tc-card { border-style: dashed; }
+/* En la edición el contorno solo dice si la tarjeta se ve (azul) o está oculta
+   (gris punteado); el estado del canal queda en el badge. */
+.tc-editando .tc-card { border-style: dashed; box-shadow: none; }
 .tc-editando .tc-card[aria-pressed="true"] { border-style: solid; border-color: var(--blue); }
 .tc-editando .tc-card.tc-oculta > :not(.tc-foot) { opacity: .35; }
-.tc-editando .tc-card[aria-disabled="true"] { cursor: not-allowed; }
 .tc-edit-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 30px; border: 1px solid var(--border); font-weight: 600; }
 .tc-card[aria-pressed="true"] .tc-edit-chip { color: var(--blue); border-color: var(--blue); }
 .tc-forzada-marca { color: var(--muted); border: 1px dashed var(--border); border-radius: 30px; padding: 1px 8px; }
 @media (max-width: 680px) { .tc-edicion { flex-wrap: wrap; } .tc-edicion p { flex-basis: 100%; } }
+
+/* ── Grilla de 3 × 2 (seis tarjetas o menos): las tarjetas son más altas y el
+   contenido crece con ellas (cqh = alto de la tarjeta), para que no quede aire.
+   Solo en pantallas grandes: en el teléfono la altura la da el contenido. ── */
+@media (min-width: 601px) and (min-height: 501px) {
+  .tc-amplia > .tc-card { container-type: size; padding: 14px 18px; gap: clamp(6px, 1.2dvh, 12px); }
+  .tc-amplia .tc-card .tc-badge { font-size: clamp(11px, 4.6cqh, 15px); padding: 4px 10px; }
+  .tc-amplia .tc-card .tc-value { font-size: min(16cqh, 13cqi); }
+  .tc-amplia.tc-simple .tc-card .tc-value { font-size: min(26cqh, 16cqi); }
+  .tc-amplia .tc-card .tc-foot { font-size: clamp(11px, 4.4cqh, 15px); }
+  .tc-amplia .tc-card .tc-progress { height: clamp(8px, 3.5cqh, 14px); }
+}
+
+/* Reordenar: la tarjeta se agarra de cualquier parte; mientras se arrastra queda
+   elevada y la grilla se reacomoda debajo. */
+.tc-editando { position: relative; }
+.tc-editando .tc-card { cursor: grab; touch-action: none; user-select: none; transition: transform .2s ease, opacity .2s ease, box-shadow .2s ease; }
+/* Mientras se arrastra, el resto se aleja un poco (zoom out) y se apaga, y la
+   tarjeta levantada sigue al puntero con una sombra marcada. */
+.tc-reordenando .tc-card:not(.tc-arrastrando) { transform: scale(.94); opacity: .6; }
+.tc-editando .tc-card.tc-arrastrando { position: relative; z-index: 5; cursor: grabbing; opacity: 1; transition: box-shadow .2s ease; border-style: solid; border-color: var(--blue);
+  box-shadow: 0 30px 60px -10px rgba(0, 0, 0, .65), 0 12px 24px rgba(0, 0, 0, .35), 0 0 0 3px color-mix(in srgb, var(--blue) 45%, transparent); }
+.tc-reordenando, .tc-reordenando * { cursor: grabbing !important; }
+@media (prefers-reduced-motion: reduce) {
+  .tc-editando .tc-card { transition: none; }
+  .tc-editando .tc-card.tc-arrastrando { rotate: -1.5deg; }
+}
+.tc-agarre { display: inline-flex !important; align-items: center; gap: 4px; }
+.tc-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ── 13 tarjetas o más: filas del alto de 3 × 4 y la grilla se desplaza. La
+   página no se mueve, así la cabecera con estado y parada queda a la vista. ── */
+@media (min-width: 601px) and (min-height: 501px) {
+  .tc-grid.tc-scroll { grid-template-rows: none; grid-auto-rows: calc((100% - 3 * var(--scada-gap)) / 4); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding-right: 4px; }
+}

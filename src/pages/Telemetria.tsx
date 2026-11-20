@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Eye, EyeOff, LayoutGrid, Maximize2, OctagonAlert, Settings2 } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, GripVertical, LayoutGrid, Maximize2, OctagonAlert, Settings2 } from 'lucide-react'
 import type { TelemetriaControlador as Sample } from '../api/control'
 import { fmt } from '../components/Meters'
 import { channels, EncabezadoCanal, lecturaCanal, shutter, useUmbrales, type Channel } from '../components/canalesTelemetria'
@@ -23,9 +23,30 @@ function leerOcultas(): string[] {
     return channels.length - validas.length >= MINIMO_VISIBLES ? validas : []
   } catch { return [] }
 }
-// Con seis o menos tarjetas la grilla queda en 3 × 2: es el tamaño estándar de
-// tarjeta y no se agrandan al ocultar otras; las celdas que sobran quedan vacías.
-const grilla = (n: number) => ({ '--tc-cols': 3, '--tc-rows': n <= 6 ? 2 : 3 }) as CSSProperties
+/* Orden de las tarjetas elegido por el usuario (ids de canal). Los ids que ya no
+ * existen se descartan y los canales nuevos se agregan al final. */
+const ORDEN_KEY = 'co2.telemetria.orden'
+const ORDEN_ORIGINAL = channels.map(c => c.id)
+function leerOrden(): string[] {
+  try {
+    const ids: unknown = JSON.parse(localStorage.getItem(ORDEN_KEY) ?? '[]')
+    const guardados = Array.isArray(ids) ? ORDEN_ORIGINAL.filter(id => ids.includes(id)).sort((a, b) => ids.indexOf(a) - ids.indexOf(b)) : []
+    return [...guardados, ...ORDEN_ORIGINAL.filter(id => !guardados.includes(id))]
+  } catch { return ORDEN_ORIGINAL }
+}
+/** Saca `id` de su lugar y lo deja en la posición `destino`. */
+const moverA = (orden: string[], id: string, destino: number) => {
+  const resto = orden.filter(x => x !== id)
+  resto.splice(Math.max(0, Math.min(destino, resto.length)), 0, id)
+  return resto
+}
+// Tres columnas y todas las filas del mismo alto. Con seis o menos tarjetas la
+// grilla queda en 3 × 2: es el tamaño estándar de tarjeta y no se agrandan al
+// ocultar otras; las celdas que sobran quedan vacías. Con más, una fila cada tres,
+// hasta 3 × 4. Desde la tarjeta 13 las filas mantienen el alto de 3 × 4 y la grilla
+// se desplaza (clase tc-scroll): la cabecera con estado y parada no se mueve.
+const MAXIMO_SIN_SCROLL = 12
+const grilla = (n: number) => ({ '--tc-cols': 3, '--tc-rows': Math.min(4, Math.max(2, Math.ceil(n / 3))) }) as CSSProperties
 
 /** Engranaje de la barra lateral: ventana de tendencia y gráficos en las tarjetas.
  *  Usa el popover nativo para salir del recorte de la barra; se cierra al tocar
@@ -107,6 +128,118 @@ export function Telemetria() {
   const alternar = (c: Channel) => guardarOcultas(ids => ids.includes(c.id)
     ? ids.filter(id => id !== c.id)
     : channels.length - ids.length > MINIMO_VISIBLES ? [...ids, c.id] : ids)
+  const [orden, setOrden] = useState<string[]>(leerOrden)
+  const guardarOrden = (cambio: (ids: string[]) => string[]) => setOrden(previo => {
+    const ids = cambio(previo)
+    try { localStorage.setItem(ORDEN_KEY, JSON.stringify(ids)) }
+    catch { /* El orden vale para esta sesión aunque no se pueda guardar. */ }
+    return ids
+  })
+  const ordenados = orden.map(id => channels.find(c => c.id === id)!).filter(Boolean)
+  // Arrastre con eventos de puntero (mouse, lápiz y táctil). Un toque sin moverse
+  // sigue mostrando u ocultando la tarjeta; pasado el umbral, es un arrastre: la
+  // tarjeta se levanta y sigue al puntero, y toma el lugar de la que tiene debajo.
+  const arrastre = useRef<{ id: string; x: number; y: number; agarreX: number; agarreY: number; activo: boolean } | null>(null)
+  const puntero = useRef({ x: 0, y: 0 })
+  const recienArrastrada = useRef(false)
+  const [arrastrando, setArrastrando] = useState<string | null>(null)
+  const [anuncio, setAnuncio] = useState('')
+  // Posiciones de las tarjetas antes de un cambio de orden, para animar el reacomodo.
+  const previas = useRef<Map<string, DOMRect> | null>(null)
+  const tarjetasEditables = () => [...document.querySelectorAll<HTMLElement>('.tc-editando [data-canal]')]
+  const recordarPosiciones = () => { previas.current = new Map(tarjetasEditables().map(el => [el.dataset.canal!, el.getBoundingClientRect()])) }
+  const reordenar = (cambio: (ids: string[]) => string[]) => { recordarPosiciones(); guardarOrden(cambio) }
+  const LEVANTADA = 'scale(1.08) rotate(1.5deg)'
+  // Lleva la tarjeta levantada bajo el puntero, desde la celda que ocupa en la grilla.
+  const seguirPuntero = () => {
+    const a = arrastre.current
+    const el = a?.activo ? tarjetasEditables().find(t => t.dataset.canal === a.id) : null
+    if (!a || !el?.parentElement) return
+    const grilla = el.parentElement.getBoundingClientRect()
+    const contenedor = el.parentElement
+    const dx = puntero.current.x - a.agarreX - (grilla.left + el.offsetLeft - contenedor.scrollLeft)
+    const dy = puntero.current.y - a.agarreY - (grilla.top + el.offsetTop - contenedor.scrollTop)
+    el.style.transform = `translate(${dx}px, ${dy}px) ${LEVANTADA}`
+  }
+  // FLIP: cada tarjeta que cambió de celda arranca donde estaba y se desliza a la nueva.
+  useLayoutEffect(() => {
+    const antes = previas.current
+    previas.current = null
+    if (!antes) { seguirPuntero(); return }
+    const levantada = arrastre.current?.activo ? arrastre.current.id : null
+    const base = levantada ? ' scale(.94)' : ''
+    for (const el of tarjetasEditables()) {
+      const id = el.dataset.canal!
+      if (id === levantada || !antes.has(id)) continue
+      el.getAnimations().forEach(an => an.cancel())
+      const ahora = el.getBoundingClientRect(), previa = antes.get(id)!
+      const dx = previa.left - ahora.left, dy = previa.top - ahora.top
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) continue
+      el.animate([{ transform: `translate(${dx}px, ${dy}px)${base}` }, { transform: base.trim() || 'none' }], { duration: 220, easing: 'cubic-bezier(.2, .8, .2, 1)' })
+    }
+    seguirPuntero()
+  }, [orden])
+  const alSoltar = () => {
+    const a = arrastre.current
+    arrastre.current = null
+    if (!a?.activo) return
+    recienArrastrada.current = true
+    setAnuncio(posicion(a.id, orden))
+    setArrastrando(null)
+    // La tarjeta baja a su celda con una animación corta, por encima del resto.
+    // El estado no espera a la animación: si el navegador la pausa, nada queda trabado.
+    const el = tarjetasEditables().find(t => t.dataset.canal === a.id)
+    const desde = el?.style.transform
+    if (!el || !desde) return
+    el.style.transform = ''
+    el.style.position = 'relative'
+    el.style.zIndex = '5'
+    const bajar = el.animate([{ transform: desde }, { transform: 'none' }], { duration: 180, easing: 'ease-out' })
+    const fin = () => { el.style.position = ''; el.style.zIndex = '' }
+    bajar.onfinish = fin
+    bajar.oncancel = fin
+    setTimeout(fin, 300)
+  }
+  const posicion = (id: string, ids: string[]) => `${channels.find(c => c.id === id)?.title}, posición ${ids.indexOf(id) + 1} de ${ids.length}`
+  const manejadores = (c: Channel) => ({
+    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+      if (e.button !== 0) return
+      recienArrastrada.current = false
+      const r = e.currentTarget.getBoundingClientRect()
+      arrastre.current = { id: c.id, x: e.clientX, y: e.clientY, agarreX: e.clientX - r.left, agarreY: e.clientY - r.top, activo: false }
+      e.currentTarget.setPointerCapture(e.pointerId)
+    },
+    onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
+      const a = arrastre.current
+      if (!a) return
+      puntero.current = { x: e.clientX, y: e.clientY }
+      if (!a.activo) {
+        if (Math.hypot(e.clientX - a.x, e.clientY - a.y) < 8) return
+        a.activo = true
+        setArrastrando(a.id)
+      }
+      // Con scroll, acercar la tarjeta al borde de la grilla la desplaza.
+      const contenedor = e.currentTarget.parentElement
+      if (contenedor && contenedor.scrollHeight > contenedor.clientHeight) {
+        const r = contenedor.getBoundingClientRect(), margen = 48
+        const paso = e.clientY < r.top + margen ? -16 : e.clientY > r.bottom - margen ? 16 : 0
+        if (paso) contenedor.scrollTop += paso
+      }
+      seguirPuntero()
+      // La tarjeta levantada tapa el puntero: se busca la celda por posición. Se usa
+      // la celda de la grilla (offset), no el rectángulo en pantalla, que durante el
+      // reacomodo está animado y haría saltar la tarjeta de un lugar a otro.
+      const debajo = tarjetasEditables().find(t => {
+        const contenedor = t.parentElement, grilla = contenedor?.getBoundingClientRect()
+        if (t.dataset.canal === a.id || !contenedor || !grilla) return false
+        const x = e.clientX - grilla.left - t.offsetLeft + contenedor.scrollLeft, y = e.clientY - grilla.top - t.offsetTop + contenedor.scrollTop
+        return x >= 0 && x <= t.offsetWidth && y >= 0 && y <= t.offsetHeight
+      })?.dataset.canal
+      if (debajo) reordenar(ids => moverA(ids, a.id, ids.indexOf(debajo)))
+    },
+    onPointerUp: alSoltar,
+    onPointerCancel: alSoltar,
+  })
   const editar = () => { setSelected(null); setEditando(true) }
   useEffect(() => {
     if (!editando) return
@@ -150,7 +283,7 @@ export function Telemetria() {
   // fuera de límite (ISA-101): ocultarla nunca puede esconder una condición anormal.
   const anormal = (c: Channel) => tono(c) === 'warn' || tono(c) === 'alarm'
   const forzada = (c: Channel) => ocultas.includes(c.id) && anormal(c)
-  const enGrilla = editando ? channels : channels.filter(c => !ocultas.includes(c.id) || anormal(c))
+  const enGrilla = editando ? ordenados : ordenados.filter(c => !ocultas.includes(c.id) || anormal(c))
   const heading = (c: Channel) => <EncabezadoCanal c={c} badge={leer(c).badge} />
   const chart = (c: Channel, expanded = false) => {
     const width = 1000, height = expanded ? 320 : 100, padding = 15
@@ -209,17 +342,19 @@ export function Telemetria() {
   return <>
     {!mobile && vistaHost && createPortal(vista, vistaHost)}
     {editando && !selected && <div className="tc-edicion" role="region" aria-label="Edición del dashboard">
-      <p><strong>Edición</strong> <span aria-live="polite">Tocá una tarjeta para mostrarla u ocultarla · {cantidadVisibles} de {channels.length} visibles, mínimo {MINIMO_VISIBLES}</span></p>
+      <p><strong>Edición</strong> <span>Tocá una tarjeta para mostrarla u ocultarla y arrastrala para cambiarla de lugar · <span aria-live="polite">{cantidadVisibles} de {channels.length} visibles, mínimo {MINIMO_VISIBLES}</span></span></p>
+      <span className="tc-sr" aria-live="assertive">{anuncio}</span>
       <button type="button" onClick={() => guardarOcultas(() => [])} disabled={!ocultas.length}>Mostrar todas</button>
       <button type="button" className="tc-edicion-listo" autoFocus onClick={() => setEditando(false)}>Listo</button>
     </div>}
-    {!selected && <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'} ${editando ? 'tc-editando' : ''}`} style={grilla(enGrilla.length)} aria-label="Telemetría en vivo">
+    {!selected && <section className={`tc-grid ${cardView === 'B' ? 'tc-simple' : 'tc-pro'} ${editando ? 'tc-editando' : ''} ${arrastrando ? 'tc-reordenando' : ''} ${enGrilla.length <= 6 ? 'tc-amplia' : ''} ${enGrilla.length > MAXIMO_SIN_SCROLL ? 'tc-scroll' : ''}`} style={grilla(enGrilla.length)} aria-label="Telemetría en vivo">
       {enGrilla.map(c => editando ? <button type="button" key={c.id} data-canal={c.id}
-        className={`tc-card ${tono(c)} ${ocultas.includes(c.id) ? 'tc-oculta' : ''}`} onClick={() => alternar(c)}
+        className={`tc-card ${ocultas.includes(c.id) ? 'tc-oculta' : ''} ${arrastrando === c.id ? 'tc-arrastrando' : ''}`} {...manejadores(c)}
+        onClick={() => { if (recienArrastrada.current) recienArrastrada.current = false; else alternar(c) }}
         aria-pressed={!ocultas.includes(c.id)} aria-disabled={bloqueada(c) || undefined} aria-label={`Mostrar ${c.title} en el dashboard`}
         title={bloqueada(c) ? `Tiene que haber al menos ${MINIMO_VISIBLES} tarjetas visibles` : undefined}>
         {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{value(c)} <small>{c.unit}</small></div>
-        <div className="tc-foot"><span>{bloqueada(c) ? `Mínimo ${MINIMO_VISIBLES} visibles` : ''}</span>
+        <div className="tc-foot"><span className="tc-agarre"><GripVertical size={14} aria-hidden="true" />{bloqueada(c) ? `Mínimo ${MINIMO_VISIBLES} visibles` : 'Arrastrar'}</span>
           <span className="tc-edit-chip">{ocultas.includes(c.id) ? <><EyeOff size={14} aria-hidden="true" /> Oculta</> : <><Eye size={14} aria-hidden="true" /> Visible</>}</span></div>
       </button> : <button type="button" key={c.id} data-canal={c.id} className={`tc-card ${tono(c)} ${forzada(c) ? 'tc-forzada' : ''}`} onClick={() => setSelected(c)} aria-label={`Ampliar ${c.title}${forzada(c) ? ' (tarjeta oculta, visible por la condición anormal)' : ''}`}>
         {heading(c)}<div className="tc-value" style={{ color: color(c) }}>{fuera(c) && <OctagonAlert className="tc-value-alarma" aria-label="Fuera de límite" />}{value(c)} <small>{c.unit}</small></div>
