@@ -17,6 +17,7 @@ import type {
 import { useAuth } from '../context/AuthContext'
 import { useSystem } from '../context/SystemContext'
 import { armarComponente, esRolNumerico, hardwareApi, rolesPosibles, type DriverInfo } from '../api/hardware'
+import { Confirmacion } from '../components/Confirmacion'
 
 const ROLES: Rol[] = ['Operador', 'Investigador', 'Administrador']
 
@@ -525,28 +526,13 @@ export function Administracion() {
       )}
 
       {confirmBaja && (
-        <div className="modal-bg" onClick={() => setConfirmBaja(null)}>
-          <div className="modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-            <h3>Dar de baja usuario</h3>
-            <p>
-              ¿Seguro que querés dar de baja a <b>{confirmBaja.nombre}</b>? No va a poder ingresar al sistema. No se
-              borra: sus ensayos y su historial de auditoría se conservan, y se puede reactivar.
-            </p>
-            <div className="modal-actions">
-              <button className="ghost" type="button" autoFocus onClick={() => setConfirmBaja(null)}>
-                Cancelar
-              </button>
-              <button
-                className="primary"
-                type="button"
-                style={{ background: '#c31220', borderColor: '#ff4d5a' }}
-                onClick={darDeBaja}
-              >
-                Dar de baja
-              </button>
-            </div>
-          </div>
-        </div>
+        <Confirmacion titulo="Dar de baja usuario" confirmar="Dar de baja"
+          onConfirmar={darDeBaja} onCancelar={() => setConfirmBaja(null)}>
+          <p>
+            ¿Seguro que querés dar de baja a <b>{confirmBaja.nombre}</b>? No va a poder ingresar al sistema. No se
+            borra: sus ensayos y su historial de auditoría se conservan, y se puede reactivar.
+          </p>
+        </Confirmacion>
       )}
 
       {/* ── 2. Sección Hardware ───────────────────────────────────────────── */}

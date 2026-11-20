@@ -31,6 +31,7 @@ import { VERSION } from '../mock/data'
 import type { EstadoSistema } from '../mock/types'
 import { useAuth } from '../context/AuthContext'
 import { useSystem } from '../context/SystemContext'
+import { Confirmacion } from '../components/Confirmacion'
 
 const NAV = [
   { to: '/', label: 'Telemetría', icon: Home, end: true },
@@ -308,32 +309,16 @@ export function AppLayout() {
       </div>
 
       {confirmSalir && (
-        <div className="modal-bg" onClick={() => setConfirmSalir(false)}>
-          <div
-            className="modal neutral"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="titulo-salir"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 id="titulo-salir">Cerrar sesión</h3>
-            <p>¿Querés cerrar la sesión de {usuario?.nombre}? Para volver a operar vas a tener que ingresar de nuevo.</p>
-            {estado !== 'REPOSO' && estado !== 'SIN CONEXIÓN' && (
-              // Cerrar sesión solo borra el token: el controlador sigue con lo que estaba.
-              <p className="aviso-ctrl warn">
-                El equipo no está en reposo ({estado}). Cerrar sesión no lo apaga ni detiene el grabado.
-              </p>
-            )}
-            <div className="modal-actions">
-              <button className="ghost" type="button" autoFocus onClick={() => setConfirmSalir(false)}>
-                Cancelar
-              </button>
-              <button className="primary" type="button" onClick={cerrarSesion}>
-                Cerrar sesión
-              </button>
-            </div>
-          </div>
-        </div>
+        <Confirmacion titulo="Cerrar sesión" confirmar="Cerrar sesión" tono="neutral"
+          onConfirmar={cerrarSesion} onCancelar={() => setConfirmSalir(false)}>
+          <p>¿Querés cerrar la sesión de {usuario?.nombre}? Para volver a operar vas a tener que ingresar de nuevo.</p>
+          {estado !== 'REPOSO' && estado !== 'SIN CONEXIÓN' && (
+            // Cerrar sesión solo borra el token: el controlador sigue con lo que estaba.
+            <p className="aviso-ctrl warn">
+              El equipo no está en reposo ({estado}). Cerrar sesión no lo apaga ni detiene el grabado.
+            </p>
+          )}
+        </Confirmacion>
       )}
     </div>
   )

@@ -11,7 +11,8 @@
     "test:emergencia": "node tests/emergencia.cjs",
     "test:hardware": "node tests/hardware.cjs",
     "test:pasos": "node tests/pasos.cjs",
-    "test:progreso": "node tests/progreso.cjs"
+    "test:progreso": "node tests/progreso.cjs",
+    "test:confirmacion": "node tests/confirmacion.cjs"
   },
   "dependencies": {
     "lucide-react": "^0.544.0",

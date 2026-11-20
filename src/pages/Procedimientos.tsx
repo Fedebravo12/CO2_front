@@ -13,6 +13,7 @@ import type {
   ValidacionPaso,
 } from '../mock/types'
 import { describir } from '../procedimientos/interprete'
+import { Confirmacion } from '../components/Confirmacion'
 
 const TIPOS_RED = ['', 'LPG', 'HLPG', 'pHLPG']
 
@@ -724,23 +725,13 @@ export function Procedimientos() {
       </div>
 
       {confirmDelete && (
-        <div className="modal-bg" onClick={() => setConfirmDelete(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Eliminar procedimiento</h3>
-            <p>
-              ¿Seguro que querés eliminar <b>{confirmDelete.nombre}</b>? Si algún programa lo usa, primero
-              hay que asignarle otro.
-            </p>
-            <div className="modal-actions">
-              <button className="ghost" type="button" onClick={() => setConfirmDelete(null)}>
-                Cancelar
-              </button>
-              <button className="primary" type="button" style={{ background: '#c31220', borderColor: '#ff4d5a' }} onClick={eliminar}>
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
+        <Confirmacion titulo="Eliminar procedimiento" confirmar="Eliminar"
+          onConfirmar={eliminar} onCancelar={() => setConfirmDelete(null)}>
+          <p>
+            ¿Seguro que querés eliminar <b>{confirmDelete.nombre}</b>? Si algún programa lo usa, primero
+            hay que asignarle otro.
+          </p>
+        </Confirmacion>
       )}
     </>
   )

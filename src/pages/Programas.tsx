@@ -8,6 +8,7 @@ import { useSystem } from '../context/SystemContext'
 import { fmt } from '../components/Meters'
 import { EditorPasos } from '../components/EditorPasos'
 import { resumenPasos } from '../components/resumenPasos'
+import { Confirmacion } from '../components/Confirmacion'
 
 const FORM_INICIAL = {
   nombre: '',
@@ -287,28 +288,13 @@ export function Programas() {
       )}
 
       {confirmDelete && (
-        <div className="modal-bg" onClick={() => setConfirmDelete(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Eliminar programa</h3>
-            <p>
-              ¿Seguro que querés eliminar <b>{confirmDelete.nombre}</b>? Si ya se usó en algún ensayo,
-              se da de baja en lugar de borrarse, para no perder la trazabilidad de esos ensayos.
-            </p>
-            <div className="modal-actions">
-              <button className="ghost" type="button" onClick={() => setConfirmDelete(null)}>
-                Cancelar
-              </button>
-              <button
-                className="primary"
-                type="button"
-                style={{ background: '#c31220', borderColor: '#ff4d5a' }}
-                onClick={eliminarPrograma}
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
+        <Confirmacion titulo="Eliminar programa" confirmar="Eliminar"
+          onConfirmar={eliminarPrograma} onCancelar={() => setConfirmDelete(null)}>
+          <p>
+            ¿Seguro que querés eliminar <b>{confirmDelete.nombre}</b>? Si ya se usó en algún ensayo,
+            se da de baja en lugar de borrarse, para no perder la trazabilidad de esos ensayos.
+          </p>
+        </Confirmacion>
       )}
     </>
   )

@@ -1043,6 +1043,8 @@ tr.sel td:first-child { box-shadow: inset 3px 0 0 var(--green); }
 }
 .modal h3 { margin: 0 0 8px; color: var(--red); }
 .modal p { color: var(--muted); }
+/* Botón de una acción destructiva (eliminar, dar de baja). */
+.primary.peligro { background: #c31220; border-color: #ff4d5a; }
 /* Confirmaciones que no son de riesgo (p. ej. cerrar sesión): título sin rojo. */
 .modal.neutral h3 { color: var(--text); }
 .modal p.aviso-ctrl.warn { color: var(--orange); }
