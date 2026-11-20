@@ -1,4 +1,3 @@
-.tc-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font: 12px var(--mono); }
 .tc-warning { color: var(--red); }
 .tc-window { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .tc-window select { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; font: inherit; }
@@ -6,29 +5,35 @@
 .tc-card { text-align: left; color: var(--text); background: var(--surface); border: 3px solid var(--border); border-radius: 14px; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; cursor: pointer; }
 .tc-card:hover { background: var(--surface-2); }
 .tc-card:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
-.tc-card.ok { border-color: color-mix(in srgb, var(--green) 40%, var(--border)); }
-.tc-card.info { border-color: color-mix(in srgb, var(--blue) 40%, var(--border)); }
-.tc-card.warn { border-color: color-mix(in srgb, var(--yellow) 45%, var(--border)); }
+/* La tarjeta toma color si hay algo anormal o si el equipo está activo
+   (encendido / en marcha), que va con borde verde. */
+.tc-card.activo { border-color: var(--green-line); box-shadow: inset 4px 0 0 var(--green-line); }
+.tc-card.warn { border-color: var(--yellow-line); box-shadow: inset 4px 0 0 var(--yellow-line); }
+.tc-card.alarm { border-color: var(--red-line); box-shadow: inset 4px 0 0 var(--red-line); }
 .tc-heading { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .tc-heading h3 { margin: 0; font-size: 12px; letter-spacing: .08em; color: var(--tone-a6bac9); flex: 1; min-width: 0; }
 .tc-icon { flex-shrink: 0; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--surface-2); }
-.tc-badge { border-radius: 30px; padding: 4px 8px; font-size: 11px; background: var(--surface-3); color: var(--muted); }
-.tc-badge.ok { background: var(--green-dim); color: var(--green); }
-.tc-badge.info { background: var(--blue-dim); color: var(--blue); }
-.tc-badge.warn { background: var(--yellow-dim); color: var(--yellow); }
+.tc-badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 30px; padding: 4px 8px; font-size: 11px; font-weight: 600; background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.tc-badge svg { flex: none; }
+/* Activo: relleno verde. Se distingue de `ok`, que es verde sin relleno. */
+.tc-badge.activo { background: var(--green); color: var(--surface); border-color: var(--green); }
+.tc-badge.ok { color: var(--green); border-color: var(--green-line); }
+.tc-badge.warn { background: var(--yellow-dim); color: var(--yellow); border-color: var(--yellow-line); }
+.tc-badge.alarm { background: var(--red-dim); color: var(--red); border-color: var(--red-line); }
+.tc-value-alarma { width: .7em; height: .7em; margin-right: .2em; vertical-align: -.05em; }
 .tc-value { font: 700 clamp(26px, 3vw, 48px)/1.15 var(--mono); font-variant-numeric: tabular-nums; }
 .tc-value small { font-size: .34em; font-weight: 500; color: var(--muted); }
 .tc-plot { position: relative; flex: 1; min-height: 54px; background: var(--tone-0d161f); border: 1px solid var(--border-soft); border-radius: 8px; overflow: hidden; }
 .tc-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .tc-plot.expanded { height: 320px; flex: none; }
-.tc-limit { position: absolute; right: 6px; transform: translateY(-50%); font: 10px var(--mono); color: var(--red); background: var(--surface); }
+.tc-limit { position: absolute; right: 6px; transform: translateY(-50%); font: 10px var(--mono); color: var(--muted); background: var(--surface); }
 .tc-dot { position: absolute; width: 7px; height: 7px; margin: -3.5px; border-radius: 50%; }
 .tc-notice { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font: 10px var(--mono); }
 .tc-notice span { background: var(--surface); padding: 3px 8px; }
 .tc-foot { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font: 11px var(--mono); margin: 0; }
 .tc-foot > span { display: flex; align-items: center; gap: 5px; }
 .tc-progress { height: 8px; background: var(--surface-3); border-radius: 20px; margin: auto 0; overflow: hidden; }
-.tc-progress i { display: block; height: 100%; background: var(--teal); transition: width .3s; }
+.tc-progress i { display: block; height: 100%; background: var(--trend-strong); transition: width .3s; }
 .tc-dialog { padding: 0; width: min(1100px, calc(100% - 32px)); max-height: calc(100dvh - 40px); color: var(--text); background: var(--surface); border: 3px solid var(--border); border-radius: 16px; box-shadow: var(--shadow); }
 .tc-dialog::backdrop { background: #03060ab8; }
 .tc-detail { padding: 24px; display: flex; flex-direction: column; gap: 18px; }
@@ -36,13 +41,9 @@
 .tc-detail-head .tc-heading { flex: 1; }
 .tc-detail-head button { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px; cursor: pointer; }
 .tc-axis { position: absolute; inset: 3px auto 3px 6px; display: flex; flex-direction: column; justify-content: space-between; font: 10px var(--mono); color: var(--muted); }
-#telemetria-toolbar:empty { display: none; }
 @media (max-width: 680px) { .tc-detail { padding: 14px; } .tc-detail-summary { flex-wrap: wrap; } }
 
 /* Variante B: lectura rápida; las curvas siguen disponibles en el detalle. */
-.tc-view-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 20px; background: var(--surface-2); color: var(--muted); font: inherit; cursor: pointer; }
-.tc-view-toggle[aria-pressed="true"] { border-color: var(--green); background: var(--green-dim); color: var(--green); }
-.tc-view-toggle:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 .tc-simple .tc-card { justify-content: space-between; }
 .tc-simple .tc-value { font-size: clamp(26px, 4vw, 64px); }
 .tc-simple .tc-progress { margin: 0; }
@@ -75,12 +76,8 @@
   .app-dashboard .nav-link { padding-block: 6px; }
   .app-dashboard .sidebar-foot { padding-top: 6px; }
 }
-@media (max-width: 1100px) {
-  .app-dashboard .tc-toolbar { gap: 6px; }
-}
 @media (max-width: 600px) {
   .app-dashboard .page { padding: 6px; }
-  .app-dashboard .tc-toolbar { font-size: 10px; }
   .tc-card .tc-icon { display: none; }
   .tc-card .tc-foot > span:last-child { display: none; }
 }
@@ -121,3 +118,22 @@
   .tc-plot.expanded { height: max(110px, calc(100dvh - 190px)); }
   .tc-detail > p.tc-foot:last-child { display: none; }
 }
+
+/* ── Vista del dashboard: engranaje en la barra lateral y panel flotante ── */
+.vista-btn { flex: none; min-width: 38px; min-height: 38px; padding: 8px; justify-content: center; }
+.vista-btn:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
+.vista-pop { position: fixed; inset: auto; margin: 0; width: 280px; padding: 16px; display: none; flex-direction: column; gap: 16px; color: var(--text); background: var(--surface); border: 2px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); }
+.vista-pop:popover-open { display: flex; }
+.vista-pop h3 { margin: 0; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.vista-campo { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+.vista-seg { display: grid; grid-template-columns: repeat(3, 1fr); padding: 3px; gap: 3px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
+.vista-seg button { padding: 7px 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font: 600 13px var(--mono); cursor: pointer; }
+.vista-seg button:hover { color: var(--text); }
+.vista-seg button[aria-checked="true"] { background: var(--surface); color: var(--text); box-shadow: inset 0 0 0 1px var(--green-line), 0 1px 3px rgba(0, 0, 0, .15); }
+.vista-seg button:focus-visible, .vista-switch input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.vista-switch { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; }
+.vista-switch small { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+.vista-switch input { appearance: none; flex: none; position: relative; width: 42px; height: 24px; margin: 0; border-radius: 99px; background: var(--surface-3); border: 1px solid var(--border); cursor: pointer; transition: background .2s; }
+.vista-switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); transition: transform .2s; }
+.vista-switch input:checked { background: var(--green-line); border-color: var(--green-line); }
+.vista-switch input:checked::after { transform: translateX(18px); }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { Accion, Falla } from '../api/control'
 import { fmt } from '../components/Meters'
 import { useSystem } from '../context/SystemContext'
@@ -14,12 +14,16 @@ import { HardwareManual } from '../components/HardwareManual'
  */
 export function ControlManual() {
   const { rol, estado, controlador: c, controladorVivo, enviar } = useSystem()
-  const [pos, setPos] = useState(0)
+  const [modo, setModo] = useState<'relativo' | 'absoluto'>('relativo')
+  const [valor, setValor] = useState(100)
   // Con GPIO las variables del arreglo llegan en null: no se calculan las filas fijas.
   if (c?.modo_hal === 'gpio') return <HardwareManual />
 
   const bloqueado = !controladorVivo || estado === 'EMERGENCIA' || estado === 'GRABANDO'
   const a = controladorVivo ? c?.actuadores : undefined
+  const MAX_UM = 300000
+  const actualUm = Math.round((c?.variables.POSICION_MOTOR ?? 0) * 1000)
+  const mover = (um: number) => enviar('mover_motor', { posicion_mm: Math.min(MAX_UM, Math.max(0, um)) / 1000 })
 
   const filas: { nombre: string; detalle: string; encendido: boolean; encender: Accion; apagar: Accion }[] = [
     {
@@ -38,7 +42,7 @@ export function ControlManual() {
     },
     {
       nombre: 'Shutter mecánico',
-      detalle: a?.shutter_armado ? 'Armado (cerrado hasta el primer pulso)' : 'Desarmado',
+      detalle: a?.shutter_armado ? 'Armado: se puede abrir y cerrar' : 'Desarmado: bloqueado',
       encendido: Boolean(a?.shutter_armado),
       encender: 'armar_shutter',
       apagar: 'desarmar_shutter',
@@ -81,20 +85,50 @@ export function ControlManual() {
         <section className="panel">
           <h3>ACTUADORES</h3>
           {filas.map((f) => (
-            <div key={f.nombre} className="control-row">
-              <div>
-                <b>{f.nombre}</b>
-                <div style={{ color: 'var(--muted)' }}>{f.detalle}</div>
+            <Fragment key={f.nombre}>
+              <div className="control-row">
+                <div>
+                  <b>{f.nombre}</b>
+                  <div style={{ color: 'var(--muted)' }}>{f.detalle}</div>
+                </div>
+                <button
+                  className={`toggle ${f.encendido ? 'on' : ''}`}
+                  disabled={bloqueado}
+                  onClick={() => enviar(f.encendido ? f.apagar : f.encender)}
+                  aria-label={`${f.encendido ? 'Apagar' : 'Encender'} ${f.nombre}`}
+                >
+                  <i />
+                </button>
               </div>
-              <button
-                className={`toggle ${f.encendido ? 'on' : ''}`}
-                disabled={bloqueado}
-                onClick={() => enviar(f.encendido ? f.apagar : f.encender)}
-                aria-label={`${f.encendido ? 'Apagar' : 'Encender'} ${f.nombre}`}
-              >
-                <i />
-              </button>
-            </div>
+              {f.nombre === 'Shutter mecánico' && (
+                <div className="control-row" style={{ paddingLeft: 16 }}>
+                  <div>
+                    <span>Haz del láser</span>
+                    <div style={{ color: 'var(--muted)' }}>
+                      {a?.shutter_armado ? 'Abrir y cerrar a mano' : 'Arme el shutter para operarlo'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className={!a?.shutter_abierto ? 'primary' : 'ghost'}
+                      type="button"
+                      disabled={bloqueado || !a?.shutter_armado}
+                      onClick={() => enviar('cerrar_shutter')}
+                    >
+                      Cerrado
+                    </button>
+                    <button
+                      className={a?.shutter_abierto ? 'primary' : 'ghost'}
+                      type="button"
+                      disabled={bloqueado || !a?.shutter_armado}
+                      onClick={() => enviar('abrir_shutter')}
+                    >
+                      Abierto
+                    </button>
+                  </div>
+                </div>
+              )}
+            </Fragment>
           ))}
           <div className="control-row">
             <div>
@@ -119,20 +153,38 @@ export function ControlManual() {
           <h3>DESPLAZADOR LINEAL</h3>
           <div className="control-row">
             <span>Posición actual</span>
-            <b className="mono">{fmt((c?.variables.POSICION_MOTOR ?? 0) * 1000, 0)} µm</b>
+            <b className="mono">{fmt(actualUm, 0)} µm</b>
           </div>
+
           <div className="control-row">
-            <span>Ir a (µm)</span>
+            <div>
+              <b>Tipo de movimiento</b>
+              <div style={{ color: 'var(--muted)' }}>
+                {modo === 'relativo' ? 'Se suma a la posición actual' : 'Va a una posición fija del recorrido'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className={modo === 'relativo' ? 'primary' : 'ghost'} type="button" onClick={() => setModo('relativo')}>
+                Relativo
+              </button>
+              <button className={modo === 'absoluto' ? 'primary' : 'ghost'} type="button" onClick={() => setModo('absoluto')}>
+                Absoluto
+              </button>
+            </div>
+          </div>
+
+          <div className="control-row">
+            <span>{modo === 'relativo' ? 'Distancia a desplazar (µm)' : 'Posición destino (µm)'}</span>
             <input
               type="number"
               min={0}
-              max={300000}
+              max={MAX_UM}
               step={50}
-              value={pos}
+              value={valor}
               disabled={bloqueado}
               onChange={(e) => {
                 const v = Number(e.target.value)
-                if (!Number.isNaN(v)) setPos(Math.min(300000, Math.max(0, v)))
+                if (!Number.isNaN(v)) setValor(Math.min(MAX_UM, Math.max(0, v)))
               }}
               style={{
                 width: 110,
@@ -144,11 +196,38 @@ export function ControlManual() {
               }}
             />
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-            <button className="ghost" type="button" disabled={bloqueado} onClick={() => enviar('mover_motor', { posicion_mm: pos / 1000 })}>
-              Mover
-            </button>
-            <button className="ghost" type="button" disabled={bloqueado} onClick={() => enviar('mover_motor', { posicion_mm: 0 })}>
+
+          {modo === 'relativo' ? (
+            <>
+              <div className="control-row">
+                <span style={{ color: 'var(--muted)' }}>
+                  Quedaría en {fmt(Math.min(MAX_UM, actualUm + valor), 0)} µm (avanzando) o{' '}
+                  {fmt(Math.max(0, actualUm - valor), 0)} µm (retrocediendo)
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button className="ghost" type="button" disabled={bloqueado || valor === 0} onClick={() => mover(actualUm - valor)}>
+                  − Retroceder
+                </button>
+                <button className="ghost" type="button" disabled={bloqueado || valor === 0} onClick={() => mover(actualUm + valor)}>
+                  + Avanzar
+                </button>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button className="ghost" type="button" disabled={bloqueado} onClick={() => mover(valor)}>
+                Ir a {fmt(valor, 0)} µm
+              </button>
+            </div>
+          )}
+
+          <div className="control-row" style={{ marginTop: 16 }}>
+            <div>
+              <b>Referencia</b>
+              <div style={{ color: 'var(--muted)' }}>Vuelve al origen del recorrido (0 µm)</div>
+            </div>
+            <button className="ghost" type="button" disabled={bloqueado} onClick={() => mover(0)}>
               Ir a posición inicial
             </button>
           </div>

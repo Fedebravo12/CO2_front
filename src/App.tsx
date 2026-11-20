@@ -37,6 +37,7 @@ export default function App() {
           }
         >
           <Route index element={<Telemetria />} />
+          <Route path="monitor" element={<Telemetria />} />
           <Route path="nuevo-ensayo" element={<NuevoEnsayo />} />
           <Route path="simulador" element={<Simulador />} />
           <Route path="registro" element={<Registro />} />
