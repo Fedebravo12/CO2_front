@@ -16,6 +16,15 @@ interface Props {
   etiqueta?: string
 }
 
+/** «duracion_ms» → «Duración (ms)», «mover_a» → «Mover a»: nombres de la ficha para mostrar. */
+const ACENTOS: Record<string, string> = { duracion: 'duración', posicion: 'posición', rotacion: 'rotación' }
+export function nombreLegible(clave: string): string {
+  const unidad = clave.match(/_(ms|mm|s|um)$/)?.[1]
+  const palabras = (unidad ? clave.slice(0, -unidad.length - 1) : clave).split('_').map(p => ACENTOS[p] ?? p)
+  const texto = palabras.join(' ')
+  return texto.charAt(0).toUpperCase() + texto.slice(1) + (unidad ? ` (${unidad})` : '')
+}
+
 const textoInicial = (v: ValorArgumento | undefined): string | boolean =>
   typeof v === 'boolean' ? v : typeof v === 'number' ? String(v) : ''
 
@@ -58,17 +67,19 @@ export function FormularioComando({
     setValores(siguientes)
     onChange?.(convertir(argumentos, siguientes, false).salida)
   }
-  return <div className="field">
-    {Object.entries(argumentos).map(([nombre, tipo]) => <div key={nombre}>
-      <label htmlFor={`${base}-${nombre}`}>{nombre}</label>
-      {tipo === 'booleano'
-        ? <input id={`${base}-${nombre}`} type="checkbox" checked={valores[nombre] === true}
-          onChange={e => cambiar(nombre, e.target.checked)} />
-        : <input id={`${base}-${nombre}`} type="number" step={tipo === 'entero' ? 1 : 'any'}
+  // Sin contenedor propio en la grilla: cada argumento es un campo más del formulario que lo contiene.
+  return <div className="form-cmd">
+    {Object.entries(argumentos).map(([nombre, tipo]) => tipo === 'booleano'
+      ? <label key={nombre} className="field form-check" htmlFor={`${base}-${nombre}`}>
+        <input id={`${base}-${nombre}`} type="checkbox" checked={valores[nombre] === true}
+          onChange={e => cambiar(nombre, e.target.checked)} />{nombreLegible(nombre)}</label>
+      : <div key={nombre} className="field">
+        <label htmlFor={`${base}-${nombre}`}>{nombreLegible(nombre)}</label>
+        <input id={`${base}-${nombre}`} type="number" step={tipo === 'entero' ? 1 : 'any'}
           value={typeof valores[nombre] === 'string' ? valores[nombre] as string : ''}
-          onChange={e => cambiar(nombre, e.target.value)} />}
-    </div>)}
-    {error && <small role="alert">{error}</small>}
+          onChange={e => cambiar(nombre, e.target.value)} />
+      </div>)}
+    {error && <small role="alert" className="login-error">{error}</small>}
     {!onChange && <button type="button" className="ghost" disabled={deshabilitado} onClick={enviar}>{etiqueta}</button>}
   </div>
 }

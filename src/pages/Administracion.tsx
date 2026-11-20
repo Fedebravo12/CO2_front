@@ -223,8 +223,6 @@ export function Administracion() {
 
   // Estados dinámicos para el formulario de alta de componente
   const [formComp, setFormComp] = useState(NUEVO_COMPONENTE_VACIO)
-  const [tempPinNombre, setTempPinNombre] = useState('')
-  const [tempPinVal, setTempPinVal] = useState('')
 
   useEffect(() => {
     recargarUsuarios()
@@ -260,36 +258,11 @@ export function Administracion() {
     })
   }
 
-  // Agrega un nuevo pin dinámico (nombre + GPIO/Etiqueta)
-  const handleAgregarPin = () => {
-    if (!tempPinNombre.trim() || !tempPinVal.trim()) return
-
-    setFormComp((prev) => ({
-      ...prev,
-      config: {
-        ...prev.config,
-        pines: {
-          ...prev.config.pines,
-          [tempPinNombre.trim()]: tempPinVal.trim(),
-        },
-      },
-    }))
-
-    setTempPinNombre('')
-    setTempPinVal('')
-  }
-
-  // Quita un pin de la lista temporal
-  const handleRemoverPin = (nombrePin: string) => {
-    setFormComp((prev) => {
-      const nuevosPines = { ...prev.config.pines }
-      delete nuevosPines[nombrePin]
-      return {
-        ...prev,
-        config: { ...prev.config, pines: nuevosPines },
-      }
-    })
-  }
+  // Asigna el contacto de un pin que declara la ficha del driver.
+  const asignarPin = (pin: string, valor: string) =>
+    setFormComp(prev => ({ ...prev, config: { ...prev.config, pines: { ...prev.config.pines, [pin]: valor } } }))
+  // Pines que pide el driver; al editar, también los que ya tenía el componente.
+  const pinesDelForm = Array.from(new Set([...(catalogo[formComp.config.tipo]?.pines ?? []), ...Object.keys(formComp.config.pines)]))
 
   // Guarda el componente ingresado usando su nombre como identificador único
   const handleGuardarComponente = () => {
@@ -309,6 +282,8 @@ export function Administracion() {
       if (!parametros || typeof parametros !== 'object' || Array.isArray(parametros)) throw new Error()
     } catch { setErrorHw('Los parámetros deben ser un objeto JSON válido.'); return }
     if (!catalogo[formComp.config.tipo]) { setErrorHw('Seleccione un driver del catálogo.'); return }
+    const sinAsignar = (catalogo[formComp.config.tipo].pines ?? []).filter(pin => !String(formComp.config.pines[pin] ?? '').trim())
+    if (sinAsignar.length) { setErrorHw(`Asigne el contacto de: ${sinAsignar.join(', ')}.`); return }
     let nuevoComponente: ComponenteConfig
     try {
       nuevoComponente = armarComponente({
@@ -841,112 +816,72 @@ export function Administracion() {
           <div className="panel-head">
             <h3>{editComp ? `EDITAR COMPONENTE · ${editComp}` : 'AGREGAR COMPONENTE'}</h3>
           </div>
-          {errorHw && <p role="alert" className="login-error">{errorHw}</p>}
-
-          <div className="field">
-            <h4>Nombre del Componente:</h4>
-            <input
-              type="text"
-              placeholder="ej: Sensor de temperatura del láser"
-              value={formComp.nombre}
-              disabled={!!editComp}
-              onChange={(e) => {
-                setErrorComp(null)
-                setFormComp((prev) => ({
-                  ...prev,
-                  nombre: e.target.value,
-                }))
-              }}
-            />
-          </div>
-
-          <div className="field">
-            <h4>Tipo / Clase de Componente:</h4>
-            <select
-              value={formComp.config.tipo}
-              onChange={(e) => {
-                const tipo = e.target.value
-                const info = catalogo[tipo]
-                setFormComp(prev => ({ ...prev, config: { ...prev.config, tipo, rol: '',
-                  pines: Object.fromEntries((info?.pines ?? []).map(pin => [pin, ''])) } }))
-                setParametrosTexto(JSON.stringify(info?.parametros ?? {}, null, 2))
-              }}
-            ><option value="">Seleccione un driver</option>
-              {Object.keys(catalogo).map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
-            </select>
-            {catalogo[formComp.config.tipo]?.ayuda && <p>{catalogo[formComp.config.tipo].ayuda}</p>}
-          </div>
-          <div className="field">
-            <label>Parámetros del componente (JSON)</label>
-            <textarea rows={6} value={parametrosTexto} onChange={e => setParametrosTexto(e.target.value)} />
-          </div>
-
-          <div className="field">
-            <label htmlFor="comp-rol">Rol</label>
-            <select id="comp-rol" value={formComp.config.rol ?? ''}
-              onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, rol: e.target.value } }))}>
-              <option value="">Sin rol</option>
-              {rolesPosibles(catalogo[formComp.config.tipo]?.campos).map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
-          </div>
-          {esRolNumerico(formComp.config.rol) && <>
+          <div className="form-grid">
             <div className="field">
-              <label htmlFor="comp-ganancia">Ganancia</label>
-              <input id="comp-ganancia" type="number" step="any" value={formComp.config.ganancia ?? 1}
-                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, ganancia: e.target.value as unknown as number } }))} />
+              <label htmlFor="comp-nombre">Nombre</label>
+              <input id="comp-nombre" type="text" placeholder="Ej: Sensor de temperatura del láser"
+                value={formComp.nombre} disabled={!!editComp}
+                onChange={(e) => { setErrorComp(null); setFormComp((prev) => ({ ...prev, nombre: e.target.value })) }} />
             </div>
             <div className="field">
-              <label htmlFor="comp-offset">Offset</label>
-              <input id="comp-offset" type="number" step="any" value={formComp.config.offset ?? 0}
-                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, offset: e.target.value as unknown as number } }))} />
+              <label htmlFor="comp-driver">Driver</label>
+              <select id="comp-driver" value={formComp.config.tipo}
+                onChange={(e) => {
+                  const tipo = e.target.value
+                  const info = catalogo[tipo]
+                  setErrorHw('')
+                  setFormComp(prev => ({ ...prev, config: { ...prev.config, tipo, rol: '',
+                    pines: Object.fromEntries((info?.pines ?? []).map(pin => [pin, ''])) } }))
+                  setParametrosTexto(JSON.stringify(info?.parametros ?? {}, null, 2))
+                }}>
+                <option value="">Seleccione un driver</option>
+                {Object.keys(catalogo).map(tipo => <option key={tipo} value={tipo}>{tipo}</option>)}
+              </select>
             </div>
-          </>}
-          <div className="field">
-            <label><input type="checkbox" checked={!!formComp.config.inhibir_en_prueba}
-              onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, inhibir_en_prueba: e.target.checked } }))} /> Inhibir en modo prueba</label>
+            {(catalogo[formComp.config.tipo]?.descripcion || catalogo[formComp.config.tipo]?.ayuda) && <p className="field full form-ayuda">
+              {catalogo[formComp.config.tipo].descripcion ?? catalogo[formComp.config.tipo].ayuda}</p>}
+
+            {/* Un campo por pin de la ficha: el back exige exactamente esos pines. */}
+            {pinesDelForm.map(pin => <div className="field" key={pin}>
+              <label htmlFor={`comp-pin-${pin}`}>Pin · {pin}</label>
+              <input id={`comp-pin-${pin}`} type="text" placeholder="Ej: 17, GPIO17 o PIN11"
+                value={String(formComp.config.pines[pin] ?? '')} onChange={e => asignarPin(pin, e.target.value)} />
+            </div>)}
+            {formComp.config.tipo && pinesDelForm.length === 0 && <p className="field full form-ayuda">Este driver no usa pines GPIO propios (se conecta por el bus indicado en sus parámetros).</p>}
+
+            <div className="field">
+              <label htmlFor="comp-rol">Rol en el dashboard</label>
+              <select id="comp-rol" value={formComp.config.rol ?? ''} disabled={!formComp.config.tipo}
+                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, rol: e.target.value } }))}>
+                <option value="">Sin rol</option>
+                {rolesPosibles(catalogo[formComp.config.tipo]?.campos).map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            {esRolNumerico(formComp.config.rol) ? <>
+              <div className="field">
+                <label htmlFor="comp-ganancia">Ganancia</label>
+                <input id="comp-ganancia" type="number" step="any" value={formComp.config.ganancia ?? 1}
+                  onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, ganancia: e.target.value as unknown as number } }))} />
+              </div>
+              <div className="field">
+                <label htmlFor="comp-offset">Offset</label>
+                <input id="comp-offset" type="number" step="any" value={formComp.config.offset ?? 0}
+                  onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, offset: e.target.value as unknown as number } }))} />
+              </div>
+            </> : <p className="field form-ayuda">El rol indica qué tarjeta del dashboard alimenta este componente.</p>}
+
+            <div className="field full">
+              <label htmlFor="comp-parametros">Parámetros del driver (JSON)</label>
+              <textarea id="comp-parametros" className="mono" rows={5} value={parametrosTexto} onChange={e => setParametrosTexto(e.target.value)} />
+            </div>
+            <label className="field full form-check">
+              <input type="checkbox" checked={!!formComp.config.inhibir_en_prueba}
+                onChange={e => setFormComp(prev => ({ ...prev, config: { ...prev.config, inhibir_en_prueba: e.target.checked } }))} />
+              Inhibir en modo prueba (en el pre-grabado este componente no se acciona)
+            </label>
           </div>
 
-          {/* Carga dinámica de N pines con nombre y asignación (ej: Trig -> GPIO17) */}
-          <div style={{ marginTop: '1rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
-            <label><strong>Asignación de Pines:</strong></label>
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-              <input
-                type="text"
-                placeholder="Nombre del pin (ej: Datos, Trig)"
-                value={tempPinNombre}
-                className="ghost"
-                onChange={(e) => setTempPinNombre(e.target.value)}
-              />
-              <input
-                type="text"
-                placeholder="Asignación (ej: GPIO27)"
-                style={{ width: '140px' }}
-                value={tempPinVal}
-                className="ghost"
-                onChange={(e) => setTempPinVal(e.target.value)}
-              />
-              <button type="button" className="btn-secundario ghost" onClick={handleAgregarPin}>
-                +
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
-              {Object.entries(formComp.config.pines).map(([pNombre, pVal]) => (
-                <span key={pNombre} className="st info" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  {pNombre}: <strong>{pVal}</strong>
-                  <button
-                    type="button"
-                    onClick={() => handleRemoverPin(pNombre)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'inherit' }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {errorComp && <p className="login-error" role="alert" style={{ margin: '12px 0 0' }}>{errorComp}</p>}
+          {(errorComp || errorHw) && <p className="login-error" role="alert" style={{ margin: '12px 0 0' }}>{errorComp || errorHw}</p>}
           <div className="form-actions">
             <button type="button" className="ghost" onClick={() => { setFormCompAbierto(false); setEditComp(null) }}>
               Cancelar

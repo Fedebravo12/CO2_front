@@ -1,6 +1,7 @@
+import { ArrowDown, ArrowUp, Trash2 } from 'lucide-react'
 import type { DriverInfo, TipoArgumento } from '../api/hardware'
 import type { ComponenteConfig, NodoPaso } from '../mock/types'
-import { FormularioComando } from './FormularioComando'
+import { FormularioComando, nombreLegible } from './FormularioComando'
 
 /** Niveles de bloque que admite el back (`PROFUNDIDAD_MAXIMA` de `controller.programa`). */
 export const PROFUNDIDAD_MAXIMA = 3
@@ -74,25 +75,25 @@ interface ListaProps extends Omit<Props, 'pasos'> {
 function Lista({ pasos, componentes, catalogo, onChange, profundidad, enParalelo, prefijo }: ListaProps) {
   const cambiar = (i: number, nodo: NodoPaso) => onChange(pasos.map((p, k) => (k === i ? nodo : p)))
   const nombres = vigentes(componentes)
-  return <div style={{ display: 'grid', gap: 8 }}>
+  return <div className="pasos">
     {pasos.map((nodo, i) => {
       const numero = `${prefijo}${i + 1}`
-      return <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 8 }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <b className="mono">{numero}</b>
-          <span>{ETIQUETA_TIPO[nodo.tipo]}</span>
-          <span style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
-            <button type="button" className="ghost" aria-label={`Subir paso ${numero}`} disabled={i === 0}
-              onClick={() => onChange(moverPaso(pasos, i, -1))}>↑</button>
-            <button type="button" className="ghost" aria-label={`Bajar paso ${numero}`} disabled={i === pasos.length - 1}
-              onClick={() => onChange(moverPaso(pasos, i, 1))}>↓</button>
-            <button type="button" className="ghost" aria-label={`Borrar paso ${numero}`}
-              onClick={() => onChange(borrarPaso(pasos, i))}>Borrar</button>
+      return <div key={i} className={`paso paso-${nodo.tipo.toLowerCase()}`}>
+        <div className="paso-head">
+          <b className="mono paso-num">{numero}</b>
+          <span className="chip neutral">{ETIQUETA_TIPO[nodo.tipo]}</span>
+          <span className="paso-acciones">
+            <button type="button" className="ghost icon-btn" aria-label={`Subir paso ${numero}`} title="Subir" disabled={i === 0}
+              onClick={() => onChange(moverPaso(pasos, i, -1))}><ArrowUp size={14} /></button>
+            <button type="button" className="ghost icon-btn" aria-label={`Bajar paso ${numero}`} title="Bajar" disabled={i === pasos.length - 1}
+              onClick={() => onChange(moverPaso(pasos, i, 1))}><ArrowDown size={14} /></button>
+            <button type="button" className="ghost icon-btn" aria-label={`Borrar paso ${numero}`} title="Borrar"
+              onClick={() => onChange(borrarPaso(pasos, i))}><Trash2 size={14} /></button>
           </span>
         </div>
         {nodo.tipo === 'ACCION' && (() => {
           const fichas = comandosDe(componentes[nodo.componente], catalogo)
-          return <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+          return <div className="form-grid paso-cuerpo">
             <div className="field">
               <label>Componente</label>
               <select value={nodo.componente} onChange={e => {
@@ -110,7 +111,7 @@ function Lista({ pasos, componentes, catalogo, onChange, profundidad, enParalelo
                 ...nodo, comando: e.target.value, argumentos: argumentosVacios(fichas[e.target.value] ?? {}),
               })}>
                 {!(nodo.comando in fichas) && <option value={nodo.comando}>{nodo.comando || 'Elegir…'}</option>}
-                {Object.keys(fichas).map(c => <option key={c} value={c}>{c}</option>)}
+                {Object.keys(fichas).map(c => <option key={c} value={c}>{nombreLegible(c)}</option>)}
               </select>
             </div>
             {(fichas[nodo.comando] && Object.keys(fichas[nodo.comando]).length > 0) && (
@@ -120,25 +121,26 @@ function Lista({ pasos, componentes, catalogo, onChange, profundidad, enParalelo
             )}
           </div>
         })()}
-        {nodo.tipo === 'ESPERA' && <div className="field" style={{ marginTop: 8 }}>
+        {nodo.tipo === 'ESPERA' && <div className="form-grid paso-cuerpo"><div className="field">
           <label>Duración (ms)</label>
           <input type="number" min={1} step={1} value={Number.isFinite(nodo.duracion_ms) ? nodo.duracion_ms : ''}
             onChange={e => cambiar(i, { ...nodo, duracion_ms: e.target.value === '' ? NaN : Number(e.target.value) })} />
-        </div>}
-        {nodo.tipo === 'BUCLE' && <div className="field" style={{ marginTop: 8 }}>
-          <label>Repeticiones (1 a {REPETICIONES_MAXIMAS})</label>
+        </div></div>}
+        {nodo.tipo === 'BUCLE' && <div className="form-grid paso-cuerpo"><div className="field">
+          <label>Repeticiones (1 a {REPETICIONES_MAXIMAS.toLocaleString('es-AR')})</label>
           <input type="number" min={1} max={REPETICIONES_MAXIMAS} step={1}
             value={Number.isFinite(nodo.repeticiones) ? nodo.repeticiones : ''}
             onChange={e => cambiar(i, { ...nodo, repeticiones: e.target.value === '' ? NaN : Number(e.target.value) })} />
-        </div>}
-        {(nodo.tipo === 'BUCLE' || nodo.tipo === 'PARALELO') && <div style={{ marginTop: 8, paddingLeft: 12, borderLeft: '2px solid var(--border)' }}>
+        </div></div>}
+        {(nodo.tipo === 'BUCLE' || nodo.tipo === 'PARALELO') && <div className="paso-hijos">
+          {nodo.tipo === 'PARALELO' && <p className="form-ayuda">Los pasos de este bloque arrancan a la vez; el bloque termina cuando terminan todos.</p>}
           <Lista pasos={nodo.pasos} componentes={componentes} catalogo={catalogo} profundidad={profundidad + 1}
             enParalelo={nodo.tipo === 'PARALELO'} prefijo={`${numero}.`}
             onChange={hijos => cambiar(i, { ...nodo, pasos: hijos })} />
         </div>}
       </div>
     })}
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    <div className="paso-agregar">
       {tiposPermitidos(profundidad, enParalelo).map(tipo =>
         <button key={tipo} type="button" className="ghost"
           disabled={tipo === 'ACCION' && nombres.length === 0}

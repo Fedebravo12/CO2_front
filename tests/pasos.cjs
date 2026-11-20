@@ -102,8 +102,8 @@ export { deProgramaAApi } from './src/api/client'`,
   }))
   assert.ok(html.includes('<option value="laser">laser</option>'))
   assert.ok(!html.includes('viejo'))
-  assert.ok(html.includes('<option value="habilitar">habilitar</option>'))
-  assert.ok(html.includes('delta') && html.includes('velocidad'))
+  assert.ok(html.includes('<option value="habilitar">Habilitar</option>'), 'el comando se muestra con nombre legible y se guarda con su clave')
+  assert.ok(html.includes('Delta') && html.includes('Velocidad'))
   // Dentro del PARALELO (paso 2) solo hay acción y espera.
   const paralelo = html.slice(html.indexOf('En paralelo'))
   assert.ok(!/\+ Bucle[\s\S]*\+ Bucle/.test(html) , 'el bucle solo se ofrece en la raíz')
